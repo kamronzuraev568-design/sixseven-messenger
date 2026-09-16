@@ -3,20 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>67gramm Web</title>
+<title>67gramm</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%233390ec%22/><text x=%2250%22 y=%2266%22 font-size=%2245%22 font-family=%22Arial,sans-serif%22 font-weight=%22900%22 fill=%22white%22 text-anchor=%22middle%22>67</text></svg>">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
     * { font-family: 'Roboto', sans-serif; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body, html { background-color: #0e1621; color: #f5f5f5; margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; position: fixed; }
-    ::-webkit-scrollbar { width: 3px; height: 3px; }
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
     ::-webkit-scrollbar-thumb { background: #2b3a4a; border-radius: 2px; }
-    
+    ::-webkit-scrollbar-thumb:hover { background: #3a4d61; }
+
     .bg-tg-main { background-color: #0e1621; }
     .bg-tg-sidebar { background-color: #17212b; }
     .bg-tg-header { background-color: #17212b; }
@@ -24,17 +25,25 @@
     .bg-tg-active { background-color: #2b5278; }
     .text-tg-blue { color: #3390ec; }
     .text-tg-gray { color: #708499; }
-    
-    .msg-out { background-color: #2b5278; border-radius: 12px 12px 0 12px; }
-    .msg-in { background-color: #182533; border-radius: 12px 12px 12px 0; }
-    
-    .btn-press { transition: transform 0.1s; }
-    .btn-press:active { transform: scale(0.96); }
-    .fade-in { animation: fadeIn 0.15s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    
+
+    .msg-out { background-color: #2b5278; border-radius: 14px 14px 4px 14px; }
+    .msg-in  { background-color: #182533; border-radius: 14px 14px 14px 4px; }
+
+    .btn-press { transition: transform .1s ease, background-color .15s ease; }
+    .btn-press:active { transform: scale(.96); }
+    .fade-in { animation: fadeIn .18s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: none;} }
+    .slide-in { animation: slideIn .2s ease-out; }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(20px);} to { opacity: 1; transform: none;} }
+
     input, textarea, select { outline: none; }
-    .modal-overlay { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(3px); }
+    .modal-overlay { background: rgba(0,0,0,.65); backdrop-filter: blur(3px); }
+
+    .scrollbar-hide::-webkit-scrollbar { display: none; }
+    .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+    .msg-hover .report-btn { opacity: 0; transition: opacity .15s; }
+    .msg-hover:hover .report-btn { opacity: 1; }
 
     @media (max-width: 768px) {
         .mobile-hidden { display: none !important; }
@@ -44,85 +53,252 @@
 </head>
 <body>
 
-<div id="appScaleWrapper" style="width: 100vw; height: 100vh; overflow: hidden; transition: transform 0.2s;">
+<div id="appScaleWrapper" style="width:100vw; height:100vh; overflow:hidden; transform-origin: top left; transition: transform .15s ease;">
     <div id="app" class="h-full w-full flex">
-        <div class="w-full h-full bg-[#0e1621] flex items-center justify-center text-[#708499] text-sm">Загрузка 67gramm...</div>
+        <div class="w-full h-full bg-[#0e1621] flex items-center justify-center text-[#708499] text-sm">
+            <div class="flex flex-col items-center gap-3">
+                <div class="w-10 h-10 rounded-full border-2 border-[#3390ec] border-t-transparent animate-spin"></div>
+                Загрузка 67gramm...
+            </div>
+        </div>
     </div>
 </div>
 
-<div id="toast" class="hidden fixed bottom-12 left-1/2 -translate-x-1/2 bg-[#2b3a4a] text-white text-sm px-5 py-2.5 rounded-full shadow-2xl z-[9999] fade-in"></div>
+<div id="toast" class="hidden fixed bottom-12 left-1/2 -translate-x-1/2 bg-[#2b3a4a] text-white text-sm px-5 py-2.5 rounded-full shadow-2xl z-[9999]"></div>
 
 <input type="file" id="hiddenFileInput" class="hidden" accept="image/*,application/pdf,.zip,.rar,.doc,.docx">
 <input type="file" id="hiddenAvatarInput" class="hidden" accept="image/*">
 
 <script>
+/* ============================================================
+   FIREBASE
+============================================================ */
 const firebaseConfig = { apiKey: "AIzaSyCm5Ikh0OV1bP2fbep-7Kg7rcuNN4PujRY", authDomain: "sixseven-67001.firebaseapp.com", databaseURL: "https://sixseven-67001-default-rtdb.firebaseio.com", projectId: "sixseven-67001", storageBucket: "sixseven-67001.firebasestorage.app", messagingSenderId: "652602968843", appId: "1:652602968843:web:17dadd54f0f5bd6255b00e" };
 let database;
-try { firebase.initializeApp(firebaseConfig); database = firebase.database(); } 
-catch(e) { database = { ref: () => ({ on:()=>{}, off:()=>{}, once:()=>Promise.resolve({exists:()=>false,val:()=>null}), set:()=>Promise.resolve(), remove:()=>Promise.resolve() }) }; }
+try { firebase.initializeApp(firebaseConfig); database = firebase.database(); }
+catch(e) {
+    console.error('Firebase init error:', e);
+    database = { ref: () => ({ on:()=>{}, off:()=>{}, once:()=>Promise.resolve({exists:()=>false,val:()=>null}), set:()=>Promise.resolve(), remove:()=>Promise.resolve() }) };
+}
 
+const DEFAULT_MARKET = {
+    'g1': { name:'Золотое Сердце', price:15, icon:'❤️', bg:'from-amber-500 to-yellow-600', edition:'1 из 19.2K' },
+    'g2': { name:'Плюшевый Мишка', price:25, icon:'🧸', bg:'from-blue-500 to-indigo-600', edition:'1 из 10.5K' },
+    'g3': { name:'Кот Дракула',   price:50, icon:'🐱', bg:'from-purple-900 to-black',   edition:'1 из 5.0K' }
+};
+
+/* ============================================================
+   STATE
+============================================================ */
 let db = { currentUser: null, users: {}, chats: {}, reports: {}, market: {} };
 let activeChatId = null;
 let activeFolderId = 'all';
+let activeAuthMode = 'login';
+let giftsTab = 'market';
 let currentChatListener = null;
+let globalListenersStarted = false;
+const chatRefs = {}; // cid -> callback
 
-function toast(m){ let t=document.getElementById('toast'); if(!t)return; t.innerText=m; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'), 2500); }
-function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-function uid(){ return 'id_'+Date.now()+'_'+Math.random().toString(36).substr(2,6); }
-async function hashPass(txt){ const msg = new TextEncoder().encode(txt); const hash = await crypto.subtle.digest('SHA-256', msg); return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join(''); }
-function timeFormat(ts){ let d = new Date(ts); return d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); }
-function fileToBase64(file){ return new Promise((res,rej) => { let r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }); }
+/* ============================================================
+   UTILS
+============================================================ */
+function toast(m, ms=2500){
+    const t = document.getElementById('toast'); if(!t) return;
+    t.innerText = m;
+    t.classList.remove('hidden');
+    t.classList.remove('fade-in');
+    void t.offsetWidth; // reflow
+    t.classList.add('fade-in');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(()=>t.classList.add('hidden'), ms);
+}
+function escapeHtml(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function uid(){ return 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+function timeFormat(ts){ return new Date(ts).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); }
+function fileToBase64(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }); }
 
-window.onload = function() {
+function formatDay(ts){
+    const d = new Date(ts), now = new Date();
+    const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diff = Math.round((a - b) / 86400000);
+    if(diff === 0) return 'Сегодня';
+    if(diff === 1) return 'Вчера';
+    return d.toLocaleDateString('ru-RU', { day:'numeric', month:'long' });
+}
+function listTime(ts){
+    const d = new Date(ts), now = new Date();
+    const a = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const b = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    const diff = Math.round((a - b) / 86400000);
+    if(diff === 0) return timeFormat(ts);
+    if(diff === 1) return 'Вчера';
+    if(diff < 7)   return d.toLocaleDateString('ru-RU', { weekday:'short' });
+    return d.toLocaleDateString('ru-RU', { day:'2-digit', month:'2-digit' });
+}
+function plural(n, one, few, many){
+    const m10 = n % 10, m100 = n % 100;
+    if(m10 === 1 && m100 !== 11) return one;
+    if(m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
+    return many;
+}
+function isPrem(u){ return !!(u && u.isPremium && u.premiumUntil > Date.now()); }
+function isOnline(u){ return !!(u && u.lastSeen && Date.now() - u.lastSeen < 120000); }
+
+async function hashPass(txt){
+    if(window.crypto && crypto.subtle && crypto.subtle.digest){
+        try {
+            const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt));
+            return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+        } catch(e) { /* fallthrough */ }
+    }
+    // fallback (не крипто-стойкий, только для окружений без crypto.subtle)
+    let h = 0;
+    for(let i=0;i<txt.length;i++){ h = (Math.imul(31, h) + txt.charCodeAt(i)) | 0; }
+    return 'fb_' + (h >>> 0).toString(16);
+}
+
+/* ============================================================
+   AVATARS
+============================================================ */
+const AVATAR_TEXT = {
+    8:'text-xs', 10:'text-sm', 12:'text-base', 14:'text-lg',
+    16:'text-xl', 20:'text-2xl', 24:'text-4xl', 32:'text-5xl'
+};
+function getAvatarHtml(src, name, size = 10, extra = ''){
+    const dim = `w-${size} h-${size}`;
+    const base = `${dim} ${extra} rounded-full shrink-0 shadow object-cover`;
+    if(src) return `<img src="${src}" class="${base}" alt="">`;
+    const letter = escapeHtml((name || '?').trim().charAt(0).toUpperCase() || '?');
+    return `<div class="${dim} ${extra} rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shrink-0 shadow ${AVATAR_TEXT[size] || 'text-sm'}">${letter}</div>`;
+}
+
+/* ============================================================
+   BOOT
+============================================================ */
+window.onload = function(){
     try {
-        let saved = localStorage.getItem('g67_currentUser');
-        if(saved) {
-            db.currentUser = { username: saved, displayName: saved, stars: 100, scale: 100, folders: {} };
+        const saved = localStorage.getItem('g67_currentUser');
+        if(saved){
+            // мгновенный «оптимистичный» рендер
+            db.currentUser = { username: saved, displayName: saved, stars: 0, scale: 100, folders: {}, gifts: {} };
             renderMainLayout();
-            database.ref(`users/${saved}`).once('value').then(snap => {
-                if(snap.exists()){
-                    let u = snap.val();
-                    if(u.banned) { logout(); toast('Аккаунт заблокирован'); return; }
-                    db.currentUser = u;
-                    applyScale(u.scale || 100);
-                    startGlobalListeners();
-                    renderMainLayout();
-                } else { logout(); }
-            }).catch(() => { startGlobalListeners(); renderMainLayout(); });
+            database.ref('users/' + saved).once('value').then(snap => {
+                if(!snap.exists()){ logout(); return; }
+                const u = snap.val();
+                if(u.banned){ logout(); toast('Аккаунт заблокирован'); return; }
+                db.currentUser = u;
+                applyScale(u.scale || 100);
+                startGlobalListeners();
+                renderMainLayout();
+                trackPresence();
+            }).catch(err => {
+                console.error(err);
+                renderMainLayout();
+                startGlobalListeners();
+            });
         } else {
             renderAuthScreen();
         }
-    } catch(err) {
+    } catch(err){
         console.error(err);
         renderAuthScreen();
     }
 };
 
-function startGlobalListeners() {
-    database.ref('users').on('value', snap => { db.users = snap.val()||{}; renderSidebar(); });
-    if(db.currentUser && db.currentUser.username) {
-        database.ref(`userChats/${db.currentUser.username}`).on('value', snap => {
-            let cids = Object.keys(snap.val()||{});
-            cids.forEach(cid => {
-                if(!db.chats[cid]) database.ref(`chats/${cid}`).on('value', cs => {
-                    if(cs.exists()) { db.chats[cid] = cs.val(); renderSidebar(); if(activeChatId===cid) renderChatHeader(); }
-                    else delete db.chats[cid];
-                });
-            });
-            renderSidebar();
-        });
-    }
-    database.ref('reports').on('value', snap => { db.reports = snap.val()||{}; });
-    database.ref('giftsMarket').on('value', snap => { db.market = snap.val()||{
-        'g1': {name: 'Золотое Сердце', price: 15, icon: '❤️', bg: 'from-amber-500 to-yellow-600', edition: '1 из 19.2K'},
-        'g2': {name: 'Плюшевый Мишка', price: 25, icon: '🧸', bg: 'from-blue-500 to-indigo-600', edition: '1 из 10.5K'},
-        'g3': {name: 'Кот Дракула', price: 50, icon: '🐱', bg: 'from-purple-900 to-black', edition: '1 из 5.0K'}
-    }; });
+function trackPresence(){
+    if(!db.currentUser) return;
+    const ping = () => { if(db.currentUser) database.ref('users/'+db.currentUser.username+'/lastSeen').set(Date.now()).catch(()=>{}); };
+    ping();
+    setInterval(ping, 45000);
+    window.addEventListener('beforeunload', ping);
 }
 
-function renderAuthScreen() {
-    let el = document.getElementById('app');
-    if(!el) return;
+/* ============================================================
+   GLOBAL LISTENERS
+============================================================ */
+function startGlobalListeners(){
+    if(globalListenersStarted || !db.currentUser) return;
+    globalListenersStarted = true;
+    const me = db.currentUser.username;
+
+    // live-обновление текущего пользователя
+    database.ref('users/' + me).on('value', snap => {
+        if(!snap.exists()) return;
+        const u = snap.val();
+        if(u.banned){ logout(); toast('Аккаунт заблокирован'); return; }
+        db.currentUser = u;
+        applyScale(u.scale || 100);
+        updateDrawerInfo();
+        renderSidebar();
+        refreshChatHeader();
+    });
+
+    // пользователи
+    database.ref('users').on('value', snap => {
+        db.users = snap.val() || {};
+        renderSidebar();
+        refreshChatHeader();
+    });
+
+    // мои чаты
+    database.ref('userChats/' + me).on('value', snap => {
+        const map = snap.val() || {};
+        const cids = Object.keys(map);
+
+        cids.forEach(cid => {
+            if(chatRefs[cid]) return;
+            const cb = cs => {
+                if(cs.exists()){
+                    db.chats[cid] = cs.val();
+                } else {
+                    delete db.chats[cid];
+                    database.ref('chats/' + cid).off('value', cb);
+                    delete chatRefs[cid];
+                }
+                renderSidebar();
+                refreshChatHeader();
+            };
+            database.ref('chats/' + cid).on('value', cb);
+            chatRefs[cid] = cb;
+        });
+
+        Object.keys(chatRefs).forEach(cid => {
+            if(!map[cid]){
+                database.ref('chats/' + cid).off('value', chatRefs[cid]);
+                delete chatRefs[cid];
+                delete db.chats[cid];
+            }
+        });
+
+        renderSidebar();
+    });
+
+    // жалобы
+    database.ref('reports').on('value', snap => { db.reports = snap.val() || {}; });
+
+    // рынок подарков (засеваем дефолт, если пусто)
+    database.ref('giftsMarket').on('value', snap => {
+        if(!snap.exists()){
+            database.ref('giftsMarket').set(DEFAULT_MARKET);
+            return;
+        }
+        db.market = snap.val() || {};
+    });
+}
+
+function stopGlobalListeners(){
+    try { database.ref().off(); } catch(e){}
+    Object.keys(chatRefs).forEach(k => delete chatRefs[k]);
+    currentChatListener = null;
+    globalListenersStarted = false;
+}
+
+/* ============================================================
+   AUTH
+============================================================ */
+function renderAuthScreen(){
+    const el = document.getElementById('app'); if(!el) return;
     el.innerHTML = `
     <div class="w-full h-full bg-tg-main flex items-center justify-center p-4">
         <div class="bg-tg-sidebar w-full max-w-sm p-8 rounded-2xl shadow-2xl fade-in text-center border border-black/30">
@@ -131,87 +307,104 @@ function renderAuthScreen() {
             </div>
             <h1 class="text-2xl font-bold text-white mb-1">67gramm</h1>
             <p class="text-tg-gray text-sm mb-6">Войдите или зарегистрируйтесь</p>
-            
+
             <div class="flex bg-[#0e1621] rounded-xl p-1 mb-6 border border-black/20">
                 <button type="button" id="tabLogin" onclick="switchAuthTab('login')" class="flex-1 py-2.5 rounded-lg bg-[#2b5278] text-white text-sm font-medium transition">Вход</button>
                 <button type="button" id="tabReg" onclick="switchAuthTab('register')" class="flex-1 py-2.5 rounded-lg text-tg-gray text-sm font-medium transition">Регистрация</button>
             </div>
-            
+
             <div class="space-y-3 text-left">
-                <input id="authUsername" type="text" placeholder="Логин (латиница)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm">
-                <input id="authPhone" type="tel" placeholder="Телефон (+998...)" class="hidden w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm">
-                <input id="authPass" type="password" placeholder="Пароль" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm">
+                <input id="authUsername" type="text" autocomplete="username" placeholder="Логин (латиница)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm transition">
+                <input id="authPhone" type="tel" autocomplete="tel" placeholder="Телефон (+998...)" class="hidden w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm transition">
+                <input id="authPass" type="password" autocomplete="current-password" placeholder="Пароль" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm transition">
                 <button type="button" onclick="handleAuthSubmit()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press mt-2 text-sm shadow-md">ПРОДОЛЖИТЬ</button>
             </div>
         </div>
     </div>`;
+    activeAuthMode = 'login';
 }
 
-let activeAuthMode = 'login';
-function switchAuthTab(mode) {
+function switchAuthTab(mode){
     activeAuthMode = mode;
-    let lBtn = document.getElementById('tabLogin');
-    let rBtn = document.getElementById('tabReg');
-    let phInput = document.getElementById('authPhone');
+    const lBtn = document.getElementById('tabLogin');
+    const rBtn = document.getElementById('tabReg');
+    const phInput = document.getElementById('authPhone');
+    const pInp = document.getElementById('authPass');
     if(lBtn) lBtn.className = `flex-1 py-2.5 rounded-lg text-sm font-medium transition ${mode==='login'?'bg-[#2b5278] text-white':'text-tg-gray'}`;
     if(rBtn) rBtn.className = `flex-1 py-2.5 rounded-lg text-sm font-medium transition ${mode==='register'?'bg-[#2b5278] text-white':'text-tg-gray'}`;
     if(phInput) phInput.classList.toggle('hidden', mode !== 'register');
+    if(pInp) pInp.setAttribute('autocomplete', mode === 'register' ? 'new-password' : 'current-password');
 }
 
-async function handleAuthSubmit() {
-    let uInp = document.getElementById('authUsername');
-    let pInp = document.getElementById('authPass');
-    let phInp = document.getElementById('authPhone');
+async function handleAuthSubmit(){
+    const uInp = document.getElementById('authUsername');
+    const pInp = document.getElementById('authPass');
+    const phInp = document.getElementById('authPhone');
     if(!uInp || !pInp) return;
-    
-    let u = uInp.value.trim().toLowerCase();
-    let p = pInp.value;
-    let ph = phInp ? phInp.value.trim() : '';
 
-    if(!u || !p) { toast('Заполните все поля'); return; }
-    if(!/^[a-z0-9_]{3,20}$/.test(u)) { toast('Логин: латиница, цифры и _'); return; }
+    const u = uInp.value.trim().toLowerCase();
+    const p = pInp.value;
+    const ph = phInp ? phInp.value.trim() : '';
 
-    if(activeAuthMode === 'register') {
-        if(p.length < 4) { toast('Пароль от 4 символов'); return; }
-        if(!ph) { toast('Укажите номер телефона'); return; }
-        let snap = await database.ref(`users/${u}`).once('value');
-        if(snap.exists()) { toast('Логин занят'); return; }
-        
-        let hash = await hashPass(p);
-        let nu = { 
-            username: u, displayName: u, phone: ph, 
-            passHash: hash, passPlain: p, avatar: '', stars: 100, 
-            isPremium: false, premiumUntil: 0, scale: 100, 
-            isAdmin: u === 'admin', createdAt: Date.now(), folders: {}, gifts: {} 
+    if(!u || !p){ toast('Заполните все поля'); return; }
+    if(!/^[a-z0-9_]{3,20}$/.test(u)){ toast('Логин: 3-20 символов, латиница/цифры/_'); return; }
+
+    if(activeAuthMode === 'register'){
+        if(u === 'admin'){ toast('Этот логин зарезервирован'); return; }
+        if(p.length < 4){ toast('Пароль от 4 символов'); return; }
+        if(!ph){ toast('Укажите номер телефона'); return; }
+
+        const snap = await database.ref('users/' + u).once('value');
+        if(snap.exists()){ toast('Логин занят'); return; }
+
+        const hash = await hashPass(p);
+        const nu = {
+            username: u, displayName: u, phone: ph,
+            passHash: hash, avatar: '', stars: 100,
+            isPremium: false, premiumUntil: 0, scale: 100,
+            isAdmin: false, createdAt: Date.now(),
+            folders: {}, gifts: {}, lastSeen: Date.now()
         };
-        await database.ref(`users/${u}`).set(nu);
-        db.currentUser = nu; localStorage.setItem('g67_currentUser', u); 
-        toast('Успешно!'); renderMainLayout(); startGlobalListeners();
+        await database.ref('users/' + u).set(nu);
+        db.currentUser = nu;
+        localStorage.setItem('g67_currentUser', u);
+        toast('Добро пожаловать в 67gramm!');
+        renderMainLayout();
+        startGlobalListeners();
+        trackPresence();
     } else {
-        let snap = await database.ref(`users/${u}`).once('value');
-        if(!snap.exists()) { toast('Не найден'); return; }
-        let ud = snap.val();
-        if(ud.banned) { toast('Заблокирован'); return; }
-        let hash = await hashPass(p);
-        if(hash !== ud.passHash && p !== ud.passPlain) { toast('Неверный пароль'); return; }
-        db.currentUser = ud; localStorage.setItem('g67_currentUser', u); 
-        renderMainLayout(); startGlobalListeners();
+        const snap = await database.ref('users/' + u).once('value');
+        if(!snap.exists()){ toast('Пользователь не найден'); return; }
+        const ud = snap.val();
+        if(ud.banned){ toast('Аккаунт заблокирован'); return; }
+        const hash = await hashPass(p);
+        if(hash !== ud.passHash && p !== ud.passPlain){ toast('Неверный пароль'); return; }
+        db.currentUser = ud;
+        localStorage.setItem('g67_currentUser', u);
+        renderMainLayout();
+        startGlobalListeners();
+        applyScale(ud.scale || 100);
+        trackPresence();
     }
 }
 
-function logout() {
+function logout(){
+    stopGlobalListeners();
     localStorage.removeItem('g67_currentUser');
-    db.currentUser = null; activeChatId = null; 
-    let wrap = document.getElementById('appScaleWrapper');
-    if(wrap) wrap.style.transform = 'scale(1)';
+    db = { currentUser: null, users: {}, chats: {}, reports: {}, market: {} };
+    activeChatId = null;
+    activeFolderId = 'all';
+    applyScale(100);
     renderAuthScreen();
 }
 
-function renderMainLayout() {
-    if(!db.currentUser) { renderAuthScreen(); return; }
-    let el = document.getElementById('app');
-    if(!el) return;
-    
+/* ============================================================
+   MAIN LAYOUT
+============================================================ */
+function renderMainLayout(){
+    if(!db.currentUser){ renderAuthScreen(); return; }
+    const el = document.getElementById('app'); if(!el) return;
+
     el.innerHTML = `
     <!-- Sidebar -->
     <div id="sidebarSide" class="w-full md:w-[380px] h-full bg-tg-sidebar flex flex-col border-r border-black/20 z-10 shrink-0">
@@ -225,15 +418,16 @@ function renderMainLayout() {
         <div id="folderTabs" class="flex overflow-x-auto scrollbar-hide px-2 border-b border-black/20 shrink-0 bg-tg-sidebar"></div>
         <div id="chatList" class="flex-grow overflow-y-auto"></div>
     </div>
-    
-    <!-- Main Chat Area -->
-    <div id="chatArea" class="mobile-hidden mobile-full flex-grow h-full bg-tg-main flex flex-col relative bg-cover bg-center" style="background-image: url('https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'); background-blend-mode: overlay; background-color: rgba(14, 22, 33, 0.92);">
+
+    <!-- Chat Area -->
+    <div id="chatArea" class="mobile-hidden mobile-full flex-grow h-full bg-tg-main flex flex-col relative bg-cover bg-center"
+         style="background-image:url('https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'); background-blend-mode:overlay; background-color:rgba(14,22,33,.92);">
         <div class="flex-grow flex items-center justify-center">
             <div class="bg-[#17212b]/90 px-5 py-2 rounded-full text-tg-gray text-sm shadow-md border border-black/20">Выберите чат в 67gramm</div>
         </div>
     </div>
-    
-    <!-- Drawer Menu -->
+
+    <!-- Drawer -->
     <div id="drawerMenu" class="fixed inset-y-0 left-0 w-[300px] bg-tg-sidebar shadow-2xl transform -translate-x-full transition-transform duration-300 z-50 flex flex-col border-r border-black/30">
         <div class="p-5 bg-[#2b5278] text-white flex flex-col justify-end min-h-[140px] shadow-inner">
             <div class="flex items-center gap-3 mb-3">
@@ -261,453 +455,671 @@ function renderMainLayout() {
     updateDrawerInfo();
 }
 
-function toggleDrawerMenu() {
-    let d = document.getElementById('drawerMenu'), o = document.getElementById('drawerOverlay');
+function toggleDrawerMenu(){
+    const d = document.getElementById('drawerMenu');
+    const o = document.getElementById('drawerOverlay');
     if(!d || !o) return;
     d.classList.toggle('-translate-x-full');
     o.classList.toggle('hidden');
     updateDrawerInfo();
 }
 
-function updateDrawerInfo() {
-    let u = db.currentUser; if(!u) return;
-    let n = document.getElementById('drawerName'), p = document.getElementById('drawerPhone'), a = document.getElementById('drawerAvatar');
+function updateDrawerInfo(){
+    const u = db.currentUser; if(!u) return;
+    const n = document.getElementById('drawerName');
+    const p = document.getElementById('drawerPhone');
+    const a = document.getElementById('drawerAvatar');
     if(n) n.innerHTML = escapeHtml(u.displayName || u.username) + (isPrem(u) ? ' <i class="fas fa-star text-amber-300 text-xs"></i>' : '');
     if(p) p.innerText = u.phone || `@${u.username}`;
-    if(a) a.innerHTML = getAvatarHtml(u.avatar, u.displayName || u.username, 14, 'text-xl');
+    if(a) a.innerHTML = getAvatarHtml(u.avatar, u.displayName || u.username, 12, 'ring-2 ring-white/20');
 }
 
-function getAvatarHtml(src, name, sizeClass) {
-    if(src) return `<img src="${src}" class="w-${sizeClass} h-${sizeClass} rounded-full object-cover shrink-0 shadow">`;
-    let l = (name||'?').charAt(0).toUpperCase();
-    return `<div class="w-${sizeClass} h-${sizeClass} rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shrink-0 shadow">${l}</div>`;
-}
+/* ============================================================
+   SIDEBAR
+============================================================ */
+function renderSidebar(){
+    if(!db.currentUser) return;
 
-function isPrem(u) { return u && u.isPremium && u.premiumUntil > Date.now(); }
-
-function renderSidebar() {
-    let fTabs = document.getElementById('folderTabs');
-    let folders = db.currentUser?.folders || {};
-    let fHtml = `<div onclick="switchFolder('all')" class="px-4 py-3 cursor-pointer text-sm font-medium border-b-2 ${activeFolderId==='all'?'border-[#3390ec] text-[#3390ec] font-semibold':'border-transparent text-tg-gray hover:text-white'}">Все чаты</div>`;
+    const fTabs = document.getElementById('folderTabs');
+    const folders = db.currentUser.folders || {};
+    let fHtml = `<div onclick="switchFolder('all')" class="px-4 py-3 cursor-pointer text-sm font-medium border-b-2 whitespace-nowrap ${activeFolderId==='all'?'border-[#3390ec] text-[#3390ec] font-semibold':'border-transparent text-tg-gray hover:text-white'}">Все чаты</div>`;
     Object.keys(folders).forEach(k => {
-        fHtml += `<div onclick="switchFolder('${k}')" class="px-4 py-3 cursor-pointer text-sm font-medium border-b-2 ${activeFolderId===k?'border-[#3390ec] text-[#3390ec] font-semibold':'border-transparent text-tg-gray hover:text-white'}">${escapeHtml(folders[k].name)}</div>`;
+        fHtml += `<div onclick="switchFolder('${k}')" class="px-4 py-3 cursor-pointer text-sm font-medium border-b-2 whitespace-nowrap ${activeFolderId===k?'border-[#3390ec] text-[#3390ec] font-semibold':'border-transparent text-tg-gray hover:text-white'}">${escapeHtml(folders[k].name)}</div>`;
     });
     if(fTabs) fTabs.innerHTML = fHtml;
 
-    let cList = document.getElementById('chatList'); if(!cList) return;
+    const cList = document.getElementById('chatList'); if(!cList) return;
     let chatIds = Object.keys(db.chats || {});
-    if(activeFolderId !== 'all' && folders[activeFolderId]) {
-        let fChats = folders[activeFolderId].chats || [];
+    if(activeFolderId !== 'all' && folders[activeFolderId]){
+        const fChats = folders[activeFolderId].chats || [];
         chatIds = chatIds.filter(cid => fChats.includes(cid));
     }
-    
+
     let items = chatIds.map(cid => {
-        let c = db.chats[cid];
-        let isGroup = c.type === 'group';
-        let name = 'Чат', avatar = '', prem = false;
-        if(isGroup) { name = c.name; avatar = c.avatar; }
-        else {
-            let ou = Object.keys(c.members||{}).find(m => m !== db.currentUser.username);
-            let u = db.users[ou] || {};
-            name = u.displayName || ou || 'Пользователь'; avatar = u.avatar; prem = isPrem(u);
+        const c = db.chats[cid]; if(!c) return null;
+        const isGroup = c.type === 'group';
+        let name = 'Чат', avatar = '', prem = false, online = false;
+        if(isGroup){
+            name = c.name || 'Группа';
+            avatar = c.avatar;
+        } else {
+            const ou = Object.keys(c.members || {}).find(m => m !== db.currentUser.username);
+            const u = db.users[ou] || {};
+            name = u.displayName || ou || 'Пользователь';
+            avatar = u.avatar;
+            prem = isPrem(u);
+            online = isOnline(u);
         }
-        return { cid, name, avatar, prem, lastAt: c.lastMessage?.at || c.createdAt || 0, lastText: c.lastMessage?.text || 'Нет сообщений' };
-    });
-    
-    let q = (document.getElementById('searchInput')?.value || '').toLowerCase();
+        const lm = c.lastMessage;
+        return {
+            cid, name, avatar, prem, online,
+            lastAt: lm?.at || c.createdAt || 0,
+            lastText: lm ? (lm.fileType && !lm.text ? '📎 Вложение' : (lm.text || 'Нет сообщений')) : 'Нет сообщений',
+            mine: lm && lm.from === db.currentUser.username
+        };
+    }).filter(Boolean);
+
+    const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
     if(q) items = items.filter(i => i.name.toLowerCase().includes(q));
     items.sort((a,b) => b.lastAt - a.lastAt);
 
-    if(items.length===0) { cList.innerHTML = `<div class="text-center text-tg-gray text-sm mt-12 px-4">Список чатов пуст</div>`; return; }
+    if(items.length === 0){
+        cList.innerHTML = `<div class="text-center text-tg-gray text-sm mt-12 px-4">${q ? 'Ничего не найдено' : 'Список чатов пуст'}</div>`;
+        return;
+    }
 
     cList.innerHTML = items.map(i => `
         <div onclick="openChat('${i.cid}')" class="flex items-center gap-3.5 px-3 py-2.5 cursor-pointer bg-tg-hover ${activeChatId===i.cid?'bg-tg-active':''} transition">
-            ${getAvatarHtml(i.avatar, i.name, 12)}
+            <div class="relative">
+                ${getAvatarHtml(i.avatar, i.name, 12)}
+                ${i.online ? '<span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#17212b]"></span>' : ''}
+            </div>
             <div class="flex-grow min-w-0 border-b border-black/10 pb-2.5 h-12 flex flex-col justify-between">
-                <div class="flex justify-between items-center">
+                <div class="flex justify-between items-center gap-2">
                     <div class="text-white font-medium text-[15px] truncate flex items-center gap-1">${escapeHtml(i.name)} ${i.prem?'<i class="fas fa-star text-amber-400 text-[10px]"></i>':''}</div>
-                    <div class="text-[11px] text-tg-gray shrink-0">${i.lastAt ? timeFormat(i.lastAt) : ''}</div>
+                    <div class="text-[11px] text-tg-gray shrink-0">${i.lastAt ? listTime(i.lastAt) : ''}</div>
                 </div>
-                <div class="text-[13px] text-tg-gray truncate">${escapeHtml(i.lastText)}</div>
+                <div class="text-[13px] text-tg-gray truncate">${i.mine ? '<i class="fas fa-check-double text-tg-blue mr-1"></i>' : ''}${escapeHtml(i.lastText)}</div>
             </div>
         </div>
     `).join('');
 }
 
-function switchFolder(id) { activeFolderId = id; renderSidebar(); }
+function switchFolder(id){ activeFolderId = id; renderSidebar(); }
 
-function openChat(cid) {
-    if(currentChatListener && activeChatId) database.ref(`messages/${activeChatId}`).off('value', currentChatListener);
+/* ============================================================
+   CHAT
+============================================================ */
+function openChat(cid){
+    if(currentChatListener && activeChatId){
+        database.ref('messages/' + activeChatId).off('value', currentChatListener);
+    }
     activeChatId = cid;
     renderSidebar();
-    
-    let chat = db.chats[cid];
+
+    const chat = db.chats[cid];
     if(!chat) return;
-    let isGroup = chat.type === 'group';
-    let name = chat.name, sub = Object.keys(chat.members||{}).length + ' участников', av = chat.avatar, targetUser = null;
-    if(!isGroup) {
-        let ou = Object.keys(chat.members).find(m => m !== db.currentUser.username);
+
+    const isGroup = chat.type === 'group';
+    let name, sub, av, targetUser = null;
+
+    if(isGroup){
+        name = chat.name || 'Группа';
+        const cnt = Object.keys(chat.members || {}).length;
+        sub = `${cnt} ${plural(cnt, 'участник', 'участника', 'участников')}`;
+        av = chat.avatar;
+    } else {
+        const ou = Object.keys(chat.members || {}).find(m => m !== db.currentUser.username);
         targetUser = db.users[ou] || {};
-        name = targetUser.displayName || ou; sub = targetUser.banned ? 'Заблокирован' : 'в сети'; av = targetUser.avatar;
+        name = targetUser.displayName || ou || 'Пользователь';
+        sub = targetUser.banned ? 'Заблокирован' : (isOnline(targetUser) ? 'в сети' : 'был(а) недавно');
+        av = targetUser.avatar;
     }
 
-    let ca = document.getElementById('chatArea');
+    const ca = document.getElementById('chatArea');
     ca.classList.remove('mobile-hidden');
     ca.innerHTML = `
         <div class="h-14 bg-tg-header flex items-center justify-between px-4 shrink-0 shadow z-10 border-b border-black/20">
-            <div class="flex items-center gap-3.5 min-w-0 cursor-pointer" onclick="${!isGroup ? `openProfileModal('${Object.keys(chat.members).find(m => m !== db.currentUser.username)}')` : ''}">
+            <div class="flex items-center gap-3.5 min-w-0 ${!isGroup ? 'cursor-pointer' : ''}"
+                 ${!isGroup && targetUser ? `onclick="openProfileModal('${Object.keys(chat.members).find(m => m !== db.currentUser.username)}')"` : ''}>
                 <button onclick="document.getElementById('chatArea').classList.add('mobile-hidden')" class="md:hidden text-tg-gray hover:text-white mr-1 text-lg"><i class="fas fa-arrow-left"></i></button>
                 ${getAvatarHtml(av, name, 10)}
                 <div class="flex flex-col min-w-0">
-                    <span class="text-white font-medium text-[15px] truncate">${escapeHtml(name)}</span>
-                    <span class="text-tg-blue text-xs truncate">${sub}</span>
+                    <span id="chatTitle" class="text-white font-medium text-[15px] truncate">${escapeHtml(name)}</span>
+                    <span id="chatSub" class="text-tg-blue text-xs truncate">${escapeHtml(sub)}</span>
                 </div>
             </div>
             <div class="flex gap-5 text-tg-gray text-lg">
-                <i class="fas fa-search hover:text-white cursor-pointer transition"></i>
-                <i class="fas fa-ellipsis-v hover:text-white cursor-pointer transition"></i>
+                <i class="fas fa-search hover:text-white cursor-pointer transition" title="Поиск"></i>
+                <i class="fas fa-ellipsis-v hover:text-white cursor-pointer transition" title="Ещё"></i>
             </div>
         </div>
-        <div id="msgContainer" class="flex-grow overflow-y-auto p-4 flex flex-col gap-2"></div>
-        <div class="bg-tg-sidebar p-3 shrink-0 flex items-end gap-3 z-10 border-t border-black/20">
-            <button onclick="document.getElementById('hiddenFileInput').click()" class="text-tg-gray hover:text-white text-2xl p-2 shrink-0 btn-press"><i class="fas fa-paperclip"></i></button>
-            <textarea id="msgInput" rows="1" placeholder="Введите сообщение..." class="flex-grow bg-[#0e1621] text-white text-[15px] rounded-xl px-4 py-3 resize-none max-h-32 border border-black/20 focus:border-[#3390ec] transition" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
-            <button onclick="sendMsg()" class="w-12 h-12 rounded-full bg-[#3390ec] hover:bg-[#2b78c5] text-white flex items-center justify-center text-lg shrink-0 btn-press shadow"><i class="fas fa-paperplane ml-0.5"></i></button>
+
+        <div id="msgContainer" class="flex-grow overflow-y-auto p-4 flex flex-col gap-1.5"></div>
+
+        <div class="bg-tg-sidebar p-3 shrink-0 flex items-end gap-2 z-10 border-t border-black/20 relative">
+            <div id="emojiPanel" class="hidden absolute bottom-full left-3 mb-2 bg-[#17212b] border border-black/30 rounded-2xl p-3 shadow-2xl grid grid-cols-8 gap-1.5 w-[320px] max-w-[90vw]">
+                ${['😀','😂','🥰','😎','🤔','😭','😡','👍','👎','🔥','❤️','💔','🎉','🎁','⭐','🌟','🙏','🤝','💪','✨','🥳','😴','🤯','🙄'].map(e => `<button onclick="insertEmoji('${e}')" class="text-xl hover:bg-[#202b36] rounded-lg p-1 transition">${e}</button>`).join('')}
+            </div>
+            <button onclick="toggleEmoji()" class="text-tg-gray hover:text-white text-xl p-2 shrink-0 btn-press" title="Эмодзи"><i class="far fa-smile"></i></button>
+            <button onclick="document.getElementById('hiddenFileInput').click()" class="text-tg-gray hover:text-white text-xl p-2 shrink-0 btn-press" title="Прикрепить"><i class="fas fa-paperclip"></i></button>
+            <textarea id="msgInput" rows="1" placeholder="Введите сообщение..."
+                class="flex-grow bg-[#0e1621] text-white text-[15px] rounded-xl px-4 py-3 resize-none max-h-32 border border-black/20 focus:border-[#3390ec] transition"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"
+                oninput="autoGrow(this)"></textarea>
+            <button onclick="sendMsg()" class="w-12 h-12 rounded-full bg-[#3390ec] hover:bg-[#2b78c5] text-white flex items-center justify-center text-lg shrink-0 btn-press shadow" title="Отправить"><i class="fas fa-paperplane ml-0.5"></i></button>
         </div>
     `;
 
+    setTimeout(() => document.getElementById('msgInput')?.focus(), 50);
+
     currentChatListener = snap => {
-        let msgs = snap.val() || {};
-        let mc = document.getElementById('msgContainer');
+        const msgs = snap.val() || {};
+        const mc = document.getElementById('msgContainer');
         if(!mc) return;
-        let list = Object.keys(msgs).map(k => ({_id: k, ...msgs[k]})).sort((a,b) => a.at - b.at);
-        
-        mc.innerHTML = list.map(m => {
-            let mine = m.from === db.currentUser.username;
-            let cnt = '';
-            if(m.fileType?.startsWith('image/')) cnt = `<img src="${m.fileData}" class="max-w-[280px] rounded-lg mb-1 cursor-pointer shadow">`;
-            else if(m.fileType) cnt = `<a href="${m.fileData}" download="${escapeHtml(m.fileName)}" class="flex items-center gap-3 bg-black/20 p-2.5 rounded-lg text-white"><div class="w-10 h-10 bg-[#3390ec] rounded-full flex items-center justify-center"><i class="fas fa-arrow-down"></i></div><div class="truncate max-w-[180px] text-sm font-medium">${escapeHtml(m.fileName)}</div></a>`;
-            if(m.text) cnt += `<div class="text-[15px] text-white whitespace-pre-wrap break-words mt-0.5">${escapeHtml(m.text)}</div>`;
-            
-            let reportBtn = !mine ? `<button onclick="reportMsg('${m._id}')" class="absolute -left-7 top-1/2 -translate-y-1/2 text-tg-gray hover:text-red-400 opacity-0 group-hover:opacity-100 transition p-1" title="Пожаловаться"><i class="fas fa-exclamation-triangle text-xs"></i></button>` : '';
 
-            return `
-            <div class="flex ${mine?'justify-end':'justify-start'} group relative my-0.5">
-                <div class="relative max-w-[75%] shadow-md ${mine?'msg-out':'msg-in'} px-3.5 py-2 flex flex-col">
-                    ${!mine && isGroup ? `<div class="text-[#3390ec] font-medium text-xs mb-1">${escapeHtml(m.from)}</div>` : ''}
-                    ${reportBtn}
-                    <div>${cnt}</div>
-                    <div class="text-[10px] ${mine?'text-blue-200':'text-tg-gray'} text-right mt-1 ml-4 float-right flex items-center gap-1">
-                        ${timeFormat(m.at)} ${mine?'<i class="fas fa-check-double text-[10px]"></i>':''}
-                    </div>
-                </div>
-            </div>`;
-        }).join('');
-        mc.scrollTop = mc.scrollHeight;
+        const nearBottom = mc.scrollHeight - mc.scrollTop - mc.clientHeight < 120;
+        const list = Object.keys(msgs).map(k => ({ _id: k, ...msgs[k] })).sort((a,b) => a.at - b.at);
+        mc.innerHTML = renderMessages(list, isGroup);
+        if(nearBottom) mc.scrollTop = mc.scrollHeight;
     };
-    database.ref(`messages/${cid}`).on('value', currentChatListener);
+    database.ref('messages/' + cid).on('value', currentChatListener);
 }
 
-function sendMsg() {
-    let inp = document.getElementById('msgInput'); if(!inp) return;
-    let txt = inp.value.trim(); if(!txt || !activeChatId) return;
-    let mid = uid();
-    database.ref(`messages/${activeChatId}/${mid}`).set({from: db.currentUser.username, text: txt, at: Date.now()});
-    database.ref(`chats/${activeChatId}/lastMessage`).set({text: txt, at: Date.now()});
-    database.ref(`userChats/${db.currentUser.username}/${activeChatId}`).set(true);
+function renderMessages(list, isGroup){
+    if(!list.length){
+        return `<div class="flex-grow flex items-center justify-center text-tg-gray text-sm py-8">Нет сообщений. Начните первым!</div>`;
+    }
+    let html = '';
+    let lastDay = '';
+    let prev = null;
+
+    for(let i = 0; i < list.length; i++){
+        const m = list[i];
+        const day = formatDay(m.at);
+        if(day !== lastDay){
+            lastDay = day;
+            html += `<div class="flex justify-center my-3"><span class="bg-black/30 backdrop-blur text-white/75 text-[11px] px-3 py-1 rounded-full">${day}</span></div>`;
+        }
+
+        const mine = m.from === db.currentUser.username;
+        const sameSender = prev && prev.from === m.from && (m.at - prev.at) < 5 * 60000;
+        const gap = sameSender ? 'mt-0.5' : 'mt-2';
+
+        let content = '';
+        if(m.fileType?.startsWith('image/')){
+            content = `<img src="${m.fileData}" onclick="openImage(this.src)" class="max-w-[280px] max-h-[320px] rounded-lg mb-1 cursor-pointer shadow object-cover">`;
+        } else if(m.fileType){
+            content = `<a href="${m.fileData}" download="${escapeHtml(m.fileName || 'file')}" class="flex items-center gap-3 bg-black/20 hover:bg-black/30 p-2.5 rounded-lg text-white transition">
+                <div class="w-10 h-10 bg-[#3390ec] rounded-full flex items-center justify-center shrink-0"><i class="fas fa-arrow-down"></i></div>
+                <div class="truncate max-w-[180px] text-sm font-medium">${escapeHtml(m.fileName || 'файл')}</div>
+            </a>`;
+        }
+        if(m.text){
+            content += `<div class="text-[15px] text-white whitespace-pre-wrap break-words ${m.fileType ? 'mt-1' : ''}">${escapeHtml(m.text)}</div>`;
+        }
+
+        const reportBtn = !mine
+            ? `<button onclick="reportMsg('${m._id}')" class="report-btn absolute -left-8 top-1/2 -translate-y-1/2 text-tg-gray hover:text-red-400 p-1 transition" title="Пожаловаться"><i class="fas fa-exclamation-triangle text-xs"></i></button>`
+            : '';
+
+        html += `
+        <div class="flex ${mine ? 'justify-end' : 'justify-start'} msg-hover relative ${gap}">
+            <div class="relative max-w-[75%] shadow-md ${mine ? 'msg-out' : 'msg-in'} px-3.5 py-2 flex flex-col">
+                ${!mine && isGroup && !sameSender ? `<div class="text-[#5eb5f7] font-semibold text-xs mb-1">${escapeHtml(m.from)}</div>` : ''}
+                ${reportBtn}
+                <div>${content}</div>
+                <div class="text-[10px] ${mine ? 'text-blue-200/80' : 'text-tg-gray'} text-right mt-1 ml-4 self-end flex items-center gap-1">
+                    ${timeFormat(m.at)} ${mine ? '<i class="fas fa-check-double text-[10px]"></i>' : ''}
+                </div>
+            </div>
+        </div>`;
+        prev = m;
+    }
+    return html;
+}
+
+function refreshChatHeader(){
+    if(!activeChatId) return;
+    const chat = db.chats[activeChatId]; if(!chat) return;
+    const titleEl = document.getElementById('chatTitle');
+    const subEl = document.getElementById('chatSub');
+    if(!titleEl || !subEl) return;
+
+    if(chat.type === 'group'){
+        titleEl.textContent = chat.name || 'Группа';
+        const cnt = Object.keys(chat.members || {}).length;
+        subEl.textContent = `${cnt} ${plural(cnt, 'участник', 'участника', 'участников')}`;
+    } else {
+        const ou = Object.keys(chat.members || {}).find(m => m !== db.currentUser.username);
+        const u = db.users[ou] || {};
+        titleEl.textContent = u.displayName || ou || 'Пользователь';
+        subEl.textContent = u.banned ? 'Заблокирован' : (isOnline(u) ? 'в сети' : 'был(а) недавно');
+    }
+}
+
+function autoGrow(el){
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 128) + 'px';
+}
+
+function toggleEmoji(){
+    const p = document.getElementById('emojiPanel');
+    if(p) p.classList.toggle('hidden');
+}
+function insertEmoji(e){
+    const inp = document.getElementById('msgInput');
+    if(!inp) return;
+    inp.value += e;
+    inp.focus();
+    autoGrow(inp);
+}
+
+function sendMsg(){
+    const inp = document.getElementById('msgInput');
+    if(!inp || !activeChatId) return;
+    const txt = inp.value.trim();
+    if(!txt) return;
+
+    const mid = uid();
+    const now = Date.now();
+
+    database.ref(`messages/${activeChatId}/${mid}`).set({ from: db.currentUser.username, text: txt, at: now });
+    database.ref(`chats/${activeChatId}/lastMessage`).set({ text: txt, from: db.currentUser.username, at: now });
+
     inp.value = '';
+    autoGrow(inp);
+    inp.focus();
 }
 
+/* ============================================================
+   FILE INPUTS
+============================================================ */
 document.getElementById('hiddenFileInput').addEventListener('change', async e => {
-    let file = e.target.files[0]; if(!file || !activeChatId) return;
-    if(file.size > 2000000) { toast('Файл слишком большой (макс 2MB)'); e.target.value=''; return; }
-    let b64 = await fileToBase64(file); let mid = uid();
-    database.ref(`messages/${activeChatId}/${mid}`).set({from: db.currentUser.username, fileData: b64, fileType: file.type, fileName: file.name, at: Date.now()});
-    database.ref(`chats/${activeChatId}/lastMessage`).set({text: 'Файл: ' + file.name, fileType: file.type, at: Date.now()});
-    e.target.value='';
+    const file = e.target.files[0];
+    e.target.value = '';
+    if(!file || !activeChatId) return;
+    if(file.size > 1500000){ toast('Файл слишком большой (макс ~1.5MB)'); return; }
+    try {
+        const b64 = await fileToBase64(file);
+        const mid = uid();
+        const now = Date.now();
+        await database.ref(`messages/${activeChatId}/${mid}`).set({
+            from: db.currentUser.username, fileData: b64, fileType: file.type, fileName: file.name, at: now
+        });
+        await database.ref(`chats/${activeChatId}/lastMessage`).set({
+            text: file.type?.startsWith('image/') ? '📷 Фото' : '📎 ' + file.name,
+            from: db.currentUser.username, fileType: file.type, at: now
+        });
+    } catch(err){
+        console.error(err);
+        toast('Не удалось загрузить файл');
+    }
 });
 
-function openModal(title, content) {
-    let exist = document.getElementById('ssModal'); if(exist) exist.remove();
+document.getElementById('hiddenAvatarInput').addEventListener('change', async e => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if(!f) return;
+    if(f.size > 800000){ toast('Аватар слишком большой (макс 800KB)'); return; }
+    const b = await fileToBase64(f);
+    await database.ref('users/' + db.currentUser.username + '/avatar').set(b);
+    toast('Аватар обновлён');
+    openSettingsModal();
+});
+
+/* ============================================================
+   MODAL
+============================================================ */
+function openModal(title, content){
+    document.getElementById('ssModal')?.remove();
     document.body.insertAdjacentHTML('beforeend', `
     <div id="ssModal" class="fixed inset-0 modal-overlay z-[100] flex items-center justify-center p-4 fade-in" onclick="if(event.target===this)this.remove()">
-        <div class="bg-tg-sidebar w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-black/30">
-            <div class="px-6 py-4 flex justify-between items-center border-b border-black/20 bg-[#1e2c3a]">
-                <h3 class="text-white font-medium text-lg">${title}</h3>
-                <button onclick="document.getElementById('ssModal').remove()" class="text-tg-gray hover:text-white text-lg"><i class="fas fa-times"></i></button>
+        <div class="bg-tg-sidebar w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-black/30 slide-in">
+            <div class="px-6 py-4 flex justify-between items-center border-b border-black/20 bg-[#1e2c3a] shrink-0">
+                <h3 class="text-white font-medium text-lg truncate">${title}</h3>
+                <button onclick="document.getElementById('ssModal').remove()" class="text-tg-gray hover:text-white text-lg shrink-0 ml-3"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6 overflow-y-auto flex-grow">${content}</div>
         </div>
     </div>`);
 }
+function closeModal(){ document.getElementById('ssModal')?.remove(); }
 
-// ==================== PROFILE MODAL (EXACT LIKE SCREENSHOT) ====================
-function openProfileModal(username) {
-    let u = db.users[username]; if(!u) return;
-    let gifts = u.gifts || {};
-    let gKeys = Object.keys(gifts);
-    
-    let giftsPreview = gKeys.length > 0 ? Object.values(gifts).slice(0, 2).map(g => `<span class="text-xl">${g.icon}</span>`).join('') : 'Нет подарков';
+/* ============================================================
+   PROFILE
+============================================================ */
+function openProfileModal(username){
+    const u = db.users[username]; if(!u) return;
+    const gifts = u.gifts || {};
+    const gKeys = Object.keys(gifts);
+    const gCount = gKeys.length;
+    const preview = gCount > 0
+        ? Object.values(gifts).slice(0, 3).map(g => `<span class="text-xl">${g.icon}</span>`).join('')
+        : '<span class="text-tg-gray text-xs">нет</span>';
 
     openModal('Профиль', `
         <div class="text-center">
-            <div class="mb-4">${getAvatarHtml(u.avatar, u.displayName||u.username, 24, 'mx-auto')}</div>
+            <div class="mb-4 flex justify-center">${getAvatarHtml(u.avatar, u.displayName || u.username, 24)}</div>
             <h3 class="text-white text-xl font-bold flex items-center justify-center gap-1.5">
-                ${escapeHtml(u.displayName||u.username)} 
-                ${isPrem(u)?'<i class="fas fa-star text-amber-300 text-sm"></i>':''}
+                ${escapeHtml(u.displayName || u.username)}
+                ${isPrem(u) ? '<i class="fas fa-star text-amber-300 text-sm"></i>' : ''}
             </h3>
-            <p class="text-tg-blue text-sm mb-4">@${escapeHtml(u.username)}</p>
-        </div>
-        
-        <div class="space-y-3 bg-[#0e1621] p-4 rounded-2xl border border-black/20 text-sm mb-4">
-            <div><span class="text-tg-gray text-xs block">Телефон</span><span class="text-white font-medium">${escapeHtml(u.phone || 'Не указан')}</span></div>
-            <div><span class="text-tg-gray text-xs block">О себе</span><span class="text-white font-medium">Добро пожаловать в мой профиль 67gramm!</span></div>
+            <p class="text-tg-blue text-sm mb-1">@${escapeHtml(u.username)}</p>
+            <p class="text-tg-gray text-xs mb-4">${isOnline(u) ? '<span class="text-emerald-400">● в сети</span>' : 'был(а) недавно'}</p>
         </div>
 
-        <div class="space-y-1 bg-[#0e1621] rounded-2xl p-2 border border-black/20">
+        <div class="space-y-3 bg-[#0e1621] p-4 rounded-2xl border border-black/20 text-sm mb-4">
+            <div><span class="text-tg-gray text-xs block mb-0.5">Телефон</span><span class="text-white font-medium">${escapeHtml(u.phone || 'Не указан')}</span></div>
+            <div><span class="text-tg-gray text-xs block mb-0.5">О себе</span><span class="text-white font-medium">${escapeHtml(u.bio || 'Добро пожаловать в мой профиль 67gramm!')}</span></div>
+        </div>
+
+        <div class="bg-[#0e1621] rounded-2xl p-2 border border-black/20">
             <div onclick="openUserGiftsList('${username}')" class="flex items-center justify-between p-3.5 hover:bg-tg-sidebar rounded-xl cursor-pointer transition">
-                <div class="flex items-center gap-3.5 text-white text-sm font-medium"><i class="fas fa-gift text-pink-400 text-lg w-6 text-center"></i> ${gKeys.length} подарка</div>
-                <div class="flex items-center gap-1">${giftsPreview} <i class="fas fa-chevron-right text-tg-gray text-xs ml-2"></i></div>
+                <div class="flex items-center gap-3.5 text-white text-sm font-medium">
+                    <i class="fas fa-gift text-pink-400 text-lg w-6 text-center"></i>
+                    ${gCount} ${plural(gCount, 'подарок', 'подарка', 'подарков')}
+                </div>
+                <div class="flex items-center gap-1">${preview} <i class="fas fa-chevron-right text-tg-gray text-xs ml-2"></i></div>
             </div>
         </div>
     `);
 }
 
-function openUserGiftsList(username) {
-    let u = db.users[username];
-    let gifts = u.gifts || {};
-    let html = Object.values(gifts).map(g => `
+function openUserGiftsList(username){
+    const u = db.users[username];
+    const gifts = u.gifts || {};
+    const html = Object.values(gifts).map(g => `
         <div class="bg-gradient-to-tr ${g.bg} p-4 rounded-2xl shadow-xl flex flex-col justify-between relative overflow-hidden text-white min-h-[140px]">
             <div class="absolute top-2 right-2 bg-black/30 backdrop-blur px-2 py-0.5 rounded-md text-[10px] font-semibold">${g.edition}</div>
             <div class="text-4xl my-auto text-center">${g.icon}</div>
-            <div><div class="font-bold text-sm truncate">${g.name}</div><div class="text-[10px] text-white/70">NFT / Коллекционный</div></div>
+            <div><div class="font-bold text-sm truncate">${escapeHtml(g.name)}</div><div class="text-[10px] text-white/70">NFT / Коллекционный</div></div>
         </div>
-    `).join('') || '<p class="text-tg-gray text-sm text-center py-6">У пользователя нет подарков</p>';
+    `).join('') || '<p class="text-tg-gray text-sm text-center py-6 col-span-2">У пользователя нет подарков</p>';
 
     openModal('Подарки', `
         <div class="grid grid-cols-2 gap-3 mb-4">${html}</div>
-        <p class="text-center text-tg-gray text-xs">${escapeHtml(u.displayName||u.username)} получил(а) эти подарки.</p>
+        <p class="text-center text-tg-gray text-xs">${escapeHtml(u.displayName || u.username)} получил(а) эти подарки.</p>
     `);
 }
 
-// ==================== GIFTS & NFT MARKET ====================
-function openGiftsModal() {
-    if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleDrawerMenu();
-    let market = db.market || {};
-    let myGifts = db.currentUser.gifts || {};
-    
-    let marketHtml = Object.keys(market).map(gid => {
-        let g = market[gid];
+/* ============================================================
+   GIFTS
+============================================================ */
+function openGiftsModal(){
+    if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full')) toggleDrawerMenu();
+    const market = db.market || {};
+    const myGifts = db.currentUser.gifts || {};
+
+    const marketHtml = Object.keys(market).map(gid => {
+        const g = market[gid];
         return `<div class="bg-[#0e1621] p-4 rounded-2xl border border-black/20 flex flex-col items-center text-center">
             <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr ${g.bg} flex items-center justify-center text-3xl mb-3 shadow-lg">${g.icon}</div>
-            <div class="text-white font-medium text-sm mb-0.5">${g.name}</div>
-            <div class="text-[10px] text-tg-gray mb-2">${g.edition}</div>
+            <div class="text-white font-medium text-sm mb-0.5">${escapeHtml(g.name)}</div>
+            <div class="text-[10px] text-tg-gray mb-2">${escapeHtml(g.edition)}</div>
             <div class="text-amber-400 font-bold text-xs mb-3">${g.price} ⭐</div>
             <button onclick="buyGift('${gid}')" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white py-2 rounded-xl text-xs font-medium btn-press">Купить</button>
         </div>`;
-    }).join('');
+    }).join('') || '<p class="text-tg-gray text-xs text-center py-6 col-span-2">Магазин пуст</p>';
 
-    let myHtml = Object.keys(myGifts).map(mgid => {
-        let mg = myGifts[mgid];
+    const myHtml = Object.keys(myGifts).map(mgid => {
+        const mg = myGifts[mgid];
         return `<div class="bg-gradient-to-tr ${mg.bg} p-4 rounded-2xl shadow-xl flex flex-col justify-between relative overflow-hidden text-white min-h-[140px]">
             <div class="absolute top-2 right-2 bg-black/30 backdrop-blur px-2 py-0.5 rounded-md text-[10px] font-semibold">${mg.edition}</div>
             <div class="text-4xl my-auto text-center">${mg.icon}</div>
-            <div><div class="font-bold text-sm truncate">${mg.name}</div><div class="text-[10px] text-white/70">NFT / Коллекционный</div></div>
+            <div><div class="font-bold text-sm truncate">${escapeHtml(mg.name)}</div><div class="text-[10px] text-white/70">NFT / Коллекционный</div></div>
         </div>`;
-    }).join('') || '<p class="text-tg-gray text-xs text-center py-6">У вас пока нет подарков</p>';
+    }).join('') || '<p class="text-tg-gray text-xs text-center py-6 col-span-2">У вас пока нет подарков</p>';
+
+    const mCls = giftsTab === 'market' ? 'bg-[#2b5278] text-white' : 'text-tg-gray';
+    const myCls = giftsTab === 'my'     ? 'bg-[#2b5278] text-white' : 'text-tg-gray';
 
     openModal('Подарки и NFT', `
         <div class="flex gap-2 mb-4 bg-[#0e1621] p-1 rounded-xl">
-            <button onclick="document.getElementById('tabMarket').classList.remove('hidden'); document.getElementById('tabMy').classList.add('hidden')" class="flex-1 py-2 rounded-lg bg-[#2b5278] text-white text-xs font-medium">Магазин</button>
-            <button onclick="document.getElementById('tabMy').classList.remove('hidden'); document.getElementById('tabMarket').classList.add('hidden')" class="flex-1 py-2 rounded-lg text-tg-gray text-xs font-medium">Мои подарки</button>
+            <button onclick="switchGiftsTab('market')" class="flex-1 py-2 rounded-lg text-xs font-medium ${mCls}">Магазин</button>
+            <button onclick="switchGiftsTab('my')" class="flex-1 py-2 rounded-lg text-xs font-medium ${myCls}">Мои подарки</button>
         </div>
-        <div id="tabMarket" class="grid grid-cols-2 gap-3">${marketHtml}</div>
-        <div id="tabMy" class="hidden grid grid-cols-2 gap-3">${myHtml}</div>
+        <div class="${giftsTab==='market' ? '' : 'hidden'} grid grid-cols-2 gap-3">${marketHtml}</div>
+        <div class="${giftsTab==='my' ? '' : 'hidden'} grid grid-cols-2 gap-3">${myHtml}</div>
     `);
 }
+function switchGiftsTab(t){ giftsTab = t; openGiftsModal(); }
 
-async function buyGift(gid) {
-    let g = db.market[gid];
-    let stars = db.currentUser.stars || 0;
-    if(stars < g.price) { toast('Недостаточно звёзд'); return; }
-    
-    let newStars = stars - g.price;
-    let giftId = 'gift_' + Date.now();
-    
-    await database.ref(`users/${db.currentUser.username}/stars`).set(newStars);
-    await database.ref(`users/${db.currentUser.username}/gifts/${giftId}`).set(g);
+async function buyGift(gid){
+    const g = db.market[gid]; if(!g) return;
+    const stars = db.currentUser.stars || 0;
+    if(stars < g.price){ toast('Недостаточно звёзд'); return; }
+
+    const newStars = stars - g.price;
+    const giftId = 'gift_' + Date.now();
+
+    await database.ref('users/' + db.currentUser.username + '/stars').set(newStars);
+    await database.ref('users/' + db.currentUser.username + '/gifts/' + giftId).set(g);
     db.currentUser.stars = newStars;
-    if(!db.currentUser.gifts) db.currentUser.gifts = {};
+    db.currentUser.gifts = db.currentUser.gifts || {};
     db.currentUser.gifts[giftId] = g;
-    
-    toast('Подарок успешно куплен!');
+
+    toast('🎁 Подарок куплен!');
+    giftsTab = 'my';
     openGiftsModal();
 }
 
-function openNewChatModal() {
-    if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleDrawerMenu();
+/* ============================================================
+   NEW CHAT / GROUP
+============================================================ */
+function openNewChatModal(){
+    if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full')) toggleDrawerMenu();
     openModal('Новый чат', `
-        <input id="ncUname" type="text" placeholder="Введите логин пользователя" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-5">
+        <input id="ncUname" type="text" placeholder="Введите логин пользователя" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-5 transition">
         <button onclick="executeCreateChat()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Начать диалог</button>
     `);
 }
-async function executeCreateChat() {
-    let un = document.getElementById('ncUname').value.trim().toLowerCase();
-    if(!un || un === db.currentUser.username) { toast('Укажите корректный логин'); return; }
-    let snap = await database.ref(`users/${un}`).once('value');
-    if(!snap.exists()) { toast('Пользователь не найден в системе'); return; }
-    let cid = 'dm_' + [db.currentUser.username, un].sort().join('_');
-    await database.ref(`chats/${cid}`).set({type:'dm', members:{[db.currentUser.username]:true, [un]:true}, createdAt:Date.now()});
-    await database.ref(`userChats/${db.currentUser.username}/${cid}`).set(true);
-    await database.ref(`userChats/${un}/${cid}`).set(true);
-    let modal = document.getElementById('ssModal'); if(modal) modal.remove();
+async function executeCreateChat(){
+    const un = document.getElementById('ncUname').value.trim().toLowerCase();
+    if(!un || un === db.currentUser.username){ toast('Укажите корректный логин'); return; }
+    const snap = await database.ref('users/' + un).once('value');
+    if(!snap.exists()){ toast('Пользователь не найден'); return; }
+
+    const cid = 'dm_' + [db.currentUser.username, un].sort().join('_');
+    const existing = await database.ref('chats/' + cid).once('value');
+    if(!existing.exists()){
+        await database.ref('chats/' + cid).set({
+            type: 'dm',
+            members: { [db.currentUser.username]: true, [un]: true },
+            createdAt: Date.now()
+        });
+    }
+    await database.ref('userChats/' + db.currentUser.username + '/' + cid).set(true);
+    await database.ref('userChats/' + un + '/' + cid).set(true);
+    closeModal();
     openChat(cid);
 }
 
-function openNewGroupModal() {
-    if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleDrawerMenu();
+function openNewGroupModal(){
+    if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full')) toggleDrawerMenu();
     openModal('Создать группу', `
-        <input id="ngName" type="text" placeholder="Название группы" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-3">
-        <input id="ngUsers" type="text" placeholder="Участники через запятую (логины)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-5">
+        <input id="ngName" type="text" placeholder="Название группы" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-3 transition">
+        <input id="ngUsers" type="text" placeholder="Участники через запятую (логины)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-5 transition">
         <button onclick="executeCreateGroup()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Создать группу</button>
     `);
 }
-async function executeCreateGroup() {
-    let name = document.getElementById('ngName').value.trim();
-    let uns = document.getElementById('ngUsers').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
-    if(!name) { toast('Введите название группы'); return; }
-    let mem = { [db.currentUser.username]: true };
-    for(let u of uns) { 
-        if(u !== db.currentUser.username) { 
-            let s = await database.ref(`users/${u}`).once('value'); 
-            if(s.exists()) mem[u] = true; 
-        } 
+async function executeCreateGroup(){
+    const name = document.getElementById('ngName').value.trim();
+    const uns = document.getElementById('ngUsers').value.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+    if(!name){ toast('Введите название группы'); return; }
+
+    const mem = { [db.currentUser.username]: true };
+    for(const u of uns){
+        if(u === db.currentUser.username) continue;
+        const s = await database.ref('users/' + u).once('value');
+        if(s.exists()) mem[u] = true;
     }
-    let cid = 'grp_'+uid();
-    await database.ref(`chats/${cid}`).set({type:'group', name:name, members:mem, createdAt:Date.now(), createdBy:db.currentUser.username});
-    for(let m of Object.keys(mem)) {
-        await database.ref(`userChats/${m}/${cid}`).set(true);
+    const cid = 'grp_' + uid();
+    await database.ref('chats/' + cid).set({
+        type: 'group', name, members: mem,
+        createdAt: Date.now(), createdBy: db.currentUser.username
+    });
+    for(const m of Object.keys(mem)){
+        await database.ref('userChats/' + m + '/' + cid).set(true);
     }
-    let modal = document.getElementById('ssModal'); if(modal) modal.remove();
+    closeModal();
     openChat(cid);
-    toast('Группа успешно создана');
+    toast('Группа создана');
 }
 
-function openSettingsModal() {
-    if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleDrawerMenu();
-    let u = db.currentUser; let scale = u.scale || 100;
+/* ============================================================
+   SETTINGS
+============================================================ */
+function openSettingsModal(){
+    if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full')) toggleDrawerMenu();
+    const u = db.currentUser;
+    const scale = u.scale || 100;
     openModal('Настройки', `
         <div class="flex items-center gap-4 mb-6">
             <div class="relative cursor-pointer group" onclick="document.getElementById('hiddenAvatarInput').click()">
-                ${getAvatarHtml(u.avatar, u.displayName||u.username, 20)}
+                ${getAvatarHtml(u.avatar, u.displayName || u.username, 20)}
                 <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><i class="fas fa-camera text-white"></i></div>
             </div>
             <div class="min-w-0">
-                <div class="text-lg font-medium text-white truncate">${escapeHtml(u.displayName||u.username)}</div>
-                <div class="text-sm text-tg-gray truncate">${u.phone||'Телефон не указан'}</div>
-                <div class="text-sm text-tg-blue truncate">@${u.username}</div>
+                <div class="text-lg font-medium text-white truncate">${escapeHtml(u.displayName || u.username)}</div>
+                <div class="text-sm text-tg-gray truncate">${escapeHtml(u.phone || 'Телефон не указан')}</div>
+                <div class="text-sm text-tg-blue truncate">@${escapeHtml(u.username)}</div>
             </div>
         </div>
-        
+
         <div class="space-y-1 bg-[#0e1621] rounded-2xl p-2 mb-4 border border-black/20">
             <div onclick="openSetAccountModal()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-xl cursor-pointer transition"><i class="far fa-user w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Мой профиль</span></div>
             <div onclick="openSetPrivacyModal()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-xl cursor-pointer transition"><i class="fas fa-lock w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Конфиденциальность и пароль</span></div>
             <div onclick="openSetFoldersModal()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-xl cursor-pointer transition"><i class="far fa-folder w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Папки с чатами</span></div>
         </div>
-        
+
         <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/20">
-            <div class="flex justify-between items-center mb-3 text-white text-sm"><div class="flex items-center gap-4"><i class="far fa-eye text-tg-gray text-lg w-6 text-center"></i>Масштаб интерфейса</div><span id="scTxt" class="text-tg-blue font-semibold">${scale}%</span></div>
-            <input type="range" min="50" max="150" value="${scale}" oninput="document.getElementById('scTxt').innerText=this.value+'%'; applyScale(this.value);" onchange="database.ref('users/'+db.currentUser.username+'/scale').set(parseInt(this.value))" class="w-full accent-[#3390ec]">
+            <div class="flex justify-between items-center mb-3 text-white text-sm">
+                <div class="flex items-center gap-4"><i class="far fa-eye text-tg-gray text-lg w-6 text-center"></i>Масштаб интерфейса</div>
+                <span id="scTxt" class="text-tg-blue font-semibold">${scale}%</span>
+            </div>
+            <input type="range" min="70" max="140" value="${scale}"
+                oninput="document.getElementById('scTxt').innerText=this.value+'%'; applyScale(this.value);"
+                onchange="database.ref('users/'+db.currentUser.username+'/scale').set(parseInt(this.value))"
+                class="w-full accent-[#3390ec]">
         </div>
-        
-        <div class="space-y-1 bg-[#0e1621] rounded-2xl p-2 border border-black/20">
-            <div onclick="openShopModal()" class="flex items-center justify-between p-3 hover:bg-tg-sidebar rounded-xl cursor-pointer transition"><div class="flex items-center gap-4"><i class="fas fa-star w-6 text-center text-amber-400 text-lg"></i><span class="text-white text-sm">Мои звёзды</span></div><span class="text-amber-400 font-bold">${u.stars||0} ⭐</span></div>
+
+        <div class="bg-[#0e1621] rounded-2xl p-2 border border-black/20">
+            <div onclick="openShopModal()" class="flex items-center justify-between p-3 hover:bg-tg-sidebar rounded-xl cursor-pointer transition">
+                <div class="flex items-center gap-4"><i class="fas fa-star w-6 text-center text-amber-400 text-lg"></i><span class="text-white text-sm">Мои звёзды</span></div>
+                <span class="text-amber-400 font-bold">${u.stars || 0} ⭐</span>
+            </div>
         </div>
     `);
 }
 
-document.getElementById('hiddenAvatarInput').addEventListener('change', async e => {
-    let f = e.target.files[0]; if(!f) return;
-    let b = await fileToBase64(f);
-    await database.ref(`users/${db.currentUser.username}/avatar`).set(b);
-    toast('Аватар обновлен'); openSettingsModal();
-});
-
-function openSetAccountModal() {
+function openSetAccountModal(){
+    const u = db.currentUser;
     openModal('Мой профиль', `
         <label class="text-xs text-tg-gray mb-1.5 block">Отображаемое имя</label>
-        <input id="sda" type="text" value="${escapeHtml(db.currentUser.displayName||db.currentUser.username)}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-5">
-        <button onclick="database.ref('users/'+db.currentUser.username+'/displayName').set(document.getElementById('sda').value.trim()); toast('Имя сохранено'); openSettingsModal();" class="w-full bg-[#3390ec] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Сохранить</button>
+        <input id="sda" type="text" value="${escapeHtml(u.displayName || u.username)}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-3 transition">
+        <label class="text-xs text-tg-gray mb-1.5 block">О себе</label>
+        <textarea id="sdbio" rows="3" placeholder="Немного о себе..." class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-5 resize-none transition">${escapeHtml(u.bio || '')}</textarea>
+        <button onclick="saveAccountData()" class="w-full bg-[#3390ec] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Сохранить</button>
     `);
 }
+async function saveAccountData(){
+    const name = document.getElementById('sda').value.trim();
+    const bio = document.getElementById('sdbio').value.trim();
+    if(!name){ toast('Имя не может быть пустым'); return; }
+    await database.ref('users/' + db.currentUser.username + '/displayName').set(name);
+    await database.ref('users/' + db.currentUser.username + '/bio').set(bio);
+    toast('Профиль обновлён');
+    openSettingsModal();
+}
 
-function openSetPrivacyModal() {
+function openSetPrivacyModal(){
     openModal('Конфиденциальность', `
         <label class="text-xs text-tg-gray mb-1.5 block">Номер телефона</label>
-        <input id="spr" type="tel" value="${escapeHtml(db.currentUser.phone||'')}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-4">
+        <input id="spr" type="tel" value="${escapeHtml(db.currentUser.phone || '')}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-4 transition">
         <div class="border-t border-black/20 pt-4 mb-5">
             <p class="text-sm text-white mb-3 font-medium">Смена пароля</p>
-            <input id="op" type="password" placeholder="Старый пароль" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-2.5">
-            <input id="np" type="password" placeholder="Новый пароль (мин 4)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm">
+            <input id="op" type="password" autocomplete="current-password" placeholder="Старый пароль" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-2.5 transition">
+            <input id="np" type="password" autocomplete="new-password" placeholder="Новый пароль (мин 4)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm transition">
         </div>
         <button onclick="savePrivacyData()" class="w-full bg-[#3390ec] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Сохранить изменения</button>
     `);
 }
+async function savePrivacyData(){
+    const ph = document.getElementById('spr').value.trim();
+    const o = document.getElementById('op').value;
+    const n = document.getElementById('np').value;
 
-async function savePrivacyData() {
-    let ph = document.getElementById('spr').value.trim();
-    let o = document.getElementById('op').value;
-    let n = document.getElementById('np').value;
-    await database.ref(`users/${db.currentUser.username}/phone`).set(ph);
-    if(o && n) {
-        if(n.length < 4) { toast('Пароль от 4 символов'); return; }
-        let h = await hashPass(o);
-        if(h === db.currentUser.passHash || o === db.currentUser.passPlain) {
-            let nh = await hashPass(n);
-            await database.ref(`users/${db.currentUser.username}/passHash`).set(nh);
-            await database.ref(`users/${db.currentUser.username}/passPlain`).set(n);
-            toast('Пароль успешно изменен');
-        } else { toast('Неверный старый пароль'); return; }
+    if(o && n){
+        if(n.length < 4){ toast('Пароль от 4 символов'); return; }
+        const h = await hashPass(o);
+        if(h !== db.currentUser.passHash && o !== db.currentUser.passPlain){ toast('Неверный старый пароль'); return; }
+        const nh = await hashPass(n);
+        await database.ref('users/' + db.currentUser.username + '/passHash').set(nh);
+        await database.ref('users/' + db.currentUser.username + '/passPlain').set(n);
+        toast('Пароль изменён');
+    } else if(o || n){
+        toast('Заполните оба поля пароля'); return;
     }
-    toast('Данные сохранены'); openSettingsModal();
+    await database.ref('users/' + db.currentUser.username + '/phone').set(ph);
+    toast('Данные сохранены');
+    openSettingsModal();
 }
 
-function openSetFoldersModal() {
-    let cids = Object.keys(db.chats || {});
-    let html = cids.map(cid => `<label class="flex items-center gap-3 p-2.5 hover:bg-[#202b36] rounded-xl cursor-pointer"><input type="checkbox" class="custom-checkbox fcb accent-[#3390ec]" value="${cid}"><span class="text-white text-sm truncate">${escapeHtml(chatDisplayInfo(cid,db.chats[cid]).name)}</span></label>`).join('');
+function openSetFoldersModal(){
+    const cids = Object.keys(db.chats || {});
+    const html = cids.map(cid => {
+        const info = chatDisplayInfo(cid);
+        return `<label class="flex items-center gap-3 p-2.5 hover:bg-[#202b36] rounded-xl cursor-pointer">
+            <input type="checkbox" class="fcb accent-[#3390ec]" value="${cid}">
+            <span class="text-white text-sm truncate">${escapeHtml(info.name)}</span>
+        </label>`;
+    }).join('');
     openModal('Создать папку', `
-        <input id="fn" type="text" placeholder="Название папки" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-4">
-        <div class="max-h-48 overflow-y-auto bg-[#0e1621] p-2 rounded-xl mb-5 border border-black/20">${html||'<p class="text-tg-gray text-sm p-2">Нет чатов</p>'}</div>
+        <input id="fn" type="text" placeholder="Название папки" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-4 transition">
+        <div class="max-h-48 overflow-y-auto bg-[#0e1621] p-2 rounded-xl mb-5 border border-black/20">${html || '<p class="text-tg-gray text-sm p-2">Нет чатов</p>'}</div>
         <button onclick="executeCreateFolder()" class="w-full bg-[#3390ec] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Создать папку</button>
     `);
 }
-async function executeCreateFolder() {
-    let name = document.getElementById('fn').value.trim();
-    let sel = Array.from(document.querySelectorAll('.fcb:checked')).map(c => c.value);
-    if(!name || !sel.length) { toast('Введите название и выберите чаты'); return; }
-    let fid = 'f_' + Date.now();
-    await database.ref(`users/${db.currentUser.username}/folders/${fid}`).set({name: name, chats: sel});
-    toast('Папка создана'); openSettingsModal();
+function chatDisplayInfo(cid){
+    const c = db.chats[cid] || {};
+    if(c.type === 'group') return { name: c.name || 'Группа' };
+    const ou = Object.keys(c.members || {}).find(m => m !== db.currentUser.username);
+    const u = db.users[ou] || {};
+    return { name: u.displayName || ou || 'Пользователь' };
+}
+async function executeCreateFolder(){
+    const name = document.getElementById('fn').value.trim();
+    const sel = Array.from(document.querySelectorAll('.fcb:checked')).map(c => c.value);
+    if(!name || !sel.length){ toast('Введите название и выберите чаты'); return; }
+    const fid = 'f_' + Date.now();
+    await database.ref('users/' + db.currentUser.username + '/folders/' + fid).set({ name, chats: sel });
+    toast('Папка создана');
+    openSettingsModal();
 }
 
-function openShopModal() {
-    if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleDrawerMenu();
+/* ============================================================
+   SHOP
+============================================================ */
+function openShopModal(){
+    if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full')) toggleDrawerMenu();
     openModal('Мои звёзды', `
         <div class="bg-[#0e1621] p-6 rounded-2xl mb-6 text-center border border-amber-500/20 shadow-inner">
             <p class="text-tg-gray text-xs mb-1 uppercase tracking-wider font-semibold">Ваш баланс</p>
-            <div class="text-4xl font-bold text-amber-400 flex items-center justify-center gap-2">${db.currentUser.stars||0} <i class="fas fa-star text-2xl"></i></div>
+            <div class="text-4xl font-bold text-amber-400 flex items-center justify-center gap-2">${db.currentUser.stars || 0} <i class="fas fa-star text-2xl"></i></div>
         </div>
         <h4 class="text-white font-medium mb-3 text-sm">Пополнение баланса</h4>
         <div class="space-y-2.5">
-            <div onclick="fakePay(1000, '2 000 UZS')" class="bg-[#0e1621] p-4 rounded-xl text-white flex justify-between items-center cursor-pointer hover:bg-[#202b36] transition border border-black/20 btn-press"><span class="font-medium">1000 звёзд</span><span class="text-amber-400 font-bold">2 000 UZS</span></div>
-            <div onclick="fakePay(5000, '10 000 UZS')" class="bg-[#0e1621] p-4 rounded-xl text-white flex justify-between items-center cursor-pointer hover:bg-[#202b36] transition border border-black/20 btn-press"><span class="font-medium">5000 звёзд</span><span class="text-amber-400 font-bold">10 000 UZS</span></div>
-            <div onclick="fakePay(10000, '20 000 UZS')" class="bg-[#0e1621] p-4 rounded-xl text-white flex justify-between items-center cursor-pointer hover:bg-[#202b36] transition border border-black/20 btn-press"><span class="font-medium">10000 звёзд</span><span class="text-amber-400 font-bold">20 000 UZS</span></div>
+            ${[[1000,'2 000 UZS'],[5000,'10 000 UZS'],[10000,'20 000 UZS']].map(([amt, price]) => `
+                <div onclick="fakePay(${amt}, '${price}')" class="bg-[#0e1621] p-4 rounded-xl text-white flex justify-between items-center cursor-pointer hover:bg-[#202b36] transition border border-black/20 btn-press">
+                    <span class="font-medium">${amt} звёзд</span><span class="text-amber-400 font-bold">${price}</span>
+                </div>
+            `).join('')}
         </div>
     `);
 }
-
-function fakePay(amt, priceTxt) {
-    openModal('Выбор способа оплаты', `
+function fakePay(amt, priceTxt){
+    openModal('Способ оплаты', `
         <div class="text-center mb-6"><div class="text-amber-400 font-bold text-2xl mb-1">${amt} ⭐</div><div class="text-tg-gray text-sm">К оплате: ${priceTxt}</div></div>
         <div class="space-y-2.5">
             <button onclick="processPayment(${amt})" class="w-full bg-[#3390ec] text-white font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2"><i class="fas fa-credit-card"></i> UzCard / Humo</button>
@@ -716,77 +1128,90 @@ function fakePay(amt, priceTxt) {
         </div>
     `);
 }
-
-async function processPayment(amt) {
-    let modal = document.getElementById('ssModal'); if(modal) modal.remove();
+async function processPayment(amt){
+    closeModal();
     toast('Обработка платежа...');
     setTimeout(async () => {
-        let cur = db.currentUser.stars || 0;
-        await database.ref(`users/${db.currentUser.username}/stars`).set(cur + amt);
-        toast(`Успешно! +${amt} ⭐ зачислено`);
+        const cur = db.currentUser.stars || 0;
+        await database.ref('users/' + db.currentUser.username + '/stars').set(cur + amt);
+        toast(`✅ +${amt} ⭐ зачислено`);
+        openShopModal();
     }, 1200);
 }
 
-async function reportMsg(mid) {
+/* ============================================================
+   REPORT
+============================================================ */
+async function reportMsg(mid){
     if(!confirm('Отправить жалобу на это сообщение администратору?')) return;
-    let snap = await database.ref(`messages/${activeChatId}/${mid}`).once('value');
-    let m = snap.val(); if(!m) return;
-    await database.ref(`reports/${mid}`).set({ 
-        chatId: activeChatId, msgId: mid, from: m.from, 
-        text: m.text || '[Файл/Медиа]', reportedBy: db.currentUser.username, at: Date.now() 
+    const snap = await database.ref(`messages/${activeChatId}/${mid}`).once('value');
+    const m = snap.val(); if(!m) return;
+    await database.ref('reports/' + mid).set({
+        chatId: activeChatId, msgId: mid, from: m.from,
+        text: m.text || '[Файл/Медиа]',
+        reportedBy: db.currentUser.username, at: Date.now()
     });
-    toast('Жалоба отправлена модераторам');
+    toast('Жалоба отправлена');
 }
 
-// ==================== ADMIN PANEL (FULL PRIVILEGES) ====================
-function openAdminModal() {
-    if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleDrawerMenu();
-    let reports = db.reports || {};
-    let rHtml = Object.keys(reports).map(rid => {
-        let r = reports[rid];
+/* ============================================================
+   ADMIN
+============================================================ */
+function openAdminModal(){
+    if(!db.currentUser.isAdmin){ toast('Доступ запрещён'); return; }
+    if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full')) toggleDrawerMenu();
+    const reports = db.reports || {};
+    const rHtml = Object.keys(reports).map(rid => {
+        const r = reports[rid];
         return `<div class="bg-[#0e1621] p-3.5 rounded-xl mb-3 text-sm border border-red-900/40">
-            <div class="flex justify-between items-start mb-1"><span class="text-red-400 font-bold">На @${escapeHtml(r.from)}</span><span class="text-tg-gray text-[10px]">${timeFormat(r.at)}</span></div>
+            <div class="flex justify-between items-start mb-1">
+                <span class="text-red-400 font-bold">на @${escapeHtml(r.from)}</span>
+                <span class="text-tg-gray text-[10px]">${timeFormat(r.at)}</span>
+            </div>
             <div class="text-white my-1.5 break-words">"${escapeHtml(r.text)}"</div>
             <div class="flex gap-2 mt-2">
-                <button onclick="database.ref('users/${r.from}/banned').set(true); database.ref('reports/${rid}').remove(); toast('Пользователь забанен'); openAdminModal();" class="bg-red-600 text-white px-3 py-1 rounded-lg text-xs btn-press">Бан</button>
-                <button onclick="database.ref('reports/${rid}').remove(); toast('Жалоба скрыта'); openAdminModal();" class="bg-[#2b5278] text-white px-3 py-1 rounded-lg text-xs btn-press">Скрыть</button>
+                <button onclick="adminBanUser('${r.from}')" class="bg-red-600 text-white px-3 py-1 rounded-lg text-xs btn-press">Бан</button>
+                <button onclick="adminDismissReport('${rid}')" class="bg-[#2b5278] text-white px-3 py-1 rounded-lg text-xs btn-press">Скрыть</button>
             </div>
         </div>`;
     }).join('') || '<p class="text-tg-gray text-sm text-center py-4">Жалоб нет</p>';
 
-    let usersHtml = Object.keys(db.users || {}).map(un => {
-        let u = db.users[un];
+    const usersHtml = Object.keys(db.users || {}).map(un => {
+        const u = db.users[un];
         return `<div class="bg-[#0e1621] p-3 rounded-xl mb-3 border border-black/20 text-xs">
             <div class="flex justify-between items-center mb-2">
-                <span class="text-white font-bold text-sm">@${escapeHtml(un)}</span>
-                <span class="text-amber-400 font-bold">${u.stars||0} ⭐</span>
+                <span class="text-white font-bold text-sm">@${escapeHtml(un)} ${u.isAdmin ? '👑' : ''}</span>
+                <span class="text-amber-400 font-bold">${u.stars || 0} ⭐</span>
             </div>
-            <div class="text-tg-gray mb-2">Пароль: <b class="text-white font-mono">${escapeHtml(u.passPlain || 'скрыт')}</b></div>
+            <div class="text-tg-gray mb-2">Пароль: <b class="text-white font-mono">${escapeHtml(u.passPlain || '—')}</b></div>
             <div class="flex flex-wrap gap-2">
                 <button onclick="adminReadUserChats('${un}')" class="bg-blue-600 text-white px-2.5 py-1 rounded-lg btn-press">Читать чаты</button>
                 <button onclick="adminOpenGiftModal('${un}')" class="bg-purple-600 text-white px-2.5 py-1 rounded-lg btn-press">Выдать подарок</button>
-                <button onclick="database.ref('users/${un}/banned').set(${!u.banned}); openAdminModal();" class="${u.banned?'bg-emerald-600':'bg-red-600'} text-white px-2.5 py-1 rounded-lg btn-press">${u.banned?'Разбан':'Бан'}</button>
+                <button onclick="adminToggleBan('${un}', ${!u.banned})" class="${u.banned ? 'bg-emerald-600' : 'bg-red-600'} text-white px-2.5 py-1 rounded-lg btn-press">${u.banned ? 'Разбан' : 'Бан'}</button>
             </div>
         </div>`;
     }).join('');
 
-    let marketAdminHtml = Object.keys(db.market || {}).map(gid => {
-        let g = db.market[gid];
+    const marketAdminHtml = Object.keys(db.market || {}).map(gid => {
+        const g = db.market[gid];
         return `<div class="bg-[#0e1621] p-2.5 rounded-xl flex items-center justify-between text-xs border border-black/20 mb-2">
-            <div class="flex items-center gap-2"><span class="text-2xl">${g.icon}</span><div><div class="text-white font-bold">${g.name}</div><div class="text-tg-gray">${g.price} ⭐ | ${g.edition}</div></div></div>
-            <button onclick="database.ref('giftsMarket/${gid}').remove(); toast('Удалено'); openAdminModal();" class="text-red-400 hover:text-red-300 p-1"><i class="fas fa-trash"></i></button>
+            <div class="flex items-center gap-2">
+                <span class="text-2xl">${g.icon}</span>
+                <div><div class="text-white font-bold">${escapeHtml(g.name)}</div><div class="text-tg-gray">${g.price} ⭐ | ${escapeHtml(g.edition)}</div></div>
+            </div>
+            <button onclick="adminDeleteGift('${gid}')" class="text-red-400 hover:text-red-300 p-1"><i class="fas fa-trash"></i></button>
         </div>`;
     }).join('');
 
-    openModal('Админ Панель', `
+    openModal('Админ панель', `
         <div class="mb-6">
             <h4 class="text-white font-medium mb-2.5 text-sm flex items-center gap-2"><i class="fas fa-store"></i> Управление NFT подарками</h4>
             <div class="bg-[#0e1621] p-3 rounded-xl border border-black/20 space-y-2.5 mb-3">
-                <input id="admGiftName" type="text" placeholder="Название (напр. Черный Кот)" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
+                <input id="admGiftName" type="text" placeholder="Название" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
                 <input id="admGiftIcon" type="text" placeholder="Эмодзи (напр. 🐈‍⬛)" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
                 <input id="admGiftPrice" type="number" placeholder="Цена в звёздах" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
-                <input id="admGiftEdition" type="text" placeholder="Тираж (напр. 1 из 19.2K)" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
-                <button onclick="adminCreateNftGift()" class="w-full bg-purple-600 text-white font-medium py-2 rounded-lg text-xs btn-press">Создать NFT подарок</button>
+                <input id="admGiftEdition" type="text" placeholder="Тираж (1 из 19.2K)" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
+                <button onclick="adminCreateNftGift()" class="w-full bg-purple-600 text-white font-medium py-2 rounded-lg text-xs btn-press">Создать NFT</button>
             </div>
             <div class="max-h-36 overflow-y-auto">${marketAdminHtml}</div>
         </div>
@@ -795,71 +1220,108 @@ function openAdminModal() {
             <h4 class="text-red-400 font-medium mb-2.5 text-sm flex items-center gap-2"><i class="fas fa-flag"></i> Жалобы</h4>
             <div class="max-h-48 overflow-y-auto">${rHtml}</div>
         </div>
-        
+
         <div>
-            <h4 class="text-white font-medium mb-2.5 text-sm flex items-center gap-2"><i class="fas fa-users"></i> Пользователи и пароли</h4>
+            <h4 class="text-white font-medium mb-2.5 text-sm flex items-center gap-2"><i class="fas fa-users"></i> Пользователи</h4>
             <div class="max-h-72 overflow-y-auto">${usersHtml}</div>
         </div>
     `);
 }
 
-async function adminCreateNftGift() {
-    let name = document.getElementById('admGiftName').value.trim();
-    let icon = document.getElementById('admGiftIcon').value.trim() || '🎁';
-    let price = parseInt(document.getElementById('admGiftPrice').value) || 10;
-    let edition = document.getElementById('admGiftEdition').value.trim() || '1 из 10.0K';
-    if(!name) { toast('Введите название'); return; }
-
-    let gid = 'nft_' + Date.now();
-    let nGift = { name, icon, price, edition, bg: 'from-purple-900 to-indigo-900' };
-    await database.ref(`giftsMarket/${gid}`).set(nGift);
-    toast('NFT подарок создан!');
+async function adminCreateNftGift(){
+    const name = document.getElementById('admGiftName').value.trim();
+    const icon = document.getElementById('admGiftIcon').value.trim() || '🎁';
+    const price = parseInt(document.getElementById('admGiftPrice').value) || 10;
+    const edition = document.getElementById('admGiftEdition').value.trim() || '1 из 10.0K';
+    if(!name){ toast('Введите название'); return; }
+    const gid = 'nft_' + Date.now();
+    await database.ref('giftsMarket/' + gid).set({ name, icon, price, edition, bg: 'from-purple-900 to-indigo-900' });
+    toast('NFT подарок создан');
     openAdminModal();
 }
-
-async function adminReadUserChats(targetUser) {
-    let snap = await database.ref(`userChats/${targetUser}`).once('value');
-    let cids = Object.keys(snap.val() || {});
-    if(!cids.length) { toast('У юзера нет чатов'); return; }
+async function adminDeleteGift(gid){
+    if(!confirm('Удалить этот подарок из магазина?')) return;
+    await database.ref('giftsMarket/' + gid).remove();
+    toast('Удалено');
+    openAdminModal();
+}
+async function adminToggleBan(un, ban){
+    await database.ref('users/' + un + '/banned').set(ban);
+    toast(ban ? 'Забанен' : 'Разбанен');
+    openAdminModal();
+}
+async function adminBanUser(un){
+    await database.ref('users/' + un + '/banned').set(true);
+    toast('Пользователь забанен');
+    openAdminModal();
+}
+async function adminDismissReport(rid){
+    await database.ref('reports/' + rid).remove();
+    toast('Жалоба скрыта');
+    openAdminModal();
+}
+async function adminReadUserChats(targetUser){
+    const snap = await database.ref('userChats/' + targetUser).once('value');
+    const cids = Object.keys(snap.val() || {});
+    if(!cids.length){ toast('У пользователя нет чатов'); return; }
 
     let html = '';
-    for(let cid of cids) {
-        let cs = await database.ref(`chats/${cid}`).once('value');
-        let chat = cs.val(); if(!chat) continue;
-        let cName = chat.type === 'group' ? chat.name : Object.keys(chat.members).find(m=>m!==targetUser);
-        
-        let msgsSnap = await database.ref(`messages/${cid}`).once('value');
-        let msgs = msgsSnap.val() || {};
-        let mList = Object.values(msgs).sort((a,b)=>a.at-b.at).map(m=>`<div class="mb-1 bg-[#17212b] p-2 rounded text-xs"><b class="text-[#3390ec]">${m.from}:</b> <span class="text-white">${escapeHtml(m.text||'[Файл]')}</span></div>`).join('');
-
-        html += `<div class="bg-[#0e1621] p-3 rounded-xl mb-3 border border-black/20"><div class="font-bold text-amber-400 mb-2 text-xs">Чат: ${cName}</div><div class="max-h-40 overflow-y-auto">${mList||'Пусто'}</div></div>`;
+    for(const cid of cids){
+        const cs = await database.ref('chats/' + cid).once('value');
+        const chat = cs.val(); if(!chat) continue;
+        const cName = chat.type === 'group' ? chat.name : Object.keys(chat.members || {}).find(m => m !== targetUser);
+        const msgsSnap = await database.ref('messages/' + cid).once('value');
+        const msgs = msgsSnap.val() || {};
+        const mList = Object.values(msgs).sort((a,b) => a.at - b.at)
+            .map(m => `<div class="mb-1 bg-[#17212b] p-2 rounded text-xs"><b class="text-[#3390ec]">${escapeHtml(m.from)}:</b> <span class="text-white">${escapeHtml(m.text || '[Файл]')}</span></div>`)
+            .join('');
+        html += `<div class="bg-[#0e1621] p-3 rounded-xl mb-3 border border-black/20">
+            <div class="font-bold text-amber-400 mb-2 text-xs">Чат: ${escapeHtml(cName || cid)}</div>
+            <div class="max-h-40 overflow-y-auto">${mList || 'Пусто'}</div>
+        </div>`;
     }
-    openModal(`Чаты юзера @${targetUser}`, html);
+    openModal(`Чаты @${escapeHtml(targetUser)}`, html);
 }
-
-function adminOpenGiftModal(targetUser) {
-    let market = db.market || {};
-    let mHtml = Object.keys(market).map(gid => {
-        let g = market[gid];
+function adminOpenGiftModal(targetUser){
+    const market = db.market || {};
+    const mHtml = Object.keys(market).map(gid => {
+        const g = market[gid];
         return `<div class="bg-[#0e1621] p-3 rounded-xl flex items-center justify-between text-xs border border-black/20 mb-2">
-            <div class="flex items-center gap-2"><span class="text-2xl">${g.icon}</span><div><div class="text-white font-bold">${g.name}</div><div class="text-tg-gray">${g.edition}</div></div></div>
-            <button onclick="adminGiveGiftToUser('${targetUser}', '${gid}')" class="bg-purple-600 text-white px-3 py-1.5 rounded-lg btn-press">Выдать</button>
+            <div class="flex items-center gap-2"><span class="text-2xl">${g.icon}</span><div><div class="text-white font-bold">${escapeHtml(g.name)}</div><div class="text-tg-gray">${escapeHtml(g.edition)}</div></div></div>
+            <button onclick="adminGiveGiftToUser('${targetUser}','${gid}')" class="bg-purple-600 text-white px-3 py-1.5 rounded-lg btn-press">Выдать</button>
         </div>`;
     }).join('');
-    openModal(`Выдать подарок @${targetUser}`, `<div class="space-y-2">${mHtml}</div>`);
+    openModal(`Выдать подарок @${escapeHtml(targetUser)}`, `<div class="space-y-2">${mHtml || 'Магазин пуст'}</div>`);
 }
-
-async function adminGiveGiftToUser(targetUser, gid) {
-    let g = db.market[gid];
-    let giftId = 'gift_' + Date.now();
-    await database.ref(`users/${targetUser}/gifts/${giftId}`).set(g);
-    toast(`Подарок выдан @${targetUser}!`);
+async function adminGiveGiftToUser(targetUser, gid){
+    const g = db.market[gid]; if(!g) return;
+    await database.ref('users/' + targetUser + '/gifts/gift_' + Date.now()).set(g);
+    toast(`Подарок выдан @${targetUser}`);
     openAdminModal();
 }
 
-function applyScale(val) {
-    let wrap = document.getElementById('appScaleWrapper');
-    if(wrap) wrap.style.transform = `scale(${val/100})`;
+/* ============================================================
+   LIGHTBOX / SCALE
+============================================================ */
+function openImage(src){
+    const el = document.createElement('div');
+    el.className = 'fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4 fade-in cursor-zoom-out';
+    const img = document.createElement('img');
+    img.src = src;
+    img.className = 'max-w-full max-h-full object-contain rounded-lg shadow-2xl';
+    el.appendChild(img);
+    el.onclick = () => el.remove();
+    document.body.appendChild(el);
+}
+
+function applyScale(val){
+    const s = Math.max(0.5, Math.min(2, val / 100));
+    const wrap = document.getElementById('appScaleWrapper');
+    if(!wrap) return;
+    wrap.style.transform = `scale(${s})`;
+    wrap.style.transformOrigin = 'top left';
+    wrap.style.width  = (100 / s) + 'vw';
+    wrap.style.height = (100 / s) + 'vh';
 }
 </script>
 </body>
