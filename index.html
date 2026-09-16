@@ -12,42 +12,156 @@
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-    * { font-family: 'Roboto', sans-serif; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    body, html { background-color: #0e1621; color: #f5f5f5; margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; position: fixed; }
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-thumb { background: #2b3a4a; border-radius: 2px; }
+    * { font-family: 'Roboto', -apple-system, 'Segoe UI', sans-serif; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body, html { background: #0e1621; color: #f5f5f5; margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; position: fixed; }
+
+    /* TG Dark theme palette */
+    --tg-bg: #0e1621;
+    --tg-sidebar: #17212b;
+    --tg-hover: #202b36;
+    --tg-active: #2b5278;
+    --tg-blue: #3390ec;
+    --tg-gray: #708499;
+    --tg-out: #2b5278;
+    --tg-in: #182533;
+    --tg-divider: rgba(0,0,0,.15);
+
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: #2b3a4a; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #3a4d61; }
+    ::-webkit-scrollbar-track { background: transparent; }
 
     .bg-tg-main { background-color: #0e1621; }
     .bg-tg-sidebar { background-color: #17212b; }
     .bg-tg-header { background-color: #17212b; }
     .bg-tg-hover:hover { background-color: #202b36; }
-    .bg-tg-active { background-color: #2b5278; }
+    .bg-tg-active { background-color: #2b5278 !important; }
     .text-tg-blue { color: #3390ec; }
     .text-tg-gray { color: #708499; }
 
-    .msg-out { background-color: #2b5278; border-radius: 14px 14px 4px 14px; }
-    .msg-in  { background-color: #182533; border-radius: 14px 14px 14px 4px; }
+    /* ========== MESSAGE BUBBLES WITH TG TAILS ========== */
+    .msg-row { position: relative; }
+    .msg-bubble {
+        position: relative;
+        padding: 6px 10px 8px 10px;
+        max-width: 480px;
+        box-shadow: 0 1px 2px rgba(0,0,0,.15);
+        word-wrap: break-word;
+        word-break: break-word;
+    }
+    .msg-out {
+        background: #2b5278;
+        border-radius: 12px 12px 4px 12px;
+        margin-right: 6px;
+    }
+    .msg-out.with-tail::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        right: -6px;
+        width: 12px;
+        height: 15px;
+        background: #2b5278;
+        clip-path: path('M0 0 C0 8 3 15 12 15 L0 15 Z');
+    }
+    .msg-in {
+        background: #182533;
+        border-radius: 12px 12px 12px 4px;
+        margin-left: 6px;
+    }
+    .msg-in.with-tail::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: -6px;
+        width: 12px;
+        height: 15px;
+        background: #182533;
+        clip-path: path('M12 0 C12 8 9 15 0 15 L12 15 Z');
+    }
 
-    .btn-press { transition: transform .1s ease, background-color .15s ease; }
+    /* ========== BUTTONS & ANIMATIONS ========== */
+    .btn-press { transition: transform .1s ease, background-color .15s ease, color .15s ease; }
     .btn-press:active { transform: scale(.96); }
     .fade-in { animation: fadeIn .18s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: none;} }
-    .slide-in { animation: slideIn .2s ease-out; }
-    @keyframes slideIn { from { opacity: 0; transform: translateX(20px);} to { opacity: 1; transform: none;} }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px);} to { opacity: 1; transform: none;} }
+    .slide-in { animation: slideIn .22s cubic-bezier(.2,.7,.3,1); }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(20px) scale(.97);} to { opacity: 1; transform: none;} }
+    .pop-in { animation: popIn .18s ease-out; }
+    @keyframes popIn { from { opacity: 0; transform: scale(.9);} to { opacity: 1; transform: none;} }
 
-    input, textarea, select { outline: none; }
-    .modal-overlay { background: rgba(0,0,0,.65); backdrop-filter: blur(3px); }
+    /* ========== INPUTS ========== */
+    input, textarea, select { outline: none; font-family: inherit; }
+    input::placeholder, textarea::placeholder { color: #708499; }
 
+    /* ========== MODAL ========== */
+    .modal-overlay { background: rgba(0,0,0,.7); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+
+    /* ========== SCROLLBAR HIDE ========== */
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-    .msg-hover .report-btn { opacity: 0; transition: opacity .15s; }
-    .msg-hover:hover .report-btn { opacity: 1; }
+    /* ========== HOVER REPORT BUTTON ========== */
+    .msg-row .report-btn { opacity: 0; transition: opacity .15s; }
+    .msg-row:hover .report-btn { opacity: .8; }
+    .msg-row .report-btn:hover { opacity: 1; }
+
+    /* ========== CHAT LIST ITEM ========== */
+    .chat-item { transition: background-color .12s ease; position: relative; }
+    .chat-item::after {
+        content: '';
+        position: absolute;
+        left: 76px;
+        right: 0;
+        bottom: 0;
+        height: 1px;
+        background: rgba(0,0,0,.15);
+    }
+    .chat-item:last-child::after { display: none; }
+    .chat-item.active::after { background: transparent; }
+
+    /* ========== FOLDER TABS ========== */
+    .folder-tab {
+        position: relative;
+        transition: color .15s ease;
+        white-space: nowrap;
+    }
+    .folder-tab.active::after {
+        content: '';
+        position: absolute;
+        left: 12px;
+        right: 12px;
+        bottom: 0;
+        height: 3px;
+        background: #3390ec;
+        border-radius: 3px 3px 0 0;
+    }
+
+    /* ========== DRAWER MENU ========== */
+    .drawer-item { transition: background-color .12s ease; }
+
+    /* ========== EMOJI PANEL ========== */
+    .emoji-btn { transition: transform .1s, background-color .12s; }
+    .emoji-btn:hover { background: #202b36; transform: scale(1.15); }
+    .emoji-btn:active { transform: scale(.9); }
+
+    /* ========== SEND BUTTON ========== */
+    .send-btn { transition: transform .12s ease, background-color .15s ease; }
+    .send-btn:hover { background: #2b78c5 !important; }
+    .send-btn:active { transform: scale(.92); }
+
+    /* ========== AVATAR SHADOW ========== */
+    .avatar-shadow { box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+
+    /* ========== ONLINE DOT ========== */
+    .online-dot {
+        box-shadow: 0 0 0 2px #17212b;
+    }
 
     @media (max-width: 768px) {
         .mobile-hidden { display: none !important; }
         .mobile-full { width: 100% !important; position: absolute !important; inset: 0 !important; z-index: 30 !important; }
+        .msg-bubble { max-width: 82vw; }
     }
 </style>
 </head>
@@ -165,15 +279,33 @@ const AVATAR_TEXT = {
     8:'text-xs', 10:'text-sm', 12:'text-base', 14:'text-lg',
     16:'text-xl', 20:'text-2xl', 24:'text-4xl', 32:'text-5xl'
 };
-function getAvatarHtml(src, name, size = 10, extra = ''){
-    const dim = `w-${size} h-${size}`;
-    const base = `${dim} ${extra} rounded-full shrink-0 shadow object-cover`;
-    if(src) return `<img src="${src}" class="${base}" alt="">`;
-    const letter = escapeHtml((name || '?').trim().charAt(0).toUpperCase() || '?');
-    return `<div class="${dim} ${extra} rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shrink-0 shadow ${AVATAR_TEXT[size] || 'text-sm'}">${letter}</div>`;
+
+/* TG-style gradient palettes */
+const AVATAR_COLORS = [
+    'from-red-500 to-pink-600',
+    'from-orange-500 to-red-500',
+    'from-amber-500 to-orange-600',
+    'from-emerald-500 to-teal-600',
+    'from-cyan-500 to-blue-500',
+    'from-blue-500 to-indigo-600',
+    'from-violet-500 to-purple-600',
+    'from-fuchsia-500 to-pink-600'
+];
+function pickColor(name){
+    let h = 0;
+    for(let i=0;i<(name||'').length;i++) h = (h*31 + name.charCodeAt(i)) | 0;
+    return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }
 
-/* Универсальный рендер иконки подарка: URL/картинка ИЛИ эмодзи */
+function getAvatarHtml(src, name, size = 10, extra = ''){
+    const dim = `w-${size} h-${size}`;
+    const base = `${dim} ${extra} rounded-full shrink-0 shadow object-cover avatar-shadow`;
+    if(src) return `<img src="${src}" class="${base}" alt="">`;
+    const letter = escapeHtml((name || '?').trim().charAt(0).toUpperCase() || '?');
+    const grad = pickColor(name || '?');
+    return `<div class="${dim} ${extra} rounded-full bg-gradient-to-br ${grad} flex items-center justify-center text-white font-bold shrink-0 shadow avatar-shadow ${AVATAR_TEXT[size] || 'text-sm'}">${letter}</div>`;
+}
+
 function renderGiftIcon(icon, size = 'text-4xl', extra = ''){
     const s = String(icon || '🎁').trim();
     const isImg = /^(https?:\/\/|data:image\/)/i.test(s);
@@ -301,29 +433,39 @@ function stopGlobalListeners(){
 }
 
 /* ============================================================
-   AUTH
+   AUTH — TG-STYLE
 ============================================================ */
 function renderAuthScreen(){
     const el = document.getElementById('app'); if(!el) return;
     el.innerHTML = `
-    <div class="w-full h-full bg-tg-main flex items-center justify-center p-4">
-        <div class="bg-tg-sidebar w-full max-w-sm p-8 rounded-2xl shadow-2xl fade-in text-center border border-black/30">
-            <div class="w-24 h-24 bg-[#3390ec] rounded-full mx-auto flex items-center justify-center mb-6 shadow-lg">
+    <div class="w-full h-full bg-tg-main flex items-center justify-center p-4 relative overflow-hidden">
+        <!-- Декоративный градиент -->
+        <div class="absolute -top-40 -left-40 w-96 h-96 bg-[#3390ec]/10 rounded-full blur-3xl"></div>
+        <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-[#3390ec]/10 rounded-full blur-3xl"></div>
+
+        <div class="bg-tg-sidebar w-full max-w-[400px] p-8 rounded-2xl shadow-2xl fade-in text-center border border-white/5 relative z-10">
+            <div class="w-24 h-24 bg-gradient-to-br from-[#3390ec] to-[#2b78c5] rounded-full mx-auto flex items-center justify-center mb-6 shadow-lg shadow-[#3390ec]/30">
                 <span class="text-white text-3xl font-black">67</span>
             </div>
-            <h1 class="text-2xl font-bold text-white mb-1">67gramm</h1>
-            <p class="text-tg-gray text-sm mb-6">Войдите или зарегистрируйтесь</p>
+            <h1 class="text-[26px] font-bold text-white mb-1">67gramm</h1>
+            <p class="text-tg-gray text-sm mb-7">Войдите или зарегистрируйтесь</p>
 
-            <div class="flex bg-[#0e1621] rounded-xl p-1 mb-6 border border-black/20">
+            <div class="flex bg-[#0e1621] rounded-xl p-1 mb-6 border border-black/30">
                 <button type="button" id="tabLogin" onclick="switchAuthTab('login')" class="flex-1 py-2.5 rounded-lg bg-[#2b5278] text-white text-sm font-medium transition">Вход</button>
-                <button type="button" id="tabReg" onclick="switchAuthTab('register')" class="flex-1 py-2.5 rounded-lg text-tg-gray text-sm font-medium transition">Регистрация</button>
+                <button type="button" id="tabReg" onclick="switchAuthTab('register')" class="flex-1 py-2.5 rounded-lg text-tg-gray text-sm font-medium transition hover:text-white">Регистрация</button>
             </div>
 
             <div class="space-y-3 text-left">
-                <input id="authUsername" type="text" autocomplete="username" placeholder="Логин (латиница)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm transition">
-                <input id="authPhone" type="tel" autocomplete="tel" placeholder="Телефон (+998...)" class="hidden w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm transition">
-                <input id="authPass" type="password" autocomplete="current-password" placeholder="Пароль" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm transition">
-                <button type="button" onclick="handleAuthSubmit()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press mt-2 text-sm shadow-md">ПРОДОЛЖИТЬ</button>
+                <input id="authUsername" type="text" autocomplete="username" placeholder="Логин (латиница)"
+                    class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm transition">
+                <input id="authPhone" type="tel" autocomplete="tel" placeholder="Телефон (+998...)"
+                    class="hidden w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm transition">
+                <input id="authPass" type="password" autocomplete="current-password" placeholder="Пароль"
+                    class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm transition">
+                <button type="button" onclick="handleAuthSubmit()"
+                    class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-semibold py-3.5 rounded-xl btn-press mt-2 text-sm shadow-md shadow-[#3390ec]/20">
+                    ПРОДОЛЖИТЬ
+                </button>
             </div>
         </div>
     </div>`;
@@ -336,8 +478,8 @@ function switchAuthTab(mode){
     const rBtn = document.getElementById('tabReg');
     const phInput = document.getElementById('authPhone');
     const pInp = document.getElementById('authPass');
-    if(lBtn) lBtn.className = `flex-1 py-2.5 rounded-lg text-sm font-medium transition ${mode==='login'?'bg-[#2b5278] text-white':'text-tg-gray'}`;
-    if(rBtn) rBtn.className = `flex-1 py-2.5 rounded-lg text-sm font-medium transition ${mode==='register'?'bg-[#2b5278] text-white':'text-tg-gray'}`;
+    if(lBtn) lBtn.className = `flex-1 py-2.5 rounded-lg text-sm font-medium transition ${mode==='login'?'bg-[#2b5278] text-white':'text-tg-gray hover:text-white'}`;
+    if(rBtn) rBtn.className = `flex-1 py-2.5 rounded-lg text-sm font-medium transition ${mode==='register'?'bg-[#2b5278] text-white':'text-tg-gray hover:text-white'}`;
     if(phInput) phInput.classList.toggle('hidden', mode !== 'register');
     if(pInp) pInp.setAttribute('autocomplete', mode === 'register' ? 'new-password' : 'current-password');
 }
@@ -412,27 +554,34 @@ function renderMainLayout(){
     const el = document.getElementById('app'); if(!el) return;
 
     el.innerHTML = `
-    <div id="sidebarSide" class="w-full md:w-[380px] h-full bg-tg-sidebar flex flex-col border-r border-black/20 z-10 shrink-0">
-        <div class="h-14 flex items-center px-4 gap-3 shrink-0 border-b border-black/10">
-            <button onclick="toggleDrawerMenu()" class="text-tg-gray hover:text-white text-xl p-2 rounded-full hover:bg-[#202b36] transition btn-press"><i class="fas fa-bars"></i></button>
-            <div class="flex-grow bg-[#0e1621] rounded-full flex items-center px-3.5 py-2 border border-black/20">
+    <div id="sidebarSide" class="w-full md:w-[400px] h-full bg-tg-sidebar flex flex-col border-r border-black/40 z-10 shrink-0">
+        <!-- Sidebar header -->
+        <div class="h-14 flex items-center px-3 gap-2 shrink-0 bg-tg-header">
+            <button onclick="toggleDrawerMenu()" class="text-tg-gray hover:text-white text-xl p-2 rounded-full hover:bg-[#202b36] transition btn-press">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="flex-grow bg-[#0e1621] rounded-full flex items-center px-3.5 py-2 border border-black/30 focus-within:border-[#3390ec]/50 transition">
                 <i class="fas fa-search text-tg-gray text-sm mr-3"></i>
-                <input type="text" id="searchInput" oninput="renderSidebar()" placeholder="Поиск" class="bg-transparent border-none text-white text-sm w-full">
+                <input type="text" id="searchInput" oninput="renderSidebar()" placeholder="Поиск"
+                    class="bg-transparent border-none text-white text-sm w-full">
             </div>
         </div>
-        <div id="folderTabs" class="flex overflow-x-auto scrollbar-hide px-2 border-b border-black/20 shrink-0 bg-tg-sidebar"></div>
+        <div id="folderTabs" class="flex overflow-x-auto scrollbar-hide px-2 border-b border-black/30 shrink-0 bg-tg-sidebar"></div>
         <div id="chatList" class="flex-grow overflow-y-auto"></div>
     </div>
 
     <div id="chatArea" class="mobile-hidden mobile-full flex-grow h-full bg-tg-main flex flex-col relative bg-cover bg-center"
-         style="background-image:url('https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'); background-blend-mode:overlay; background-color:rgba(14,22,33,.92);">
-        <div class="flex-grow flex items-center justify-center">
-            <div class="bg-[#17212b]/90 px-5 py-2 rounded-full text-tg-gray text-sm shadow-md border border-black/20">Выберите чат в 67gramm</div>
+         style="background-image:url('https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'); background-blend-mode:overlay; background-color:rgba(14,22,33,.94);">
+        <div class="flex-grow flex flex-col items-center justify-center text-center px-6">
+            <div class="bg-[#17212b]/95 px-6 py-3 rounded-full text-tg-gray text-sm shadow-lg border border-black/30 mb-3">
+                Выберите чат, чтобы начать общение
+            </div>
+            <p class="text-tg-gray/60 text-xs">67gramm Web</p>
         </div>
     </div>
 
-    <div id="drawerMenu" class="fixed inset-y-0 left-0 w-[300px] bg-tg-sidebar shadow-2xl transform -translate-x-full transition-transform duration-300 z-50 flex flex-col border-r border-black/30">
-        <div class="p-5 bg-[#2b5278] text-white flex flex-col justify-end min-h-[140px] shadow-inner">
+    <div id="drawerMenu" class="fixed inset-y-0 left-0 w-[300px] bg-tg-sidebar shadow-2xl transform -translate-x-full transition-transform duration-300 z-50 flex flex-col border-r border-black/40">
+        <div class="p-5 bg-gradient-to-b from-[#2b5278] to-[#24445f] text-white flex flex-col justify-end min-h-[160px] shadow-inner">
             <div class="flex items-center gap-3 mb-3">
                 <div id="drawerAvatar"></div>
                 <div class="min-w-0">
@@ -442,17 +591,32 @@ function renderMainLayout(){
             </div>
         </div>
         <div class="py-2 overflow-y-auto flex-grow text-white font-normal text-[15px] space-y-0.5">
-            <div onclick="openGiftsModal()" class="px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition"><i class="fas fa-gift text-pink-400 text-lg w-6 text-center"></i> Подарки и NFT</div>
-            <div onclick="openNewChatModal()" class="px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition"><i class="far fa-user text-tg-gray text-lg w-6 text-center"></i> Создать чат</div>
-            <div onclick="openNewGroupModal()" class="px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition"><i class="fas fa-users text-tg-gray text-lg w-6 text-center"></i> Создать группу</div>
-            <div onclick="openSettingsModal()" class="px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition"><i class="fas fa-cog text-tg-gray text-lg w-6 text-center"></i> Настройки</div>
-            <div onclick="openShopModal()" class="px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition"><i class="fas fa-star text-amber-400 text-lg w-6 text-center"></i> Мои звёзды</div>
-            ${db.currentUser.isAdmin ? `<div onclick="openAdminModal()" class="px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition"><i class="fas fa-shield-alt text-tg-gray text-lg w-6 text-center"></i> Админ панель</div>` : ''}
-            <div class="border-t border-black/20 my-2"></div>
-            <div onclick="logout()" class="px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 text-red-400 transition"><i class="fas fa-sign-out-alt text-red-400 text-lg w-6 text-center"></i> Выход</div>
+            <div onclick="openGiftsModal()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition">
+                <i class="fas fa-gift text-pink-400 text-lg w-6 text-center"></i> Подарки и NFT
+            </div>
+            <div onclick="openNewChatModal()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition">
+                <i class="far fa-user text-tg-gray text-lg w-6 text-center"></i> Создать чат
+            </div>
+            <div onclick="openNewGroupModal()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition">
+                <i class="fas fa-users text-tg-gray text-lg w-6 text-center"></i> Создать группу
+            </div>
+            <div onclick="openSettingsModal()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition">
+                <i class="fas fa-cog text-tg-gray text-lg w-6 text-center"></i> Настройки
+            </div>
+            <div onclick="openShopModal()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition">
+                <i class="fas fa-star text-amber-400 text-lg w-6 text-center"></i> Мои звёзды
+            </div>
+            ${db.currentUser.isAdmin ? `
+            <div onclick="openAdminModal()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition">
+                <i class="fas fa-shield-alt text-tg-gray text-lg w-6 text-center"></i> Админ панель
+            </div>` : ''}
+            <div class="border-t border-black/20 my-2 mx-3"></div>
+            <div onclick="logout()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 text-red-400 transition">
+                <i class="fas fa-sign-out-alt text-red-400 text-lg w-6 text-center"></i> Выход
+            </div>
         </div>
     </div>
-    <div id="drawerOverlay" onclick="toggleDrawerMenu()" class="hidden fixed inset-0 bg-black/60 z-40"></div>
+    <div id="drawerOverlay" onclick="toggleDrawerMenu()" class="hidden fixed inset-0 bg-black/60 z-40 fade-in"></div>
     `;
     renderSidebar();
     updateDrawerInfo();
@@ -485,9 +649,9 @@ function renderSidebar(){
 
     const fTabs = document.getElementById('folderTabs');
     const folders = db.currentUser.folders || {};
-    let fHtml = `<div onclick="switchFolder('all')" class="px-4 py-3 cursor-pointer text-sm font-medium border-b-2 whitespace-nowrap ${activeFolderId==='all'?'border-[#3390ec] text-[#3390ec] font-semibold':'border-transparent text-tg-gray hover:text-white'}">Все чаты</div>`;
+    let fHtml = `<div onclick="switchFolder('all')" class="folder-tab px-4 py-3 cursor-pointer text-sm font-medium ${activeFolderId==='all'?'active text-[#3390ec] font-semibold':'text-tg-gray hover:text-white'}">Все чаты</div>`;
     Object.keys(folders).forEach(k => {
-        fHtml += `<div onclick="switchFolder('${k}')" class="px-4 py-3 cursor-pointer text-sm font-medium border-b-2 whitespace-nowrap ${activeFolderId===k?'border-[#3390ec] text-[#3390ec] font-semibold':'border-transparent text-tg-gray hover:text-white'}">${escapeHtml(folders[k].name)}</div>`;
+        fHtml += `<div onclick="switchFolder('${k}')" class="folder-tab px-4 py-3 cursor-pointer text-sm font-medium ${activeFolderId===k?'active text-[#3390ec] font-semibold':'text-tg-gray hover:text-white'}">${escapeHtml(folders[k].name)}</div>`;
     });
     if(fTabs) fTabs.innerHTML = fHtml;
 
@@ -527,22 +691,31 @@ function renderSidebar(){
     items.sort((a,b) => b.lastAt - a.lastAt);
 
     if(items.length === 0){
-        cList.innerHTML = `<div class="text-center text-tg-gray text-sm mt-12 px-4">${q ? 'Ничего не найдено' : 'Список чатов пуст'}</div>`;
+        cList.innerHTML = `
+            <div class="flex flex-col items-center justify-center text-tg-gray text-sm mt-16 px-4">
+                <i class="far fa-comments text-4xl mb-3 text-tg-gray/40"></i>
+                ${q ? 'Ничего не найдено' : 'Список чатов пуст'}
+            </div>`;
         return;
     }
 
     cList.innerHTML = items.map(i => `
-        <div onclick="openChat('${i.cid}')" class="flex items-center gap-3.5 px-3 py-2.5 cursor-pointer bg-tg-hover ${activeChatId===i.cid?'bg-tg-active':''} transition">
-            <div class="relative">
+        <div onclick="openChat('${i.cid}')" class="chat-item flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-[#202b36] ${activeChatId===i.cid?'active bg-tg-active':''} transition">
+            <div class="relative shrink-0 py-2">
                 ${getAvatarHtml(i.avatar, i.name, 12)}
-                ${i.online ? '<span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 rounded-full border-2 border-[#17212b]"></span>' : ''}
+                ${i.online ? '<span class="online-dot absolute bottom-2 right-0 w-3 h-3 bg-emerald-500 rounded-full"></span>' : ''}
             </div>
-            <div class="flex-grow min-w-0 border-b border-black/10 pb-2.5 h-12 flex flex-col justify-between">
-                <div class="flex justify-between items-center gap-2">
-                    <div class="text-white font-medium text-[15px] truncate flex items-center gap-1">${escapeHtml(i.name)} ${i.prem?'<i class="fas fa-star text-amber-400 text-[10px]"></i>':''}</div>
-                    <div class="text-[11px] text-tg-gray shrink-0">${i.lastAt ? listTime(i.lastAt) : ''}</div>
+            <div class="flex-grow min-w-0 py-2 pr-1">
+                <div class="flex justify-between items-center gap-2 mb-0.5">
+                    <div class="text-white font-medium text-[15px] truncate flex items-center gap-1">
+                        ${escapeHtml(i.name)} ${i.prem?'<i class="fas fa-star text-amber-400 text-[10px]"></i>':''}
+                    </div>
+                    <div class="text-[11px] ${activeChatId===i.cid?'text-blue-200/90':'text-tg-gray'} shrink-0">${i.lastAt ? listTime(i.lastAt) : ''}</div>
                 </div>
-                <div class="text-[13px] text-tg-gray truncate">${i.mine ? '<i class="fas fa-check-double text-tg-blue mr-1"></i>' : ''}${escapeHtml(i.lastText)}</div>
+                <div class="flex items-center gap-1 text-[13px] ${activeChatId===i.cid?'text-blue-100/80':'text-tg-gray'} truncate">
+                    ${i.mine ? '<i class="fas fa-check-double text-[#5eb5f7] text-[11px] shrink-0"></i>' : ''}
+                    <span class="truncate">${escapeHtml(i.lastText)}</span>
+                </div>
             </div>
         </div>
     `).join('');
@@ -582,35 +755,46 @@ function openChat(cid){
     const ca = document.getElementById('chatArea');
     ca.classList.remove('mobile-hidden');
     ca.innerHTML = `
-        <div class="h-14 bg-tg-header flex items-center justify-between px-4 shrink-0 shadow z-10 border-b border-black/20">
-            <div class="flex items-center gap-3.5 min-w-0 ${!isGroup ? 'cursor-pointer' : ''}"
+        <div class="h-14 bg-tg-header flex items-center justify-between px-3 shrink-0 shadow-md z-10 border-b border-black/30">
+            <div class="flex items-center gap-3 min-w-0 flex-grow ${!isGroup ? 'cursor-pointer' : ''}"
                  ${!isGroup && targetUser ? `onclick="openProfileModal('${Object.keys(chat.members).find(m => m !== db.currentUser.username)}')"` : ''}>
-                <button onclick="document.getElementById('chatArea').classList.add('mobile-hidden')" class="md:hidden text-tg-gray hover:text-white mr-1 text-lg"><i class="fas fa-arrow-left"></i></button>
-                ${getAvatarHtml(av, name, 10)}
-                <div class="flex flex-col min-w-0">
-                    <span id="chatTitle" class="text-white font-medium text-[15px] truncate">${escapeHtml(name)}</span>
-                    <span id="chatSub" class="text-tg-blue text-xs truncate">${escapeHtml(sub)}</span>
+                <button onclick="document.getElementById('chatArea').classList.add('mobile-hidden')"
+                    class="md:hidden text-tg-gray hover:text-white mr-1 text-lg p-1">
+                    <i class="fas fa-arrow-left"></i>
+                </button>
+                <div class="flex items-center gap-3 min-w-0 flex-grow py-1.5">
+                    ${getAvatarHtml(av, name, 10)}
+                    <div class="flex flex-col min-w-0">
+                        <span id="chatTitle" class="text-white font-medium text-[15px] truncate">${escapeHtml(name)}</span>
+                        <span id="chatSub" class="text-tg-blue text-xs truncate">${escapeHtml(sub)}</span>
+                    </div>
                 </div>
             </div>
-            <div class="flex gap-5 text-tg-gray text-lg">
-                <i class="fas fa-search hover:text-white cursor-pointer transition" title="Поиск"></i>
-                <i class="fas fa-ellipsis-v hover:text-white cursor-pointer transition" title="Ещё"></i>
+            <div class="flex gap-4 text-tg-gray text-lg shrink-0 pl-2">
+                <button class="hover:text-white cursor-pointer transition p-1" title="Поиск"><i class="fas fa-search"></i></button>
+                <button class="hover:text-white cursor-pointer transition p-1" title="Ещё"><i class="fas fa-ellipsis-v"></i></button>
             </div>
         </div>
 
-        <div id="msgContainer" class="flex-grow overflow-y-auto p-4 flex flex-col gap-1.5"></div>
+        <div id="msgContainer" class="flex-grow overflow-y-auto px-3 py-4 flex flex-col"></div>
 
-        <div class="bg-tg-sidebar p-3 shrink-0 flex items-end gap-2 z-10 border-t border-black/20 relative">
-            <div id="emojiPanel" class="hidden absolute bottom-full left-3 mb-2 bg-[#17212b] border border-black/30 rounded-2xl p-3 shadow-2xl grid grid-cols-8 gap-1.5 w-[320px] max-w-[90vw]">
-                ${['😀','😂','🥰','😎','🤔','😭','😡','👍','👎','🔥','❤️','💔','🎉','🎁','⭐','🌟','🙏','🤝','💪','✨','🥳','😴','🤯','🙄'].map(e => `<button onclick="insertEmoji('${e}')" class="text-xl hover:bg-[#202b36] rounded-lg p-1 transition">${e}</button>`).join('')}
+        <div class="bg-tg-sidebar px-3 py-2.5 shrink-0 flex items-end gap-1.5 z-10 border-t border-black/30 relative">
+            <div id="emojiPanel" class="hidden absolute bottom-full left-3 mb-2 bg-[#17212b] border border-black/40 rounded-2xl p-3 shadow-2xl grid grid-cols-8 gap-1 w-[340px] max-w-[92vw] pop-in">
+                ${['😀','😂','🥰','😎','🤔','😭','😡','👍','👎','🔥','❤️','💔','🎉','🎁','⭐','🌟','🙏','🤝','💪','✨','🥳','😴','🤯','🙄','👀','🤗','😅','🤣','😍','😘','🤔','🤫'].map(e => `<button onclick="insertEmoji('${e}')" class="emoji-btn text-xl rounded-lg p-1.5 transition">${e}</button>`).join('')}
             </div>
-            <button onclick="toggleEmoji()" class="text-tg-gray hover:text-white text-xl p-2 shrink-0 btn-press" title="Эмодзи"><i class="far fa-smile"></i></button>
-            <button onclick="document.getElementById('hiddenFileInput').click()" class="text-tg-gray hover:text-white text-xl p-2 shrink-0 btn-press" title="Прикрепить"><i class="fas fa-paperclip"></i></button>
-            <textarea id="msgInput" rows="1" placeholder="Введите сообщение..."
-                class="flex-grow bg-[#0e1621] text-white text-[15px] rounded-xl px-4 py-3 resize-none max-h-32 border border-black/20 focus:border-[#3390ec] transition"
+            <button onclick="toggleEmoji()" class="text-tg-gray hover:text-[#3390ec] text-xl p-2 shrink-0 transition" title="Эмодзи">
+                <i class="far fa-smile"></i>
+            </button>
+            <button onclick="document.getElementById('hiddenFileInput').click()" class="text-tg-gray hover:text-[#3390ec] text-xl p-2 shrink-0 transition" title="Прикрепить">
+                <i class="fas fa-paperclip"></i>
+            </button>
+            <textarea id="msgInput" rows="1" placeholder="Написать сообщение..."
+                class="flex-grow bg-[#0e1621] text-white text-[15px] rounded-2xl px-4 py-2.5 resize-none max-h-32 border border-black/30 focus:border-[#3390ec]/60 transition leading-6"
                 onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"
                 oninput="autoGrow(this)"></textarea>
-            <button onclick="sendMsg()" class="w-12 h-12 rounded-full bg-[#3390ec] hover:bg-[#2b78c5] text-white flex items-center justify-center text-lg shrink-0 btn-press shadow" title="Отправить"><i class="fas fa-paperplane ml-0.5"></i></button>
+            <button onclick="sendMsg()" class="send-btn w-11 h-11 rounded-full bg-[#3390ec] text-white flex items-center justify-center text-base shrink-0 shadow-lg shadow-[#3390ec]/20" title="Отправить">
+                <i class="fas fa-paperplane"></i>
+            </button>
         </div>
     `;
 
@@ -621,7 +805,7 @@ function openChat(cid){
         const mc = document.getElementById('msgContainer');
         if(!mc) return;
 
-        const nearBottom = mc.scrollHeight - mc.scrollTop - mc.clientHeight < 120;
+        const nearBottom = mc.scrollHeight - mc.scrollTop - mc.clientHeight < 150;
         const list = Object.keys(msgs).map(k => ({ _id: k, ...msgs[k] })).sort((a,b) => a.at - b.at);
         mc.innerHTML = renderMessages(list, isGroup);
         if(nearBottom) mc.scrollTop = mc.scrollHeight;
@@ -631,53 +815,67 @@ function openChat(cid){
 
 function renderMessages(list, isGroup){
     if(!list.length){
-        return `<div class="flex-grow flex items-center justify-center text-tg-gray text-sm py-8">Нет сообщений. Начните первым!</div>`;
+        return `<div class="flex-grow flex flex-col items-center justify-center text-tg-gray text-sm py-12">
+            <i class="far fa-comment-dots text-4xl mb-3 text-tg-gray/30"></i>
+            Нет сообщений. Начните первым!
+        </div>`;
     }
+
     let html = '';
     let lastDay = '';
     let prev = null;
+    let prevSame = false;
 
     for(let i = 0; i < list.length; i++){
         const m = list[i];
         const day = formatDay(m.at);
         if(day !== lastDay){
             lastDay = day;
-            html += `<div class="flex justify-center my-3"><span class="bg-black/30 backdrop-blur text-white/75 text-[11px] px-3 py-1 rounded-full">${day}</span></div>`;
+            html += `<div class="flex justify-center my-3">
+                <span class="bg-black/40 backdrop-blur text-white/80 text-[11px] px-3 py-1 rounded-full shadow">
+                    ${day}
+                </span>
+            </div>`;
+            prevSame = false;
         }
 
         const mine = m.from === db.currentUser.username;
-        const sameSender = prev && prev.from === m.from && (m.at - prev.at) < 5 * 60000;
-        const gap = sameSender ? 'mt-0.5' : 'mt-2';
+        const sameSender = prev && prev.from === m.from && (m.at - prev.at) < 5 * 60000 && day === lastDay;
 
         let content = '';
         if(m.fileType?.startsWith('image/')){
-            content = `<img src="${m.fileData}" onclick="openImage(this.src)" class="max-w-[280px] max-h-[320px] rounded-lg mb-1 cursor-pointer shadow object-cover">`;
+            content = `<img src="${m.fileData}" onclick="openImage(this.src)" class="rounded-xl mb-1 cursor-pointer max-w-[280px] max-h-[320px] object-cover">`;
         } else if(m.fileType){
-            content = `<a href="${m.fileData}" download="${escapeHtml(m.fileName || 'file')}" class="flex items-center gap-3 bg-black/20 hover:bg-black/30 p-2.5 rounded-lg text-white transition">
+            content = `<a href="${m.fileData}" download="${escapeHtml(m.fileName || 'file')}" class="flex items-center gap-3 bg-black/25 hover:bg-black/35 p-2.5 rounded-xl text-white transition">
                 <div class="w-10 h-10 bg-[#3390ec] rounded-full flex items-center justify-center shrink-0"><i class="fas fa-arrow-down"></i></div>
                 <div class="truncate max-w-[180px] text-sm font-medium">${escapeHtml(m.fileName || 'файл')}</div>
             </a>`;
         }
         if(m.text){
-            content += `<div class="text-[15px] text-white whitespace-pre-wrap break-words ${m.fileType ? 'mt-1' : ''}">${escapeHtml(m.text)}</div>`;
+            content += `<div class="text-[15px] text-white whitespace-pre-wrap break-words leading-[1.35] ${m.fileType ? 'mt-1' : ''}">${escapeHtml(m.text)}</div>`;
         }
 
         const reportBtn = !mine
             ? `<button onclick="reportMsg('${m._id}')" class="report-btn absolute -left-8 top-1/2 -translate-y-1/2 text-tg-gray hover:text-red-400 p-1 transition" title="Пожаловаться"><i class="fas fa-exclamation-triangle text-xs"></i></button>`
             : '';
 
+        const tailClass = sameSender ? '' : 'with-tail';
+
         html += `
-        <div class="flex ${mine ? 'justify-end' : 'justify-start'} msg-hover relative ${gap}">
-            <div class="relative max-w-[75%] shadow-md ${mine ? 'msg-out' : 'msg-in'} px-3.5 py-2 flex flex-col">
-                ${!mine && isGroup && !sameSender ? `<div class="text-[#5eb5f7] font-semibold text-xs mb-1">${escapeHtml(m.from)}</div>` : ''}
+        <div class="flex ${mine ? 'justify-end' : 'justify-start'} msg-row ${prevSame ? 'mt-0.5' : 'mt-2'}">
+            <div class="relative msg-bubble ${mine ? 'msg-out' : 'msg-in'} ${tailClass}">
+                ${!mine && isGroup && !sameSender ? `<div class="text-[#5eb5f7] font-semibold text-[13px] mb-0.5">${escapeHtml(m.from)}</div>` : ''}
                 ${reportBtn}
-                <div>${content}</div>
-                <div class="text-[10px] ${mine ? 'text-blue-200/80' : 'text-tg-gray'} text-right mt-1 ml-4 self-end flex items-center gap-1">
-                    ${timeFormat(m.at)} ${mine ? '<i class="fas fa-check-double text-[10px]"></i>' : ''}
+                ${content}
+                <div class="text-[11px] ${mine ? 'text-blue-200/80' : 'text-tg-gray/90'} float-right ml-2 mt-1 select-none flex items-center gap-1 leading-none">
+                    ${timeFormat(m.at)}
+                    ${mine ? '<i class="fas fa-check-double text-[10px]"></i>' : ''}
                 </div>
+                <div class="clear-both"></div>
             </div>
         </div>`;
         prev = m;
+        prevSame = sameSender;
     }
     return html;
 }
@@ -787,12 +985,14 @@ function openModal(title, content){
     document.getElementById('ssModal')?.remove();
     document.body.insertAdjacentHTML('beforeend', `
     <div id="ssModal" class="fixed inset-0 modal-overlay z-[100] flex items-center justify-center p-4 fade-in" onclick="if(event.target===this)this.remove()">
-        <div class="bg-tg-sidebar w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-black/30 slide-in">
-            <div class="px-6 py-4 flex justify-between items-center border-b border-black/20 bg-[#1e2c3a] shrink-0">
-                <h3 class="text-white font-medium text-lg truncate">${title}</h3>
-                <button onclick="document.getElementById('ssModal').remove()" class="text-tg-gray hover:text-white text-lg shrink-0 ml-3"><i class="fas fa-times"></i></button>
+        <div class="bg-tg-sidebar w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-black/40 slide-in">
+            <div class="px-5 py-4 flex justify-between items-center border-b border-black/30 bg-[#1e2c3a] shrink-0">
+                <h3 class="text-white font-medium text-[17px] truncate">${title}</h3>
+                <button onclick="document.getElementById('ssModal').remove()" class="text-tg-gray hover:text-white text-lg shrink-0 ml-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/5 transition">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
-            <div class="p-6 overflow-y-auto flex-grow">${content}</div>
+            <div class="p-5 overflow-y-auto flex-grow">${content}</div>
         </div>
     </div>`);
 }
@@ -821,12 +1021,12 @@ function openProfileModal(username){
             <p class="text-tg-gray text-xs mb-4">${isOnline(u) ? '<span class="text-emerald-400">● в сети</span>' : 'был(а) недавно'}</p>
         </div>
 
-        <div class="space-y-3 bg-[#0e1621] p-4 rounded-2xl border border-black/20 text-sm mb-4">
+        <div class="space-y-3 bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-sm mb-4">
             <div><span class="text-tg-gray text-xs block mb-0.5">Телефон</span><span class="text-white font-medium">${escapeHtml(u.phone || 'Не указан')}</span></div>
             <div><span class="text-tg-gray text-xs block mb-0.5">О себе</span><span class="text-white font-medium">${escapeHtml(u.bio || 'Добро пожаловать в мой профиль 67gramm!')}</span></div>
         </div>
 
-        <div class="bg-[#0e1621] rounded-2xl p-2 border border-black/20">
+        <div class="bg-[#0e1621] rounded-2xl p-2 border border-black/30">
             <div onclick="openUserGiftsList('${username}')" class="flex items-center justify-between p-3.5 hover:bg-tg-sidebar rounded-xl cursor-pointer transition">
                 <div class="flex items-center gap-3.5 text-white text-sm font-medium">
                     <i class="fas fa-gift text-pink-400 text-lg w-6 text-center"></i>
@@ -865,14 +1065,14 @@ function openGiftsModal(){
 
     const marketHtml = Object.keys(market).map(gid => {
         const g = market[gid];
-        return `<div class="bg-[#0e1621] p-4 rounded-2xl border border-black/20 flex flex-col items-center text-center">
+        return `<div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 flex flex-col items-center text-center">
             <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr ${g.bg} flex items-center justify-center mb-3 shadow-lg">
                 ${renderGiftIcon(g.icon, 'text-3xl')}
             </div>
             <div class="text-white font-medium text-sm mb-0.5">${escapeHtml(g.name)}</div>
             <div class="text-[10px] text-tg-gray mb-2">${escapeHtml(g.edition)}</div>
             <div class="text-amber-400 font-bold text-xs mb-3">${g.price} ⭐</div>
-            <button onclick="buyGift('${gid}')" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white py-2 rounded-xl text-xs font-medium btn-press">Купить</button>
+            <button onclick="buyGift('${gid}')" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white py-2 rounded-xl text-xs font-medium btn-press transition">Купить</button>
         </div>`;
     }).join('') || '<p class="text-tg-gray text-xs text-center py-6 col-span-2">Магазин пуст</p>';
 
@@ -889,9 +1089,9 @@ function openGiftsModal(){
     const myCls = giftsTab === 'my'     ? 'bg-[#2b5278] text-white' : 'text-tg-gray';
 
     openModal('Подарки и NFT', `
-        <div class="flex gap-2 mb-4 bg-[#0e1621] p-1 rounded-xl">
-            <button onclick="switchGiftsTab('market')" class="flex-1 py-2 rounded-lg text-xs font-medium ${mCls}">Магазин</button>
-            <button onclick="switchGiftsTab('my')" class="flex-1 py-2 rounded-lg text-xs font-medium ${myCls}">Мои подарки</button>
+        <div class="flex gap-2 mb-4 bg-[#0e1621] p-1 rounded-xl border border-black/30">
+            <button onclick="switchGiftsTab('market')" class="flex-1 py-2 rounded-lg text-xs font-medium transition ${mCls}">Магазин</button>
+            <button onclick="switchGiftsTab('my')" class="flex-1 py-2 rounded-lg text-xs font-medium transition ${myCls}">Мои подарки</button>
         </div>
         <div class="${giftsTab==='market' ? '' : 'hidden'} grid grid-cols-2 gap-3">${marketHtml}</div>
         <div class="${giftsTab==='my' ? '' : 'hidden'} grid grid-cols-2 gap-3">${myHtml}</div>
@@ -924,8 +1124,8 @@ async function buyGift(gid){
 function openNewChatModal(){
     if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full')) toggleDrawerMenu();
     openModal('Новый чат', `
-        <input id="ncUname" type="text" placeholder="Введите логин пользователя" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-5 transition">
-        <button onclick="executeCreateChat()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Начать диалог</button>
+        <input id="ncUname" type="text" placeholder="Введите логин пользователя" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-5 transition">
+        <button onclick="executeCreateChat()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">Начать диалог</button>
     `);
 }
 async function executeCreateChat(){
@@ -952,9 +1152,9 @@ async function executeCreateChat(){
 function openNewGroupModal(){
     if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full')) toggleDrawerMenu();
     openModal('Создать группу', `
-        <input id="ngName" type="text" placeholder="Название группы" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-3 transition">
-        <input id="ngUsers" type="text" placeholder="Участники через запятую (логины)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-5 transition">
-        <button onclick="executeCreateGroup()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Создать группу</button>
+        <input id="ngName" type="text" placeholder="Название группы" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-3 transition">
+        <input id="ngUsers" type="text" placeholder="Участники через запятую (логины)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-5 transition">
+        <button onclick="executeCreateGroup()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">Создать группу</button>
     `);
 }
 async function executeCreateGroup(){
@@ -1001,13 +1201,13 @@ function openSettingsModal(){
             </div>
         </div>
 
-        <div class="space-y-1 bg-[#0e1621] rounded-2xl p-2 mb-4 border border-black/20">
-            <div onclick="openSetAccountModal()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-xl cursor-pointer transition"><i class="far fa-user w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Мой профиль</span></div>
-            <div onclick="openSetPrivacyModal()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-xl cursor-pointer transition"><i class="fas fa-lock w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Конфиденциальность и пароль</span></div>
-            <div onclick="openSetFoldersModal()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-xl cursor-pointer transition"><i class="far fa-folder w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Папки с чатами</span></div>
+        <div class="space-y-1 bg-[#0e1621] rounded-2xl p-2 mb-4 border border-black/30">
+            <div onclick="openSetAccountModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="far fa-user w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Мой профиль</span></div>
+            <div onclick="openSetPrivacyModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-lock w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Конфиденциальность и пароль</span></div>
+            <div onclick="openSetFoldersModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="far fa-folder w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Папки с чатами</span></div>
         </div>
 
-        <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/20">
+        <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30">
             <div class="flex justify-between items-center mb-3 text-white text-sm">
                 <div class="flex items-center gap-4"><i class="far fa-eye text-tg-gray text-lg w-6 text-center"></i>Масштаб интерфейса</div>
                 <span id="scTxt" class="text-tg-blue font-semibold">${scale}%</span>
@@ -1018,8 +1218,8 @@ function openSettingsModal(){
                 class="w-full accent-[#3390ec]">
         </div>
 
-        <div class="bg-[#0e1621] rounded-2xl p-2 border border-black/20">
-            <div onclick="openShopModal()" class="flex items-center justify-between p-3 hover:bg-tg-sidebar rounded-xl cursor-pointer transition">
+        <div class="bg-[#0e1621] rounded-2xl p-2 border border-black/30">
+            <div onclick="openShopModal()" class="flex items-center justify-between p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition">
                 <div class="flex items-center gap-4"><i class="fas fa-star w-6 text-center text-amber-400 text-lg"></i><span class="text-white text-sm">Мои звёзды</span></div>
                 <span class="text-amber-400 font-bold">${u.stars || 0} ⭐</span>
             </div>
@@ -1031,10 +1231,10 @@ function openSetAccountModal(){
     const u = db.currentUser;
     openModal('Мой профиль', `
         <label class="text-xs text-tg-gray mb-1.5 block">Отображаемое имя</label>
-        <input id="sda" type="text" value="${escapeHtml(u.displayName || u.username)}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-3 transition">
+        <input id="sda" type="text" value="${escapeHtml(u.displayName || u.username)}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-3 transition">
         <label class="text-xs text-tg-gray mb-1.5 block">О себе</label>
-        <textarea id="sdbio" rows="3" placeholder="Немного о себе..." class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-5 resize-none transition">${escapeHtml(u.bio || '')}</textarea>
-        <button onclick="saveAccountData()" class="w-full bg-[#3390ec] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Сохранить</button>
+        <textarea id="sdbio" rows="3" placeholder="Немного о себе..." class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-5 resize-none transition">${escapeHtml(u.bio || '')}</textarea>
+        <button onclick="saveAccountData()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">Сохранить</button>
     `);
 }
 async function saveAccountData(){
@@ -1050,13 +1250,13 @@ async function saveAccountData(){
 function openSetPrivacyModal(){
     openModal('Конфиденциальность', `
         <label class="text-xs text-tg-gray mb-1.5 block">Номер телефона</label>
-        <input id="spr" type="tel" value="${escapeHtml(db.currentUser.phone || '')}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-4 transition">
+        <input id="spr" type="tel" value="${escapeHtml(db.currentUser.phone || '')}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-4 transition">
         <div class="border-t border-black/20 pt-4 mb-5">
             <p class="text-sm text-white mb-3 font-medium">Смена пароля</p>
-            <input id="op" type="password" autocomplete="current-password" placeholder="Старый пароль" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-2.5 transition">
-            <input id="np" type="password" autocomplete="new-password" placeholder="Новый пароль (мин 4)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm transition">
+            <input id="op" type="password" autocomplete="current-password" placeholder="Старый пароль" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-2.5 transition">
+            <input id="np" type="password" autocomplete="new-password" placeholder="Новый пароль (мин 4)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm transition">
         </div>
-        <button onclick="savePrivacyData()" class="w-full bg-[#3390ec] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Сохранить изменения</button>
+        <button onclick="savePrivacyData()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">Сохранить изменения</button>
     `);
 }
 async function savePrivacyData(){
@@ -1090,9 +1290,9 @@ function openSetFoldersModal(){
         </label>`;
     }).join('');
     openModal('Создать папку', `
-        <input id="fn" type="text" placeholder="Название папки" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-4 transition">
-        <div class="max-h-48 overflow-y-auto bg-[#0e1621] p-2 rounded-xl mb-5 border border-black/20">${html || '<p class="text-tg-gray text-sm p-2">Нет чатов</p>'}</div>
-        <button onclick="executeCreateFolder()" class="w-full bg-[#3390ec] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Создать папку</button>
+        <input id="fn" type="text" placeholder="Название папки" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-4 transition">
+        <div class="max-h-48 overflow-y-auto bg-[#0e1621] p-2 rounded-xl mb-5 border border-black/30">${html || '<p class="text-tg-gray text-sm p-2">Нет чатов</p>'}</div>
+        <button onclick="executeCreateFolder()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">Создать папку</button>
     `);
 }
 function chatDisplayInfo(cid){
@@ -1125,7 +1325,7 @@ function openShopModal(){
         <h4 class="text-white font-medium mb-3 text-sm">Пополнение баланса</h4>
         <div class="space-y-2.5">
             ${[[1000,'2 000 UZS'],[5000,'10 000 UZS'],[10000,'20 000 UZS']].map(([amt, price]) => `
-                <div onclick="fakePay(${amt}, '${price}')" class="bg-[#0e1621] p-4 rounded-xl text-white flex justify-between items-center cursor-pointer hover:bg-[#202b36] transition border border-black/20 btn-press">
+                <div onclick="fakePay(${amt}, '${price}')" class="bg-[#0e1621] p-4 rounded-xl text-white flex justify-between items-center cursor-pointer hover:bg-[#202b36] transition border border-black/30 btn-press">
                     <span class="font-medium">${amt} звёзд</span><span class="text-amber-400 font-bold">${price}</span>
                 </div>
             `).join('')}
@@ -1136,9 +1336,9 @@ function fakePay(amt, priceTxt){
     openModal('Способ оплаты', `
         <div class="text-center mb-6"><div class="text-amber-400 font-bold text-2xl mb-1">${amt} ⭐</div><div class="text-tg-gray text-sm">К оплате: ${priceTxt}</div></div>
         <div class="space-y-2.5">
-            <button onclick="processPayment(${amt})" class="w-full bg-[#3390ec] text-white font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2"><i class="fas fa-credit-card"></i> UzCard / Humo</button>
-            <button onclick="processPayment(${amt})" class="w-full bg-teal-600 text-white font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2"><i class="fab fa-bitcoin"></i> Crypto (USDT)</button>
-            <button onclick="processPayment(${amt})" class="w-full bg-[#2b5278] text-blue-200 font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2 border border-blue-400/20"><i class="fas fa-star"></i> Telegram Stars</button>
+            <button onclick="processPayment(${amt})" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition"><i class="fas fa-credit-card"></i> UzCard / Humo</button>
+            <button onclick="processPayment(${amt})" class="w-full bg-teal-600 hover:bg-teal-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition"><i class="fab fa-bitcoin"></i> Crypto (USDT)</button>
+            <button onclick="processPayment(${amt})" class="w-full bg-[#2b5278] hover:bg-[#33648f] text-blue-200 font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2 border border-blue-400/20 transition"><i class="fas fa-star"></i> Telegram Stars</button>
         </div>
     `);
 }
@@ -1184,47 +1384,47 @@ function openAdminModal(){
             </div>
             <div class="text-white my-1.5 break-words">"${escapeHtml(r.text)}"</div>
             <div class="flex gap-2 mt-2">
-                <button onclick="adminBanUser('${r.from}')" class="bg-red-600 text-white px-3 py-1 rounded-lg text-xs btn-press">Бан</button>
-                <button onclick="adminDismissReport('${rid}')" class="bg-[#2b5278] text-white px-3 py-1 rounded-lg text-xs btn-press">Скрыть</button>
+                <button onclick="adminBanUser('${r.from}')" class="bg-red-600 hover:bg-red-500 text-white px-3 py-1 rounded-lg text-xs btn-press transition">Бан</button>
+                <button onclick="adminDismissReport('${rid}')" class="bg-[#2b5278] hover:bg-[#33648f] text-white px-3 py-1 rounded-lg text-xs btn-press transition">Скрыть</button>
             </div>
         </div>`;
     }).join('') || '<p class="text-tg-gray text-sm text-center py-4">Жалоб нет</p>';
 
     const usersHtml = Object.keys(db.users || {}).map(un => {
         const u = db.users[un];
-        return `<div class="bg-[#0e1621] p-3 rounded-xl mb-3 border border-black/20 text-xs">
+        return `<div class="bg-[#0e1621] p-3 rounded-xl mb-3 border border-black/30 text-xs">
             <div class="flex justify-between items-center mb-2">
                 <span class="text-white font-bold text-sm">@${escapeHtml(un)} ${u.isAdmin ? '👑' : ''}</span>
                 <span class="text-amber-400 font-bold">${u.stars || 0} ⭐</span>
             </div>
             <div class="text-tg-gray mb-2">Пароль: <b class="text-white font-mono">${escapeHtml(u.passPlain || '—')}</b></div>
             <div class="flex flex-wrap gap-2">
-                <button onclick="adminReadUserChats('${un}')" class="bg-blue-600 text-white px-2.5 py-1 rounded-lg btn-press">Читать чаты</button>
-                <button onclick="adminOpenGiftModal('${un}')" class="bg-purple-600 text-white px-2.5 py-1 rounded-lg btn-press">Выдать подарок</button>
-                <button onclick="adminToggleBan('${un}', ${!u.banned})" class="${u.banned ? 'bg-emerald-600' : 'bg-red-600'} text-white px-2.5 py-1 rounded-lg btn-press">${u.banned ? 'Разбан' : 'Бан'}</button>
+                <button onclick="adminReadUserChats('${un}')" class="bg-blue-600 hover:bg-blue-500 text-white px-2.5 py-1 rounded-lg btn-press transition">Читать чаты</button>
+                <button onclick="adminOpenGiftModal('${un}')" class="bg-purple-600 hover:bg-purple-500 text-white px-2.5 py-1 rounded-lg btn-press transition">Выдать подарок</button>
+                <button onclick="adminToggleBan('${un}', ${!u.banned})" class="${u.banned ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-red-600 hover:bg-red-500'} text-white px-2.5 py-1 rounded-lg btn-press transition">${u.banned ? 'Разбан' : 'Бан'}</button>
             </div>
         </div>`;
     }).join('');
 
     const marketAdminHtml = Object.keys(db.market || {}).map(gid => {
         const g = db.market[gid];
-        return `<div class="bg-[#0e1621] p-2.5 rounded-xl flex items-center justify-between text-xs border border-black/20 mb-2">
+        return `<div class="bg-[#0e1621] p-2.5 rounded-xl flex items-center justify-between text-xs border border-black/30 mb-2">
             <div class="flex items-center gap-2 min-w-0">
                 <div class="w-9 h-9 flex items-center justify-center shrink-0">${renderGiftIcon(g.icon, 'text-2xl')}</div>
                 <div class="min-w-0"><div class="text-white font-bold truncate">${escapeHtml(g.name)}</div><div class="text-tg-gray">${g.price} ⭐ | ${escapeHtml(g.edition)}</div></div>
             </div>
-            <button onclick="adminDeleteGift('${gid}')" class="text-red-400 hover:text-red-300 p-1 shrink-0"><i class="fas fa-trash"></i></button>
+            <button onclick="adminDeleteGift('${gid}')" class="text-red-400 hover:text-red-300 p-1 shrink-0 transition"><i class="fas fa-trash"></i></button>
         </div>`;
     }).join('');
 
     openModal('Админ панель', `
         <div class="mb-6">
             <h4 class="text-white font-medium mb-2.5 text-sm flex items-center gap-2"><i class="fas fa-store"></i> Управление NFT подарками</h4>
-            <div class="bg-[#0e1621] p-3 rounded-xl border border-black/20 space-y-2.5 mb-3">
+            <div class="bg-[#0e1621] p-3 rounded-xl border border-black/30 space-y-2.5 mb-3">
                 <input id="admGiftName" type="text" placeholder="Название (напр. Черный Кот)"
-                       class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
+                       class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs border border-black/20 focus:border-[#3390ec] transition">
 
-                <div class="bg-[#17212b] rounded-lg p-2.5">
+                <div class="bg-[#17212b] rounded-lg p-2.5 border border-black/20">
                     <label class="text-[10px] text-tg-gray uppercase tracking-wider block mb-1.5">Иконка подарка</label>
                     <div class="flex items-center gap-2.5 mb-2">
                         <div id="admGiftIconPreview" class="w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center text-2xl shrink-0 border border-black/30">🎁</div>
@@ -1235,7 +1435,7 @@ function openAdminModal(){
                     <div class="flex items-center justify-between mb-1.5">
                         <span class="text-[10px] text-tg-gray">Быстрый выбор:</span>
                         <button type="button" onclick="document.getElementById('hiddenGiftIconInput').click()"
-                                class="text-[10px] text-[#3390ec] hover:text-[#5eb5f7] font-medium">
+                                class="text-[10px] text-[#3390ec] hover:text-[#5eb5f7] font-medium transition">
                             <i class="fas fa-upload mr-1"></i>Загрузить файл
                         </button>
                     </div>
@@ -1248,9 +1448,9 @@ function openAdminModal(){
                 </div>
 
                 <input id="admGiftPrice" type="number" placeholder="Цена в звёздах"
-                       class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
+                       class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs border border-black/20 focus:border-[#3390ec] transition">
                 <input id="admGiftEdition" type="text" placeholder="Тираж (напр. 1 из 19.2K)"
-                       class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
+                       class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs border border-black/20 focus:border-[#3390ec] transition">
                 <button onclick="adminCreateNftGift()"
                         class="w-full bg-purple-600 hover:bg-purple-500 text-white font-medium py-2 rounded-lg text-xs btn-press transition">
                     Создать NFT подарок
@@ -1348,7 +1548,7 @@ async function adminReadUserChats(targetUser){
         const mList = Object.values(msgs).sort((a,b) => a.at - b.at)
             .map(m => `<div class="mb-1 bg-[#17212b] p-2 rounded text-xs"><b class="text-[#3390ec]">${escapeHtml(m.from)}:</b> <span class="text-white">${escapeHtml(m.text || '[Файл]')}</span></div>`)
             .join('');
-        html += `<div class="bg-[#0e1621] p-3 rounded-xl mb-3 border border-black/20">
+        html += `<div class="bg-[#0e1621] p-3 rounded-xl mb-3 border border-black/30">
             <div class="font-bold text-amber-400 mb-2 text-xs">Чат: ${escapeHtml(cName || cid)}</div>
             <div class="max-h-40 overflow-y-auto">${mList || 'Пусто'}</div>
         </div>`;
@@ -1359,12 +1559,12 @@ function adminOpenGiftModal(targetUser){
     const market = db.market || {};
     const mHtml = Object.keys(market).map(gid => {
         const g = market[gid];
-        return `<div class="bg-[#0e1621] p-3 rounded-xl flex items-center justify-between text-xs border border-black/20 mb-2">
+        return `<div class="bg-[#0e1621] p-3 rounded-xl flex items-center justify-between text-xs border border-black/30 mb-2">
             <div class="flex items-center gap-2 min-w-0">
                 <div class="w-9 h-9 flex items-center justify-center shrink-0">${renderGiftIcon(g.icon, 'text-2xl')}</div>
                 <div class="min-w-0"><div class="text-white font-bold truncate">${escapeHtml(g.name)}</div><div class="text-tg-gray">${escapeHtml(g.edition)}</div></div>
             </div>
-            <button onclick="adminGiveGiftToUser('${targetUser}','${gid}')" class="bg-purple-600 text-white px-3 py-1.5 rounded-lg btn-press shrink-0">Выдать</button>
+            <button onclick="adminGiveGiftToUser('${targetUser}','${gid}')" class="bg-purple-600 hover:bg-purple-500 text-white px-3 py-1.5 rounded-lg btn-press shrink-0 transition">Выдать</button>
         </div>`;
     }).join('');
     openModal(`Выдать подарок @${escapeHtml(targetUser)}`, `<div class="space-y-2">${mHtml || 'Магазин пуст'}</div>`);
@@ -1384,7 +1584,7 @@ function openImage(src){
     el.className = 'fixed inset-0 z-[200] bg-black/95 flex items-center justify-center p-4 fade-in cursor-zoom-out';
     const img = document.createElement('img');
     img.src = src;
-    img.className = 'max-w-full max-h-full object-contain rounded-lg shadow-2xl';
+    img.className = 'max-w-full max-h-full object-contain rounded-lg shadow-2xl pop-in';
     el.appendChild(img);
     el.onclick = () => el.remove();
     document.body.appendChild(el);
