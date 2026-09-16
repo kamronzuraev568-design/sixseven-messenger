@@ -8,28 +8,17 @@
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@twemoji/api@15.1.0/dist/twemoji.min.js" crossorigin="anonymous"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-    * { font-family: 'Roboto', -apple-system, 'Segoe UI', sans-serif; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    * { font-family: 'Roboto', -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     body, html { background: #0e1621; color: #f5f5f5; margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; position: fixed; }
-
-    /* TG Dark theme palette */
-    --tg-bg: #0e1621;
-    --tg-sidebar: #17212b;
-    --tg-hover: #202b36;
-    --tg-active: #2b5278;
-    --tg-blue: #3390ec;
-    --tg-gray: #708499;
-    --tg-out: #2b5278;
-    --tg-in: #182533;
-    --tg-divider: rgba(0,0,0,.15);
 
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-thumb { background: #2b3a4a; border-radius: 3px; }
     ::-webkit-scrollbar-thumb:hover { background: #3a4d61; }
-    ::-webkit-scrollbar-track { background: transparent; }
 
     .bg-tg-main { background-color: #0e1621; }
     .bg-tg-sidebar { background-color: #17212b; }
@@ -39,48 +28,38 @@
     .text-tg-blue { color: #3390ec; }
     .text-tg-gray { color: #708499; }
 
-    /* ========== MESSAGE BUBBLES WITH TG TAILS ========== */
-    .msg-row { position: relative; }
+    /* Twemoji (iOS-like) */
+    img.twemoji {
+        height: 1.15em;
+        width: 1.15em;
+        vertical-align: -0.22em;
+        display: inline-block;
+        margin: 0 1px;
+        pointer-events: none;
+    }
+
+    /* Message bubbles TG-style */
     .msg-bubble {
         position: relative;
-        padding: 6px 10px 8px 10px;
+        padding: 7px 11px 8px 11px;
         max-width: 480px;
         box-shadow: 0 1px 2px rgba(0,0,0,.15);
         word-wrap: break-word;
         word-break: break-word;
     }
-    .msg-out {
-        background: #2b5278;
-        border-radius: 12px 12px 4px 12px;
-        margin-right: 6px;
-    }
+    .msg-out { background: #2b5278; border-radius: 12px 12px 4px 12px; margin-right: 6px; }
     .msg-out.with-tail::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        right: -6px;
-        width: 12px;
-        height: 15px;
-        background: #2b5278;
+        content: ''; position: absolute; bottom: 0; right: -6px;
+        width: 12px; height: 15px; background: #2b5278;
         clip-path: path('M0 0 C0 8 3 15 12 15 L0 15 Z');
     }
-    .msg-in {
-        background: #182533;
-        border-radius: 12px 12px 12px 4px;
-        margin-left: 6px;
-    }
+    .msg-in { background: #182533; border-radius: 12px 12px 12px 4px; margin-left: 6px; }
     .msg-in.with-tail::after {
-        content: '';
-        position: absolute;
-        bottom: 0;
-        left: -6px;
-        width: 12px;
-        height: 15px;
-        background: #182533;
+        content: ''; position: absolute; bottom: 0; left: -6px;
+        width: 12px; height: 15px; background: #182533;
         clip-path: path('M12 0 C12 8 9 15 0 15 L12 15 Z');
     }
 
-    /* ========== BUTTONS & ANIMATIONS ========== */
     .btn-press { transition: transform .1s ease, background-color .15s ease, color .15s ease; }
     .btn-press:active { transform: scale(.96); }
     .fade-in { animation: fadeIn .18s ease-out; }
@@ -90,73 +69,54 @@
     .pop-in { animation: popIn .18s ease-out; }
     @keyframes popIn { from { opacity: 0; transform: scale(.9);} to { opacity: 1; transform: none;} }
 
-    /* ========== INPUTS ========== */
     input, textarea, select { outline: none; font-family: inherit; }
     input::placeholder, textarea::placeholder { color: #708499; }
-
-    /* ========== MODAL ========== */
     .modal-overlay { background: rgba(0,0,0,.7); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
 
-    /* ========== SCROLLBAR HIDE ========== */
     .scrollbar-hide::-webkit-scrollbar { display: none; }
     .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
-    /* ========== HOVER REPORT BUTTON ========== */
     .msg-row .report-btn { opacity: 0; transition: opacity .15s; }
     .msg-row:hover .report-btn { opacity: .8; }
     .msg-row .report-btn:hover { opacity: 1; }
 
-    /* ========== CHAT LIST ITEM ========== */
     .chat-item { transition: background-color .12s ease; position: relative; }
     .chat-item::after {
-        content: '';
-        position: absolute;
-        left: 76px;
-        right: 0;
-        bottom: 0;
-        height: 1px;
-        background: rgba(0,0,0,.15);
+        content: ''; position: absolute; left: 76px; right: 0; bottom: 0;
+        height: 1px; background: rgba(0,0,0,.15);
     }
     .chat-item:last-child::after { display: none; }
     .chat-item.active::after { background: transparent; }
 
-    /* ========== FOLDER TABS ========== */
-    .folder-tab {
-        position: relative;
-        transition: color .15s ease;
-        white-space: nowrap;
-    }
+    .folder-tab { position: relative; transition: color .15s ease; white-space: nowrap; }
     .folder-tab.active::after {
-        content: '';
-        position: absolute;
-        left: 12px;
-        right: 12px;
-        bottom: 0;
-        height: 3px;
-        background: #3390ec;
-        border-radius: 3px 3px 0 0;
+        content: ''; position: absolute; left: 12px; right: 12px; bottom: 0;
+        height: 3px; background: #3390ec; border-radius: 3px 3px 0 0;
     }
 
-    /* ========== DRAWER MENU ========== */
     .drawer-item { transition: background-color .12s ease; }
-
-    /* ========== EMOJI PANEL ========== */
     .emoji-btn { transition: transform .1s, background-color .12s; }
     .emoji-btn:hover { background: #202b36; transform: scale(1.15); }
     .emoji-btn:active { transform: scale(.9); }
 
-    /* ========== SEND BUTTON ========== */
     .send-btn { transition: transform .12s ease, background-color .15s ease; }
     .send-btn:hover { background: #2b78c5 !important; }
     .send-btn:active { transform: scale(.92); }
 
-    /* ========== AVATAR SHADOW ========== */
     .avatar-shadow { box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+    .online-dot { box-shadow: 0 0 0 2px #17212b; }
 
-    /* ========== ONLINE DOT ========== */
-    .online-dot {
-        box-shadow: 0 0 0 2px #17212b;
+    /* TG profile buttons */
+    .profile-action {
+        transition: background-color .15s ease;
+        display: flex; flex-direction: column; align-items: center;
+        gap: 6px; padding: 14px 8px; border-radius: 12px;
+        background: #0e1621; border: 1px solid rgba(0,0,0,.3);
+        color: white; cursor: pointer;
     }
+    .profile-action:hover { background: #202b36; }
+    .profile-action i { color: #3390ec; font-size: 18px; }
+    .profile-action span { font-size: 12px; }
 
     @media (max-width: 768px) {
         .mobile-hidden { display: none !important; }
@@ -273,14 +233,28 @@ async function hashPass(txt){
 }
 
 /* ============================================================
+   EMOJI PARSER (Twemoji — единый iOS-подобный стиль)
+============================================================ */
+function refreshEmojis(root){
+    if(typeof twemoji === 'undefined') return;
+    requestAnimationFrame(() => {
+        try {
+            twemoji.parse(root || document.body, {
+                folder: 'svg',
+                ext: '.svg',
+                className: 'twemoji'
+            });
+        } catch(e) { /* noop */ }
+    });
+}
+
+/* ============================================================
    AVATARS & GIFT ICONS
 ============================================================ */
 const AVATAR_TEXT = {
     8:'text-xs', 10:'text-sm', 12:'text-base', 14:'text-lg',
     16:'text-xl', 20:'text-2xl', 24:'text-4xl', 32:'text-5xl'
 };
-
-/* TG-style gradient palettes */
 const AVATAR_COLORS = [
     'from-red-500 to-pink-600',
     'from-orange-500 to-red-500',
@@ -296,7 +270,6 @@ function pickColor(name){
     for(let i=0;i<(name||'').length;i++) h = (h*31 + name.charCodeAt(i)) | 0;
     return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
 }
-
 function getAvatarHtml(src, name, size = 10, extra = ''){
     const dim = `w-${size} h-${size}`;
     const base = `${dim} ${extra} rounded-full shrink-0 shadow object-cover avatar-shadow`;
@@ -433,13 +406,12 @@ function stopGlobalListeners(){
 }
 
 /* ============================================================
-   AUTH — TG-STYLE
+   AUTH
 ============================================================ */
 function renderAuthScreen(){
     const el = document.getElementById('app'); if(!el) return;
     el.innerHTML = `
     <div class="w-full h-full bg-tg-main flex items-center justify-center p-4 relative overflow-hidden">
-        <!-- Декоративный градиент -->
         <div class="absolute -top-40 -left-40 w-96 h-96 bg-[#3390ec]/10 rounded-full blur-3xl"></div>
         <div class="absolute -bottom-40 -right-40 w-96 h-96 bg-[#3390ec]/10 rounded-full blur-3xl"></div>
 
@@ -555,7 +527,6 @@ function renderMainLayout(){
 
     el.innerHTML = `
     <div id="sidebarSide" class="w-full md:w-[400px] h-full bg-tg-sidebar flex flex-col border-r border-black/40 z-10 shrink-0">
-        <!-- Sidebar header -->
         <div class="h-14 flex items-center px-3 gap-2 shrink-0 bg-tg-header">
             <button onclick="toggleDrawerMenu()" class="text-tg-gray hover:text-white text-xl p-2 rounded-full hover:bg-[#202b36] transition btn-press">
                 <i class="fas fa-bars"></i>
@@ -639,6 +610,7 @@ function updateDrawerInfo(){
     if(n) n.innerHTML = escapeHtml(u.displayName || u.username) + (isPrem(u) ? ' <i class="fas fa-star text-amber-300 text-xs"></i>' : '');
     if(p) p.innerText = u.phone || `@${u.username}`;
     if(a) a.innerHTML = getAvatarHtml(u.avatar, u.displayName || u.username, 12, 'ring-2 ring-white/20');
+    refreshEmojis(document.getElementById('drawerMenu'));
 }
 
 /* ============================================================
@@ -719,6 +691,7 @@ function renderSidebar(){
             </div>
         </div>
     `).join('');
+    refreshEmojis(cList);
 }
 
 function switchFolder(id){ activeFolderId = id; renderSidebar(); }
@@ -799,6 +772,7 @@ function openChat(cid){
     `;
 
     setTimeout(() => document.getElementById('msgInput')?.focus(), 50);
+    refreshEmojis(ca);
 
     currentChatListener = snap => {
         const msgs = snap.val() || {};
@@ -809,6 +783,7 @@ function openChat(cid){
         const list = Object.keys(msgs).map(k => ({ _id: k, ...msgs[k] })).sort((a,b) => a.at - b.at);
         mc.innerHTML = renderMessages(list, isGroup);
         if(nearBottom) mc.scrollTop = mc.scrollHeight;
+        refreshEmojis(mc);
     };
     database.ref('messages/' + cid).on('value', currentChatListener);
 }
@@ -995,47 +970,96 @@ function openModal(title, content){
             <div class="p-5 overflow-y-auto flex-grow">${content}</div>
         </div>
     </div>`);
+    refreshEmojis(document.getElementById('ssModal'));
 }
 function closeModal(){ document.getElementById('ssModal')?.remove(); }
 
 /* ============================================================
-   PROFILE
+   PROFILE — TG-style with NFT section
 ============================================================ */
 function openProfileModal(username){
     const u = db.users[username]; if(!u) return;
+    const isMe = username === db.currentUser.username;
     const gifts = u.gifts || {};
     const gKeys = Object.keys(gifts);
     const gCount = gKeys.length;
-    const preview = gCount > 0
-        ? Object.values(gifts).slice(0, 3).map(g => renderGiftIcon(g.icon, 'text-xl')).join('')
-        : '<span class="text-tg-gray text-xs">нет</span>';
+
+    // Сетка всех подарков
+    const giftsGrid = gCount > 0
+        ? Object.values(gifts).map(g => `
+            <div class="bg-gradient-to-tr ${g.bg} rounded-2xl shadow-lg relative overflow-hidden text-white aspect-square flex flex-col justify-between p-2.5">
+                <div class="absolute top-1.5 right-1.5 bg-black/40 backdrop-blur px-1.5 py-0.5 rounded text-[9px] font-semibold z-10">${escapeHtml(g.edition)}</div>
+                <div class="flex-1 flex items-center justify-center">${renderGiftIcon(g.icon, 'text-3xl')}</div>
+                <div class="text-[11px] font-semibold truncate leading-tight">${escapeHtml(g.name)}</div>
+            </div>
+        `).join('')
+        : `<div class="col-span-3 flex flex-col items-center justify-center text-tg-gray text-sm py-6">
+               <i class="fas fa-gift text-3xl mb-2 text-tg-gray/30"></i>
+               Нет подарков
+           </div>`;
 
     openModal('Профиль', `
-        <div class="text-center">
-            <div class="mb-4 flex justify-center">${getAvatarHtml(u.avatar, u.displayName || u.username, 24)}</div>
+        <div class="text-center mb-5">
+            <div class="mb-3 flex justify-center">${getAvatarHtml(u.avatar, u.displayName || u.username, 24)}</div>
             <h3 class="text-white text-xl font-bold flex items-center justify-center gap-1.5">
                 ${escapeHtml(u.displayName || u.username)}
                 ${isPrem(u) ? '<i class="fas fa-star text-amber-300 text-sm"></i>' : ''}
             </h3>
             <p class="text-tg-blue text-sm mb-1">@${escapeHtml(u.username)}</p>
-            <p class="text-tg-gray text-xs mb-4">${isOnline(u) ? '<span class="text-emerald-400">● в сети</span>' : 'был(а) недавно'}</p>
+            <p class="text-tg-gray text-xs">${isOnline(u) ? '<span class="text-emerald-400">● в сети</span>' : 'был(а) недавно'}</p>
         </div>
 
-        <div class="space-y-3 bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-sm mb-4">
+        ${!isMe ? `
+        <div class="grid grid-cols-3 gap-2 mb-5">
+            <button onclick="closeModal(); startDialogWith('${username}')" class="profile-action">
+                <i class="fas fa-comment"></i>
+                <span>Написать</span>
+            </button>
+            <button onclick="toast('Звонки в разработке')" class="profile-action">
+                <i class="fas fa-phone"></i>
+                <span>Позвонить</span>
+            </button>
+            <button onclick="toast('Скоро')" class="profile-action">
+                <i class="fas fa-ellipsis-h"></i>
+                <span>Ещё</span>
+            </button>
+        </div>` : ''}
+
+        <div class="space-y-3 bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-sm mb-5">
             <div><span class="text-tg-gray text-xs block mb-0.5">Телефон</span><span class="text-white font-medium">${escapeHtml(u.phone || 'Не указан')}</span></div>
             <div><span class="text-tg-gray text-xs block mb-0.5">О себе</span><span class="text-white font-medium">${escapeHtml(u.bio || 'Добро пожаловать в мой профиль 67gramm!')}</span></div>
+            <div><span class="text-tg-gray text-xs block mb-0.5">Звёзды</span><span class="text-amber-400 font-bold">${u.stars || 0} ⭐</span></div>
         </div>
 
-        <div class="bg-[#0e1621] rounded-2xl p-2 border border-black/30">
-            <div onclick="openUserGiftsList('${username}')" class="flex items-center justify-between p-3.5 hover:bg-tg-sidebar rounded-xl cursor-pointer transition">
-                <div class="flex items-center gap-3.5 text-white text-sm font-medium">
-                    <i class="fas fa-gift text-pink-400 text-lg w-6 text-center"></i>
-                    ${gCount} ${plural(gCount, 'подарок', 'подарка', 'подарков')}
-                </div>
-                <div class="flex items-center gap-1">${preview} <i class="fas fa-chevron-right text-tg-gray text-xs ml-2"></i></div>
+        <div class="mb-2">
+            <div class="flex items-center justify-between mb-3">
+                <h4 class="text-white font-medium text-sm flex items-center gap-2">
+                    <i class="fas fa-gift text-pink-400"></i>
+                    Подарки · ${gCount}
+                </h4>
             </div>
+            <div class="grid grid-cols-3 gap-2">${giftsGrid}</div>
         </div>
     `);
+}
+
+async function startDialogWith(username){
+    const un = username;
+    if(!un || un === db.currentUser.username) return;
+    const snap = await database.ref('users/' + un).once('value');
+    if(!snap.exists()){ toast('Пользователь не найден'); return; }
+    const cid = 'dm_' + [db.currentUser.username, un].sort().join('_');
+    const existing = await database.ref('chats/' + cid).once('value');
+    if(!existing.exists()){
+        await database.ref('chats/' + cid).set({
+            type: 'dm',
+            members: { [db.currentUser.username]: true, [un]: true },
+            createdAt: Date.now()
+        });
+    }
+    await database.ref('userChats/' + db.currentUser.username + '/' + cid).set(true);
+    await database.ref('userChats/' + un + '/' + cid).set(true);
+    openChat(cid);
 }
 
 function openUserGiftsList(username){
