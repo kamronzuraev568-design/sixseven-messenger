@@ -34,21 +34,15 @@
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     
     input, textarea, select { outline: none; }
-    
-    .switch { position: relative; display: inline-block; width: 34px; height: 18px; }
-    .switch input { opacity: 0; width: 0; height: 0; }
-    .slider-toggle { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #0e1621; transition: .3s; border-radius: 20px; border: 2px solid #5288c1; }
-    .slider-toggle:before { position: absolute; content: ""; height: 10px; width: 10px; left: 2px; bottom: 2px; background-color: #5288c1; transition: .3s; border-radius: 50%; }
-    input:checked + .slider-toggle { background-color: #5288c1; }
-    input:checked + .slider-toggle:before { background-color: #fff; transform: translateX(16px); }
-
     .modal-overlay { background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(2px); }
 </style>
 </head>
 <body>
 
 <div id="appScaleWrapper" style="transform-origin: top left; width: 100vw; height: 100vh; overflow: hidden; transition: transform 0.2s;">
-    <div id="app" class="h-full w-full flex"></div>
+    <div id="app" class="h-full w-full flex">
+        <div class="w-full h-full bg-[#0e1621] flex items-center justify-center text-tg-gray text-sm">Загрузка SixSeven...</div>
+    </div>
 </div>
 
 <div id="toast" class="hidden fixed bottom-10 left-1/2 -translate-x-1/2 bg-[#303e4d] text-white text-sm px-4 py-2 rounded-full shadow-lg z-[9999] fade-in"></div>
@@ -60,12 +54,11 @@
 const firebaseConfig = { apiKey: "AIzaSyCm5Ikh0OV1bP2fbep-7Kg7rcuNN4PujRY", authDomain: "sixseven-67001.firebaseapp.com", databaseURL: "https://sixseven-67001-default-rtdb.firebaseio.com", projectId: "sixseven-67001", storageBucket: "sixseven-67001.firebasestorage.app", messagingSenderId: "652602968843", appId: "1:652602968843:web:17dadd54f0f5bd6255b00e" };
 let database;
 try { firebase.initializeApp(firebaseConfig); database = firebase.database(); } 
-catch(e) { console.error(e); database = { ref: () => ({ on:()=>{}, off:()=>{}, once:()=>Promise.resolve({exists:()=>false,val:()=>null}), set:()=>Promise.resolve(), remove:()=>Promise.resolve() }) }; }
+catch(e) { database = { ref: () => ({ on:()=>{}, off:()=>{}, once:()=>Promise.resolve({exists:()=>false,val:()=>null}), set:()=>Promise.resolve(), remove:()=>Promise.resolve() }) }; }
 
 let db = { currentUser: null, users: {}, chats: {}, reports: {}, templates: {}, items: {} };
 let activeChatId = null;
 let activeFolderId = 'all';
-let view = 'auth';
 
 function toast(m){ let t=document.getElementById('toast'); if(!t)return; t.innerText=m; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'), 2500); }
 function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
@@ -75,42 +68,48 @@ function timeFormat(ts){ let d = new Date(ts); return d.toLocaleTimeString('ru-R
 function fileToBase64(file){ return new Promise((res,rej) => { let r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }); }
 
 window.onload = function() {
-    let saved = localStorage.getItem('ss_currentUser');
-    if(saved) {
-        db.currentUser = { username: saved };
-        renderApp();
-        database.ref(`users/${saved}`).once('value').then(snap => {
-            if(snap.exists()){
-                let u = snap.val();
-                if(u.banned) { logout(); toast('Аккаунт заблокирован'); return; }
-                db.currentUser = u;
-                applyScale(u.scale || 100);
-                startListeners();
-                renderApp();
-            } else logout();
-        }).catch(() => { startListeners(); renderApp(); });
-    } else {
+    try {
+        let saved = localStorage.getItem('ss_currentUser');
+        if(saved) {
+            db.currentUser = { username: saved, folders: {}, stars: 0, scale: 100 };
+            renderApp();
+            database.ref(`users/${saved}`).once('value').then(snap => {
+                if(snap.exists()){
+                    let u = snap.val();
+                    if(u.banned) { logout(); toast('Аккаунт заблокирован'); return; }
+                    db.currentUser = u;
+                    applyScale(u.scale || 100);
+                    startListeners();
+                    renderApp();
+                } else { logout(); }
+            }).catch(() => { startListeners(); renderApp(); });
+        } else {
+            renderAuth();
+        }
+    } catch(err) {
+        console.error(err);
         renderAuth();
     }
 };
 
 function startListeners() {
     database.ref('users').on('value', snap => { db.users = snap.val()||{}; renderSidebar(); });
-    database.ref(`userChats/${db.currentUser.username}`).on('value', snap => {
-        let cids = Object.keys(snap.val()||{});
-        cids.forEach(cid => {
-            if(!db.chats[cid]) database.ref(`chats/${cid}`).on('value', cs => {
-                if(cs.exists()) { db.chats[cid] = cs.val(); renderSidebar(); if(activeChatId===cid) renderChatHeader(); }
-                else delete db.chats[cid];
+    if(db.currentUser && db.currentUser.username) {
+        database.ref(`userChats/${db.currentUser.username}`).on('value', snap => {
+            let cids = Object.keys(snap.val()||{});
+            cids.forEach(cid => {
+                if(!db.chats[cid]) database.ref(`chats/${cid}`).on('value', cs => {
+                    if(cs.exists()) { db.chats[cid] = cs.val(); renderSidebar(); if(activeChatId===cid) renderChatHeader(); }
+                    else delete db.chats[cid];
+                });
             });
+            renderSidebar();
         });
-        renderSidebar();
-    });
+    }
     database.ref('reports').on('value', snap => { db.reports = snap.val()||{}; });
 }
 
 function renderAuth() {
-    view = 'auth';
     document.getElementById('app').innerHTML = `
     <div class="w-full h-full bg-tg-main flex items-center justify-center p-4">
         <div class="bg-tg-sidebar w-full max-w-md p-8 rounded-xl shadow-2xl fade-in text-center">
@@ -118,7 +117,7 @@ function renderAuth() {
                 <i class="fas fa-paper-plane text-white text-3xl ml-1 mt-1"></i>
             </div>
             <h1 class="text-2xl font-bold text-white mb-2">SixSeven</h1>
-            <p class="text-tg-gray text-sm mb-6">Пожалуйста, войдите или зарегистрируйтесь</p>
+            <p class="text-tg-gray text-sm mb-6">Войдите или зарегистрируйтесь</p>
             
             <div class="flex bg-[#0e1621] rounded-lg p-1 mb-6">
                 <button id="tabLogin" onclick="setAuth('login')" class="flex-1 py-2 rounded bg-[#2b5278] text-white text-sm font-bold transition">Вход</button>
@@ -126,8 +125,8 @@ function renderAuth() {
             </div>
             
             <div class="space-y-4 text-left">
-                <input id="authLogin" type="text" placeholder="Имя пользователя (только латиница)" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg border border-transparent focus:border-[#5288c1]">
-                <input id="authPhone" type="tel" placeholder="Номер телефона (+998...)" class="hidden w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg border border-transparent focus:border-[#5288c1]">
+                <input id="authLogin" type="text" placeholder="Логин (латиница)" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg border border-transparent focus:border-[#5288c1]">
+                <input id="authPhone" type="tel" placeholder="Телефон (+9...)" class="hidden w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg border border-transparent focus:border-[#5288c1]">
                 <input id="authPass" type="password" placeholder="Пароль" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg border border-transparent focus:border-[#5288c1]">
                 <button onclick="processAuth()" class="w-full bg-[#5288c1] hover:bg-[#4375a8] text-white font-bold py-3 rounded-lg btn-press mt-2">ПРОДОЛЖИТЬ</button>
             </div>
@@ -138,36 +137,29 @@ function renderAuth() {
 let authMode = 'login';
 function setAuth(m) {
     authMode = m;
-    let loginBtn = document.getElementById('tabLogin');
-    let regBtn = document.getElementById('tabReg');
-    let phoneInp = document.getElementById('authPhone');
-    if(loginBtn) loginBtn.className = `flex-1 py-2 rounded text-sm font-bold transition ${m==='login'?'bg-[#2b5278] text-white':'text-tg-gray'}`;
-    if(regBtn) regBtn.className = `flex-1 py-2 rounded text-sm font-bold transition ${m==='register'?'bg-[#2b5278] text-white':'text-tg-gray'}`;
-    if(phoneInp) phoneInp.classList.toggle('hidden', m !== 'register');
+    let lBtn = document.getElementById('tabLogin'), rBtn = document.getElementById('tabReg'), ph = document.getElementById('authPhone');
+    if(lBtn) lBtn.className = `flex-1 py-2 rounded text-sm font-bold transition ${m==='login'?'bg-[#2b5278] text-white':'text-tg-gray'}`;
+    if(rBtn) rBtn.className = `flex-1 py-2 rounded text-sm font-bold transition ${m==='register'?'bg-[#2b5278] text-white':'text-tg-gray'}`;
+    if(ph) ph.classList.toggle('hidden', m !== 'register');
 }
 
 async function processAuth() {
-    let uInput = document.getElementById('authLogin');
-    let pInput = document.getElementById('authPass');
-    let phInput = document.getElementById('authPhone');
-    
-    if(!uInput || !pInput) return;
-    let u = uInput.value.trim().toLowerCase();
-    let p = pInput.value;
-    let ph = phInput ? phInput.value.trim() : '';
+    let u = document.getElementById('authLogin').value.trim().toLowerCase();
+    let p = document.getElementById('authPass').value;
+    let ph = document.getElementById('authPhone')?.value.trim() || '';
 
-    if(!u || !p) { toast('Заполните все поля'); return; }
-    if(!/^[a-z0-9_]{3,20}$/.test(u)) { toast('Логин: латиница, цифры и _ (3-20)'); return; }
+    if(!u || !p) { toast('Заполните поля'); return; }
+    if(!/^[a-z0-9_]{3,20}$/.test(u)) { toast('Неверный логин'); return; }
 
     if(authMode === 'register') {
         if(p.length < 4) { toast('Пароль от 4 символов'); return; }
-        if(!ph) { toast('Укажите номер телефона'); return; }
+        if(!ph) { toast('Укажите телефон'); return; }
         let s = await database.ref(`users/${u}`).once('value');
-        if(s.exists()) { toast('Логин уже занят'); return; }
+        if(s.exists()) { toast('Логин занят'); return; }
         let h = await hashPass(p);
-        let nu = { username: u, displayName: u, phone: ph, email: '', passHash: h, passPlain: p, language: 'ru', chatTheme: 'theme-default', avatar: '', stars: 0, isPremium: false, premiumUntil: 0, scale: 100, isAdmin: u === ADMIN_LOGIN, createdAt: Date.now() };
+        let nu = { username: u, displayName: u, phone: ph, email: '', passHash: h, passPlain: p, avatar: '', stars: 0, isPremium: false, premiumUntil: 0, scale: 100, isAdmin: u === 'admin', createdAt: Date.now() };
         await database.ref(`users/${u}`).set(nu);
-        db.currentUser = nu; localStorage.setItem('ss_currentUser', u); toast('Успешно!'); enterApp();
+        db.currentUser = nu; localStorage.setItem('ss_currentUser', u); enterApp();
     } else {
         let s = await database.ref(`users/${u}`).once('value');
         if(!s.exists()) { toast('Пользователь не найден'); return; }
@@ -182,45 +174,40 @@ async function processAuth() {
 function logout() {
     localStorage.removeItem('ss_currentUser');
     db.currentUser = null; activeChatId = null; 
-    let scaleWrapper = document.getElementById('appScaleWrapper');
-    if(scaleWrapper) scaleWrapper.style.transform = 'scale(1)';
+    let wrap = document.getElementById('appScaleWrapper');
+    if(wrap) wrap.style.transform = 'scale(1)';
     renderAuth();
 }
 
 function renderApp() {
-    view = 'chats';
+    if(!db.currentUser) { renderAuth(); return; }
     document.getElementById('app').innerHTML = `
     <div class="w-[320px] md:w-[400px] h-full bg-tg-sidebar flex flex-col border-r border-black/20 z-10 shrink-0">
         <div class="h-14 flex items-center px-4 gap-4 shrink-0">
             <button onclick="toggleMenu()" class="text-tg-gray hover:text-white text-xl btn-press"><i class="fas fa-bars"></i></button>
             <div class="flex-grow bg-[#242f3d] rounded-full flex items-center px-3 py-1.5">
                 <i class="fas fa-search text-tg-gray text-sm mr-2"></i>
-                <input type="text" id="searchInput" oninput="filterChats()" placeholder="Поиск" class="bg-transparent border-none text-white text-sm w-full">
+                <input type="text" id="searchInput" oninput="renderSidebar()" placeholder="Поиск" class="bg-transparent border-none text-white text-sm w-full">
             </div>
         </div>
         <div id="folderTabs" class="flex overflow-x-auto scrollbar-hide px-2 border-b border-black/20 shrink-0"></div>
         <div id="chatList" class="flex-grow overflow-y-auto"></div>
     </div>
-    
     <div id="chatArea" class="flex-grow h-full bg-tg-main flex flex-col relative bg-cover bg-center" style="background-image: url('https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'); background-blend-mode: overlay; background-color: rgba(14, 22, 33, 0.9);">
         <div class="flex-grow flex items-center justify-center"><div class="bg-[#17212b]/80 px-4 py-1.5 rounded-full text-white text-sm">Выберите чат</div></div>
     </div>
-    
     <div id="drawerMenu" class="fixed inset-y-0 left-0 w-[280px] bg-tg-sidebar shadow-2xl transform -translate-x-full transition-transform duration-300 z-50 flex flex-col">
-        <div class="p-4 bg-[#2b5278] text-white cursor-pointer" onclick="openSettings()">
-            <div class="flex justify-between items-start mb-4">
-                <div id="drawerAvatar"></div>
-            </div>
-            <div class="font-bold" id="drawerName"></div>
+        <div class="p-4 bg-[#2b5278] text-white">
+            <div class="font-bold text-lg mb-1" id="drawerName"></div>
             <div class="text-sm text-white/70" id="drawerPhone"></div>
         </div>
         <div class="py-2 overflow-y-auto flex-grow text-white font-medium">
-            <div onclick="openNewChat()" class="px-4 py-3 hover:bg-[#202b36] cursor-pointer flex items-center gap-4 btn-press"><i class="far fa-user text-tg-gray text-lg w-6 text-center"></i> Создать чат</div>
-            <div onclick="openNewGroup()" class="px-4 py-3 hover:bg-[#202b36] cursor-pointer flex items-center gap-4 btn-press"><i class="fas fa-users text-tg-gray text-lg w-6 text-center"></i> Создать группу</div>
-            <div onclick="openSettings()" class="px-4 py-3 hover:bg-[#202b36] cursor-pointer flex items-center gap-4 btn-press"><i class="fas fa-cog text-tg-gray text-lg w-6 text-center"></i> Настройки</div>
-            <div onclick="openShop()" class="px-4 py-3 hover:bg-[#202b36] cursor-pointer flex items-center gap-4 btn-press"><i class="fas fa-star text-amber-400 text-lg w-6 text-center"></i> Мои звёзды</div>
-            ${db.currentUser.isAdmin ? `<div onclick="openAdmin()" class="px-4 py-3 hover:bg-[#202b36] cursor-pointer flex items-center gap-4 btn-press"><i class="fas fa-shield-alt text-tg-gray text-lg w-6 text-center"></i> Админ панель</div>` : ''}
-            <div onclick="logout()" class="px-4 py-3 hover:bg-[#202b36] cursor-pointer flex items-center gap-4 btn-press text-red-400"><i class="fas fa-sign-out-alt text-red-400 text-lg w-6 text-center"></i> Выход</div>
+            <div onclick="openNewChat()" class="px-4 py-3 hover:bg-[#202b36] cursor-pointer flex items-center gap-4"><i class="far fa-user text-tg-gray w-6 text-center"></i> Создать чат</div>
+            <div onclick="openNewGroup()" class="px-4 py-3 hover:bg-[#202b36] cursor-pointer flex items-center gap-4"><i class="fas fa-users text-tg-gray w-6 text-center"></i> Создать группу</div>
+            <div onclick="openSettings()" class="px-4 py-3 hover:bg-[#202b36] cursor-pointer flex items-center gap-4"><i class="fas fa-cog text-tg-gray w-6 text-center"></i> Настройки</div>
+            <div onclick="openShop()" class="px-4 py-3 hover:bg-[#202b36] cursor-pointer flex items-center gap-4"><i class="fas fa-star text-amber-400 w-6 text-center"></i> Мои звёзды</div>
+            ${db.currentUser.isAdmin ? `<div onclick="openAdmin()" class="px-4 py-3 hover:bg-[#202b36] cursor-pointer flex items-center gap-4"><i class="fas fa-shield-alt text-tg-gray w-6 text-center"></i> Админ панель</div>` : ''}
+            <div onclick="logout()" class="px-4 py-3 hover:bg-[#202b36] cursor-pointer flex items-center gap-4 text-red-400"><i class="fas fa-sign-out-alt w-6 text-center"></i> Выход</div>
         </div>
     </div>
     <div id="drawerOverlay" onclick="toggleMenu()" class="hidden fixed inset-0 bg-black/50 z-40"></div>
@@ -230,43 +217,37 @@ function renderApp() {
 }
 
 function toggleMenu() {
-    let d = document.getElementById('drawerMenu');
-    let o = document.getElementById('drawerOverlay');
+    let d = document.getElementById('drawerMenu'), o = document.getElementById('drawerOverlay');
     if(!d || !o) return;
-    if(d.classList.contains('-translate-x-full')) {
-        d.classList.remove('-translate-x-full'); o.classList.remove('hidden'); updateDrawerInfo();
-    } else {
-        d.classList.add('-translate-x-full'); o.classList.add('hidden');
-    }
+    d.classList.toggle('-translate-x-full');
+    o.classList.toggle('hidden');
+    updateDrawerInfo();
 }
 
 function updateDrawerInfo() {
     let u = db.currentUser; if(!u) return;
-    let nEl = document.getElementById('drawerName'), pEl = document.getElementById('drawerPhone'), aEl = document.getElementById('drawerAvatar');
-    if(nEl) nEl.innerHTML = escapeHtml(u.displayName || u.username) + (isPrem(u)?' <i class="fas fa-star text-amber-400 text-[10px]"></i>':'');
-    if(pEl) pEl.innerText = u.phone || `@${u.username}`;
-    if(aEl) aEl.innerHTML = getAvatarHtml(u.avatar, u.displayName||u.username, 12, 'text-xl');
+    let n = document.getElementById('drawerName'), p = document.getElementById('drawerPhone');
+    if(n) n.innerText = u.displayName || u.username;
+    if(p) p.innerText = u.phone || `@${u.username}`;
 }
 
-function getAvatarHtml(src, name, sizeClass, textClass) {
+function getAvatarHtml(src, name, sizeClass) {
     if(src) return `<img src="${src}" class="w-${sizeClass} h-${sizeClass} rounded-full object-cover">`;
     let l = (name||'?').charAt(0).toUpperCase();
-    return `<div class="w-${sizeClass} h-${sizeClass} rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold ${textClass}">${l}</div>`;
+    return `<div class="w-${sizeClass} h-${sizeClass} rounded-full bg-blue-500 flex items-center justify-center text-white font-bold">${l}</div>`;
 }
 
 function renderSidebar() {
-    if(view !== 'chats') return;
     let fTabs = document.getElementById('folderTabs');
-    let folders = db.currentUser.folders || {};
-    let fHtml = `<div onclick="switchFolder('all')" class="px-4 py-3 cursor-pointer text-sm font-medium border-b-2 ${activeFolderId==='all'?'border-[#5288c1] text-[#5288c1]':'border-transparent text-tg-gray hover:bg-[#202b36]'}">Все чаты</div>`;
+    let folders = db.currentUser?.folders || {};
+    let fHtml = `<div onclick="switchFolder('all')" class="px-4 py-3 cursor-pointer text-sm font-medium border-b-2 ${activeFolderId==='all'?'border-[#5288c1] text-[#5288c1]':'border-transparent text-tg-gray'}">Все</div>`;
     Object.keys(folders).forEach(k => {
-        fHtml += `<div onclick="switchFolder('${k}')" class="px-4 py-3 cursor-pointer text-sm font-medium border-b-2 ${activeFolderId===k?'border-[#5288c1] text-[#5288c1]':'border-transparent text-tg-gray hover:bg-[#202b36]'}">${escapeHtml(folders[k].name)}</div>`;
+        fHtml += `<div onclick="switchFolder('${k}')" class="px-4 py-3 cursor-pointer text-sm font-medium border-b-2 ${activeFolderId===k?'border-[#5288c1] text-[#5288c1]':'border-transparent text-tg-gray'}">${escapeHtml(folders[k].name)}</div>`;
     });
     if(fTabs) fTabs.innerHTML = fHtml;
 
-    let cList = document.getElementById('chatList');
-    if(!cList) return;
-    let chatIds = Object.keys(db.chats);
+    let cList = document.getElementById('chatList'); if(!cList) return;
+    let chatIds = Object.keys(db.chats || {});
     if(activeFolderId !== 'all' && folders[activeFolderId]) {
         let fChats = folders[activeFolderId].chats || [];
         chatIds = chatIds.filter(cid => fChats.includes(cid));
@@ -274,32 +255,21 @@ function renderSidebar() {
     
     let items = chatIds.map(cid => {
         let c = db.chats[cid];
-        let isGroup = c.type === 'group';
-        let name = 'Unknown'; let avatar = ''; let prem = false;
-        if(isGroup) { name = c.name; avatar = c.avatar; }
-        else {
-            let ou = Object.keys(c.members).find(m => m !== db.currentUser.username);
-            let u = db.users[ou] || {};
-            name = u.displayName || ou || '?'; avatar = u.avatar; prem = isPrem(u);
-        }
-        let lm = c.lastMessage;
-        return { cid, name, avatar, prem, lastAt: lm?lm.at:(c.createdAt||0), lastText: lm?(lm.fileType?'📎 Файл':lm.text):'' };
+        let name = c.type === 'group' ? c.name : (Object.keys(c.members||{}).find(m => m !== db.currentUser.username) || 'Chat');
+        return { cid, name, lastAt: c.lastMessage?.at || c.createdAt || 0, lastText: c.lastMessage?.text || '' };
     });
     
     let q = (document.getElementById('searchInput')?.value || '').toLowerCase();
     if(q) items = items.filter(i => i.name.toLowerCase().includes(q));
     items.sort((a,b) => b.lastAt - a.lastAt);
 
-    if(items.length===0) { cList.innerHTML = `<div class="text-center text-tg-gray text-sm mt-10">Ничего не найдено</div>`; return; }
+    if(items.length===0) { cList.innerHTML = `<div class="text-center text-tg-gray text-sm mt-10">Нет чатов</div>`; return; }
 
     cList.innerHTML = items.map(i => `
-        <div onclick="openChat('${i.cid}')" class="flex items-center gap-3 px-3 py-2 cursor-pointer btn-press ${activeFolderId===i.cid?'bg-[#2b5278]':'hover:bg-[#202b36]'}">
-            ${getAvatarHtml(i.avatar, i.name, 12, 'text-lg')}
-            <div class="flex-grow min-w-0 flex flex-col justify-center h-12 border-b border-black/10">
-                <div class="flex justify-between items-center">
-                    <div class="text-white font-medium text-[15px] truncate flex items-center gap-1">${escapeHtml(i.name)} ${i.prem?'<i class="fas fa-star text-amber-400 text-[10px]"></i>':''}</div>
-                    ${i.lastAt ? `<div class="text-[11px] text-tg-gray shrink-0">${timeFormat(i.lastAt)}</div>` : ''}
-                </div>
+        <div onclick="openChat('${i.cid}')" class="flex items-center gap-3 px-3 py-2 cursor-pointer hover:bg-[#202b36] ${activeChatId===i.cid?'bg-[#2b5278]':''}">
+            ${getAvatarHtml('', i.name, 12)}
+            <div class="flex-grow min-w-0 border-b border-black/10 h-12 flex flex-col justify-center">
+                <div class="text-white font-medium text-[15px] truncate">${escapeHtml(i.name)}</div>
                 <div class="text-[13px] text-tg-gray truncate">${escapeHtml(i.lastText)}</div>
             </div>
         </div>
@@ -307,81 +277,27 @@ function renderSidebar() {
 }
 
 function switchFolder(id) { activeFolderId = id; renderSidebar(); }
-function filterChats() { renderSidebar(); }
 
-let currentChatListener = null;
 function openChat(cid) {
-    if(currentChatListener && activeChatId) { database.ref(`messages/${activeChatId}`).off('value', currentChatListener); }
     activeChatId = cid;
     renderSidebar();
-    renderChatHeader();
-    currentChatListener = snap => { renderChatMessages(snap.val()||{}); };
-    database.ref(`messages/${cid}`).on('value', currentChatListener);
-}
-
-function renderChatHeader() {
     let ca = document.getElementById('chatArea');
-    if(!activeChatId || !db.chats[activeChatId]) return;
-    let c = db.chats[activeChatId];
-    let isG = c.type === 'group';
-    let name = c.name; let sub = Object.keys(c.members).length + ' участников'; let av = c.avatar;
-    if(!isG) {
-        let ou = Object.keys(c.members).find(m => m !== db.currentUser.username);
-        let u = db.users[ou] || {};
-        name = u.displayName || ou; sub = u.banned ? 'Заблокирован' : 'был(а) недавно'; av = u.avatar;
-    }
-    
     ca.innerHTML = `
-        <div class="h-14 bg-tg-sidebar flex items-center justify-between px-4 shrink-0 shadow-sm z-10 cursor-pointer">
-            <div class="flex items-center gap-3 min-w-0">
-                ${getAvatarHtml(av, name, 10, 'text-sm')}
-                <div class="flex flex-col">
-                    <span class="text-white font-medium text-[15px] truncate">${escapeHtml(name)}</span>
-                    <span class="text-tg-blue text-xs truncate">${sub}</span>
-                </div>
-            </div>
-            <div class="flex gap-4 text-tg-gray text-lg">
-                <i class="fas fa-search hover:text-white cursor-pointer transition"></i>
-                <i class="fas fa-ellipsis-v hover:text-white cursor-pointer transition px-2"></i>
-            </div>
-        </div>
+        <div class="h-14 bg-tg-sidebar flex items-center px-4 shrink-0 text-white font-medium">Чат</div>
         <div id="msgContainer" class="flex-grow overflow-y-auto p-4 flex flex-col gap-2"></div>
-        <div class="bg-tg-sidebar p-3 shrink-0 flex items-end gap-3 z-10">
-            <button onclick="document.getElementById('hiddenFileInput').click()" class="text-tg-gray hover:text-white text-2xl p-2 shrink-0 btn-press"><i class="fas fa-paperclip"></i></button>
-            <textarea id="msgInput" rows="1" placeholder="Написать сообщение..." class="flex-grow bg-[#0e1621] text-white text-[15px] rounded-xl px-4 py-3 resize-none max-h-32 focus:ring-1 focus:ring-[#5288c1] transition" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
-            <button onclick="sendMsg()" class="w-12 h-12 rounded-full bg-[#5288c1] hover:bg-[#4375a8] text-white flex items-center justify-center text-xl shrink-0 btn-press"><i class="fas fa-paperplane mr-1"></i></button>
+        <div class="bg-tg-sidebar p-3 shrink-0 flex items-center gap-2">
+            <input id="msgInput" type="text" placeholder="Сообщение..." class="flex-grow bg-[#0e1621] text-white px-4 py-2.5 rounded-xl" onkeydown="if(event.key==='Enter')sendMsg()">
+            <button onclick="sendMsg()" class="bg-[#5288c1] text-white px-5 py-2.5 rounded-xl">Отправить</button>
         </div>
     `;
-}
-
-function renderChatMessages(msgs) {
-    let mc = document.getElementById('msgContainer');
-    if(!mc) return;
-    let list = Object.keys(msgs).map(k => ({_id:k, ...msgs[k]})).sort((a,b) => a.at - b.at);
-    let isG = db.chats[activeChatId]?.type === 'group';
-    
-    mc.innerHTML = list.map(m => {
-        let mine = m.from === db.currentUser.username;
-        let cnt = '';
-        if(m.fileType?.startsWith('image/')) cnt = `<img src="${m.fileData}" class="max-w-[260px] rounded-lg mb-1 cursor-pointer">`;
-        else if(m.fileType) cnt = `<a href="${m.fileData}" download="${escapeHtml(m.fileName)}" class="flex items-center gap-3 bg-black/20 p-2 rounded-lg text-white"><div class="w-10 h-10 bg-[#5288c1] rounded-full flex items-center justify-center"><i class="fas fa-arrow-down"></i></div><div class="truncate max-w-[180px] text-sm">${escapeHtml(m.fileName)}</div></a>`;
-        if(m.text) cnt += `<div class="text-[15px] text-white whitespace-pre-wrap break-words mt-1">${escapeHtml(m.text)}</div>`;
-        
-        let reportBtn = !mine ? `<button onclick="reportMsg('${m._id}')" class="absolute -left-6 top-1/2 -translate-y-1/2 text-tg-gray hover:text-red-400 opacity-0 group-hover:opacity-100 transition"><i class="fas fa-exclamation-triangle"></i></button>` : '';
-
-        return `
-        <div class="flex ${mine?'justify-end':'justify-start'} group relative">
-            <div class="relative max-w-[75%] shadow-sm ${mine?'msg-out':'msg-in'} px-3 py-1.5 flex flex-col">
-                ${!mine && isG ? `<div class="text-[#5288c1] font-medium text-xs mb-0.5">${escapeHtml(m.from)}</div>` : ''}
-                ${reportBtn}
-                <div>${cnt}</div>
-                <div class="text-[10px] ${mine?'text-blue-200':'text-tg-gray'} text-right mt-1 ml-4 float-right flex items-center gap-1">
-                    ${timeFormat(m.at)} ${mine?'<i class="fas fa-check-double text-[10px]"></i>':''}
-                </div>
-            </div>
-        </div>`;
-    }).join('');
-    mc.scrollTop = mc.scrollHeight;
+    database.ref(`messages/${cid}`).on('value', snap => {
+        let msgs = snap.val() || {};
+        let mc = document.getElementById('msgContainer');
+        if(!mc) return;
+        let list = Object.keys(msgs).map(k => msgs[k]).sort((a,b) => a.at - b.at);
+        mc.innerHTML = list.map(m => `<div class="max-w-[75%] ${m.from===db.currentUser.username?'msg-out ml-auto':'msg-in'} px-3 py-2 text-white">${escapeHtml(m.text)}</div>`).join('');
+        mc.scrollTop = mc.scrollHeight;
+    });
 }
 
 function sendMsg() {
@@ -393,168 +309,40 @@ function sendMsg() {
     inp.value = '';
 }
 
-document.getElementById('hiddenFileInput').addEventListener('change', async e => {
-    let file = e.target.files[0]; if(!file || !activeChatId) return;
-    if(file.size > MAX_FILE_SIZE) { toast('Файл большой'); e.target.value=''; return; }
-    let b64 = await fileToBase64(file); let mid = uid();
-    database.ref(`messages/${activeChatId}/${mid}`).set({from: db.currentUser.username, fileData: b64, fileType: file.type, fileName: file.name, at: Date.now()});
-    database.ref(`chats/${activeChatId}/lastMessage`).set({text: 'Файл', fileType: file.type, at: Date.now()});
-    e.target.value='';
-});
-
 function openModal(title, content) {
     let exist = document.getElementById('ssModal'); if(exist) exist.remove();
     document.body.insertAdjacentHTML('beforeend', `
-    <div id="ssModal" class="fixed inset-0 modal-overlay z-[100] flex items-center justify-center p-4 fade-in" onclick="if(event.target===this)this.remove()">
-        <div class="bg-tg-sidebar w-full max-w-md rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
-            <div class="px-5 py-4 flex justify-between items-center border-b border-black/20">
-                <h3 class="text-white font-medium text-lg">${title}</h3>
-                <button onclick="document.getElementById('ssModal').remove()" class="text-tg-gray hover:text-white"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="p-5 overflow-y-auto flex-grow">${content}</div>
+    <div id="ssModal" class="fixed inset-0 modal-overlay z-[100] flex items-center justify-center p-4" onclick="if(event.target===this)this.remove()">
+        <div class="bg-tg-sidebar w-full max-w-md rounded-xl shadow-2xl overflow-hidden p-5 text-white">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg">${title}</h3><button onclick="document.getElementById('ssModal').remove()" class="text-tg-gray"><i class="fas fa-times"></i></button></div>
+            ${content}
         </div>
     </div>`);
 }
-function closeModal() { let m = document.getElementById('ssModal'); if(m) m.remove(); }
 
 function openNewChat() {
     toggleMenu();
-    openModal('Новый чат', `<input id="ncUname" type="text" placeholder="Введите логин" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4"><button onclick="createChat()" class="w-full bg-[#5288c1] text-white font-medium py-3 rounded-lg btn-press">Начать</button>`);
-}
-async function createChat() {
-    let un = document.getElementById('ncUname').value.trim().toLowerCase();
-    if(!un || un === db.currentUser.username) { toast('Неверный логин'); return; }
-    let s = await database.ref(`users/${un}`).once('value');
-    if(!s.exists()) { toast('Не найден'); return; }
-    let cid = 'dm_' + [db.currentUser.username, un].sort().join('_');
-    await database.ref(`chats/${cid}`).set({type:'dm', members:{[db.currentUser.username]:true, [un]:true}, createdAt:Date.now()});
-    await database.ref(`userChats/${db.currentUser.username}/${cid}`).set(true);
-    await database.ref(`userChats/${un}/${cid}`).set(true);
-    closeModal(); openChat(cid);
+    openModal('Новый чат', `<input id="ncUname" type="text" placeholder="Логин" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4"><button onclick="let un=document.getElementById('ncUname').value.trim().toLowerCase(); if(!un)return; database.ref('chats/dm_'+[db.currentUser.username,un].sort().join('_')).set({type:'dm',members:{[db.currentUser.username]:true,[un]:true},createdAt:Date.now()}); database.ref('userChats/'+db.currentUser.username+'/dm_'+[db.currentUser.username,un].sort().join('_')).set(true); database.ref('userChats/'+un+'/dm_'+[db.currentUser.username,un].sort().join('_')).set(true); document.getElementById('ssModal').remove(); toast('Создано');" class="w-full bg-[#5288c1] text-white py-3 rounded-lg">Начать</button>`);
 }
 
 function openNewGroup() {
     toggleMenu();
-    openModal('Создать группу', `<input id="ngName" type="text" placeholder="Имя группы" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-3"><input id="ngUsers" type="text" placeholder="Логины через запятую" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4"><button onclick="createGrp()" class="w-full bg-[#5288c1] text-white font-medium py-3 rounded-lg btn-press">Создать</button>`);
-}
-async function createGrp() {
-    let name = document.getElementById('ngName').value.trim();
-    let uns = document.getElementById('ngUsers').value.split(',').map(s=>s.trim().toLowerCase()).filter(Boolean);
-    if(!name) { toast('Введите имя'); return; }
-    let mem = { [db.currentUser.username]: true };
-    for(let u of uns) { if(u !== db.currentUser.username) { let s = await database.ref(`users/${u}`).once('value'); if(s.exists()) mem[u]=true; } }
-    let cid = 'grp_'+uid();
-    await database.ref(`chats/${cid}`).set({type:'group', name:name, members:mem, createdAt:Date.now(), createdBy:db.currentUser.username});
-    for(let m of Object.keys(mem)) await database.ref(`userChats/${m}/${cid}`).set(true);
-    closeModal(); openChat(cid);
+    openModal('Создать группу', `<input id="ngName" type="text" placeholder="Имя группы" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4"><button onclick="let n=document.getElementById('ngName').value.trim(); if(!n)return; let cid='grp_'+Date.now(); database.ref('chats/'+cid).set({type:'group',name:n,members:{[db.currentUser.username]:true},createdAt:Date.now()}); database.ref('userChats/'+db.currentUser.username+'/'+cid).set(true); document.getElementById('ssModal').remove(); toast('Группа создана');" class="w-full bg-[#5288c1] text-white py-3 rounded-lg">Создать</button>`);
 }
 
 function openSettings() {
     if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleMenu();
-    let u = db.currentUser; let scale = u.scale || 100;
-    openModal('Настройки', `
-        <div class="flex items-center gap-4 mb-6">
-            <div class="relative cursor-pointer group" onclick="document.getElementById('hiddenAvatarInput').click()">
-                ${getAvatarHtml(u.avatar, u.displayName||u.username, 20, 'text-3xl')}
-            </div>
-            <div>
-                <div class="text-xl font-medium text-white">${escapeHtml(u.displayName||u.username)}</div>
-                <div class="text-sm text-tg-gray">${u.phone||''}</div>
-                <div class="text-sm text-tg-blue">@${u.username}</div>
-            </div>
-        </div>
-        <div class="space-y-1 bg-[#0e1621] rounded-xl p-2 mb-4">
-            <div onclick="openSetAccount()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-lg cursor-pointer"><i class="far fa-user w-6 text-center text-tg-gray"></i><span class="text-white">Мой аккаунт</span></div>
-            <div onclick="openSetPrivacy()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-lg cursor-pointer"><i class="fas fa-lock w-6 text-center text-tg-gray"></i><span class="text-white">Конфиденциальность</span></div>
-            <div onclick="openSetFolders()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-lg cursor-pointer"><i class="far fa-folder w-6 text-center text-tg-gray"></i><span class="text-white">Папки с чатами</span></div>
-        </div>
-        <div class="bg-[#0e1621] rounded-xl p-4 mb-4">
-            <div class="flex justify-between items-center mb-4 text-white"><div class="flex items-center gap-4"><i class="far fa-eye text-tg-gray w-6 text-center"></i>Масштаб</div><span id="scTxt" class="text-tg-blue">${scale}%</span></div>
-            <input type="range" min="50" max="150" value="${scale}" oninput="document.getElementById('scTxt').innerText=this.value+'%'; applyScale(this.value);" onchange="database.ref('users/'+db.currentUser.username+'/scale').set(parseInt(this.value))" class="w-full accent-[#5288c1]">
-        </div>
-        <div class="space-y-1 bg-[#0e1621] rounded-xl p-2">
-            <div onclick="openShop()" class="flex items-center justify-between p-3 hover:bg-tg-sidebar rounded-lg cursor-pointer"><div class="flex items-center gap-4"><i class="fas fa-star w-6 text-center text-amber-400"></i><span class="text-white">Мои звёзды</span></div><span class="text-amber-400 font-bold">${u.stars||0}</span></div>
-        </div>
-    `);
-}
-
-document.getElementById('hiddenAvatarInput').addEventListener('change', async e => {
-    let f = e.target.files[0]; if(!f) return;
-    let b = await fileToBase64(f);
-    await database.ref(`users/${db.currentUser.username}/avatar`).set(b);
-    toast('Аватар обновлен'); openSettings();
-});
-
-function openSetAccount() {
-    openModal('Мой аккаунт', `<input id="sda" type="text" value="${escapeHtml(db.currentUser.displayName||db.currentUser.username)}" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4"><button onclick="database.ref('users/'+db.currentUser.username+'/displayName').set(document.getElementById('sda').value.trim()); toast('Сохранено'); openSettings();" class="w-full bg-[#5288c1] text-white py-3 rounded-lg">Сохранить</button>`);
-}
-
-function openSetPrivacy() {
-    openModal('Конфиденциальность', `
-        <input id="spr" type="tel" value="${escapeHtml(db.currentUser.phone||'')}" placeholder="Телефон" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4">
-        <input id="op" type="password" placeholder="Старый пароль" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-2">
-        <input id="np" type="password" placeholder="Новый пароль" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4">
-        <button onclick="savePrivacyData()" class="w-full bg-[#5288c1] text-white py-3 rounded-lg">Сохранить</button>
-    `);
-}
-
-async function savePrivacyData() {
-    let ph = document.getElementById('spr').value.trim();
-    let o = document.getElementById('op').value;
-    let n = document.getElementById('np').value;
-    await database.ref(`users/${db.currentUser.username}/phone`).set(ph);
-    if(o && n && n.length >= 4) {
-        let h = await hashPass(o);
-        if(h === db.currentUser.passHash || o === db.currentUser.passPlain) {
-            let nh = await hashPass(n);
-            await database.ref(`users/${db.currentUser.username}/passHash`).set(nh);
-            await database.ref(`users/${db.currentUser.username}/passPlain`).set(n);
-            toast('Пароль изменен');
-        } else { toast('Старый пароль неверный'); return; }
-    }
-    toast('Сохранено'); openSettings();
-}
-
-function openSetFolders() {
-    let cids = Object.keys(db.chats);
-    let html = cids.map(cid => `<label class="flex items-center gap-3 p-2 hover:bg-[#202b36] rounded cursor-pointer"><input type="checkbox" class="custom-checkbox fcb" value="${cid}"><span class="text-white">${escapeHtml(chatDisplayInfo(cid,db.chats[cid]).name)}</span></label>`).join('');
-    openModal('Новая папка', `<input id="fn" type="text" placeholder="Название" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-3"><div class="max-h-40 overflow-y-auto bg-[#0e1621] p-2 rounded-lg mb-4">${html||'Нет чатов'}</div><button onclick="let n=document.getElementById('fn').value.trim(), s=Array.from(document.querySelectorAll('.fcb:checked')).map(c=>c.value); if(!n||!s.length)return; database.ref('users/'+db.currentUser.username+'/folders/f_'+Date.now()).set({name:n,chats:s}); toast('Создано'); openSettings();" class="w-full bg-[#5288c1] text-white py-3 rounded-lg">Создать</button>`);
+    openModal('Настройки', `<div class="space-y-3"><div onclick="logout()" class="p-3 bg-red-600/20 text-red-400 rounded-lg cursor-pointer text-center font-bold">Выйти из аккаунта</div></div>`);
 }
 
 function openShop() {
     if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleMenu();
-    openModal('Мои звёзды', `
-        <div class="bg-[#0e1621] p-4 rounded-xl mb-4 text-center"><div class="text-3xl font-bold text-amber-400">${db.currentUser.stars||0} ⭐</div></div>
-        <div class="space-y-2">
-            <div onclick="database.ref('users/'+db.currentUser.username+'/stars').set((db.currentUser.stars||0)+1000); toast('+1000 ⭐'); openShop();" class="bg-[#0e1621] p-3 rounded-lg text-white flex justify-between items-center cursor-pointer hover:bg-[#202b36]"><span>1000 звёзд</span><span class="text-amber-400">2 000 UZS</span></div>
-            <div onclick="database.ref('users/'+db.currentUser.username+'/stars').set((db.currentUser.stars||0)+5000); toast('+5000 ⭐'); openShop();" class="bg-[#0e1621] p-3 rounded-lg text-white flex justify-between items-center cursor-pointer hover:bg-[#202b36]"><span>5000 звёзд</span><span class="text-amber-400">10 000 UZS</span></div>
-        </div>
-    `);
-}
-
-function isPrem(u) { return u && u.isPremium && u.premiumUntil > Date.now(); }
-function chatDisplayInfo(cid,chat){
-    if(chat.type==='group') return {name:chat.name||'Группа'};
-    let ou=Object.keys(chat.members).find(m=>m!==db.currentUser.username);
-    let u=db.users[ou]||{};
-    return {name:u.displayName||ou||'?'};
-}
-
-async function reportMsg(mid) {
-    if(!confirm('Пожаловаться?')) return;
-    let s = await database.ref(`messages/${activeChatId}/${mid}`).once('value');
-    let m = s.val(); if(!m) return;
-    await database.ref(`reports/${mid}`).set({ chatId: activeChatId, msgId: mid, from: m.from, text: m.text||'[Файл]', reportedBy: db.currentUser.username, at: Date.now() });
-    toast('Жалоба отправлена');
+    openModal('Звёзды', `<div class="text-center text-amber-400 font-bold text-2xl mb-4">${db.currentUser.stars||0} ⭐</div><button onclick="database.ref('users/'+db.currentUser.username+'/stars').set((db.currentUser.stars||0)+1000); toast('+1000 ⭐'); document.getElementById('ssModal').remove();" class="w-full bg-amber-500 text-slate-900 font-bold py-3 rounded-lg">Купить 1000 звёзд</button>`);
 }
 
 function openAdmin() {
     if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleMenu();
-    let rHtml = Object.keys(db.reports||{}).map(rid => {
-        let r = db.reports[rid];
-        return `<div class="bg-[#0e1621] p-3 rounded-lg mb-2 text-sm"><div class="text-red-400 font-bold">На @${escapeHtml(r.from)}</div><div class="text-white my-1">"${escapeHtml(r.text)}"</div><button onclick="database.ref('reports/${rid}').remove(); toast('Удалено'); openAdmin();" class="bg-[#2b5278] text-white px-2 py-1 rounded text-xs">Скрыть</button></div>`;
-    }).join('') || '<p class="text-tg-gray text-sm">Жалоб нет</p>';
-    openModal('Админ панель', `<h4 class="text-white font-medium mb-2">Жалобы</h4><div class="max-h-60 overflow-y-auto mb-4">${rHtml}</div>`);
+    openModal('Админ панель', `<div class="text-sm text-tg-gray">Панель управления активна</div>`);
 }
 
 function applyScale(val) {
@@ -564,4 +352,3 @@ function applyScale(val) {
 </script>
 </body>
 </html>
-```[cite: 1, 3]
