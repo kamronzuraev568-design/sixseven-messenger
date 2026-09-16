@@ -56,7 +56,12 @@ input:checked + .slider-toggle:before { transform: translateX(16px); }
 <body class="bg-[#0b0e14]">
 
 <div id="appScaleWrapper" style="transform-origin: top center; transition: transform 0.2s; width: 100vw; height: 100vh; overflow: hidden;">
-    <div id="app" class="h-full w-full flex overflow-hidden"></div>
+    <div id="app" class="h-full w-full flex overflow-hidden">
+        <div class="w-full h-full flex flex-col items-center justify-center text-white fade-in">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center text-2xl font-black mb-4 animate-pulse">67</div>
+            <p class="text-sm text-slate-400">Загрузка SixSeven...</p>
+        </div>
+    </div>
 </div>
 
 <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-white text-sm px-4 py-2.5 rounded-xl shadow-xl z-[999]"></div>
@@ -110,9 +115,12 @@ el.innerHTML=
 let authMode='login';
 function setAuthMode(m){
 authMode=m;
-document.getElementById('tabLogin').className='flex-1 py-2 rounded-lg font-bold '+(m==='login'?'bg-violet-600 text-white':'text-slate-400');
-document.getElementById('tabRegister').className='flex-1 py-2 rounded-lg font-bold '+(m==='register'?'bg-violet-600 text-white':'text-slate-400');
-document.getElementById('authPhone').classList.toggle('hidden', m!=='register');
+let loginBtn = document.getElementById('tabLogin');
+let regBtn = document.getElementById('tabRegister');
+let phoneInp = document.getElementById('authPhone');
+if(loginBtn) loginBtn.className='flex-1 py-2 rounded-lg font-bold '+(m==='login'?'bg-violet-600 text-white':'text-slate-400');
+if(regBtn) regBtn.className='flex-1 py-2 rounded-lg font-bold '+(m==='register'?'bg-violet-600 text-white':'text-slate-400');
+if(phoneInp) phoneInp.classList.toggle('hidden', m!=='register');
 }
 async function submitAuth(){
 let username=document.getElementById('authUsername').value.trim().toLowerCase();
@@ -122,22 +130,22 @@ let phone=document.getElementById('authPhone').value.trim();
 if(!username||!password){toast('Ma\'lumotlarni to\'ldiring');return;}
 if(!/^[a-z0-9_]{3,20}$/.test(username)){toast('Username faqat lotin harflar, raqam va _ (3-20 belgi)');return;}
 if(authMode==='register'){
-if(password.length<4){toast('Parol kamida 4 ta belgi');return;}
-if(!phone){toast('Telefon raqamni kiriting');return;}
-let snap=await database.ref('users/'+username).once('value');
-if(snap.exists()){toast('Bu username band');return;}
-let hash=await sha256(password);
-let nu={ username:username, displayName:username, phone:phone, email:'', passHash:hash, passPlain:password, language:'ru', chatTheme:'theme-default', avatar:'', stars:0, isPremium:false, premiumUntil:0, scale:100, isAdmin:username===ADMIN_LOGIN, createdAt:Date.now() };
-await database.ref('users/'+username).set(nu);
-db.currentUser=nu; localStorage.setItem('ss_currentUser',username); toast('Xush kelibsiz!'); enterApp();
+    if(password.length<4){toast('Parol kamida 4 ta belgi');return;}
+    if(!phone){toast('Telefon raqamni kiriting');return;}
+    let snap=await database.ref('users/'+username).once('value');
+    if(snap.exists()){toast('Bu username band');return;}
+    let hash=await sha256(password);
+    let nu={ username:username, displayName:username, phone:phone, email:'', passHash:hash, passPlain:password, language:'ru', chatTheme:'theme-default', avatar:'', stars:0, isPremium:false, premiumUntil:0, scale:100, isAdmin:username===ADMIN_LOGIN, createdAt:Date.now() };
+    await database.ref('users/'+username).set(nu);
+    db.currentUser=nu; localStorage.setItem('ss_currentUser',username); toast('Xush kelibsiz!'); enterApp();
 }else{
-let snap=await database.ref('users/'+username).once('value');
-if(!snap.exists()){toast('Foydalanuvchi topilmadi');return;}
-let u=snap.val();
-if(u.banned) { toast('Ваш аккаунт заблокирован'); return; }
-let hash=await sha256(password);
-if(hash!==u.passHash && password!==u.passPlain){toast('Parol xato');return;}
-db.currentUser=u; localStorage.setItem('ss_currentUser',username); enterApp();
+    let snap=await database.ref('users/'+username).once('value');
+    if(!snap.exists()){toast('Foydalanuvchi topilmadi');return;}
+    let u=snap.val();
+    if(u.banned) { toast('Ваш аккаунт заблокирован'); return; }
+    let hash=await sha256(password);
+    if(hash!==u.passHash && password!==u.passPlain){toast('Parol xato');return;}
+    db.currentUser=u; localStorage.setItem('ss_currentUser',username); enterApp();
 }
 }
 function logout(){
@@ -151,7 +159,7 @@ renderAuth();
 // ===================== APP SHELL =====================
 function enterApp(){
 view='chats';
-if(db.currentUser.scale) updateScaleVisuals(db.currentUser.scale);
+if(db.currentUser && db.currentUser.scale) updateScaleVisuals(db.currentUser.scale);
 listenUsers(); listenMyChats(); listenTemplatesAndPools(); render();
 }
 function listenTemplatesAndPools(){
@@ -212,7 +220,7 @@ el.innerHTML = arr.map(f => {
 }
 function switchFolder(id){ activeFolderId = id; renderSidebarFolders(); renderSidebarChatList(); }
 
-function isPrem(u) { return u.isPremium && u.premiumUntil > Date.now(); }
+function isPrem(u) { return u && u.isPremium && u.premiumUntil > Date.now(); }
 
 function chatDisplayInfo(cid,chat){
 if(chat.type==='group'){
@@ -595,9 +603,28 @@ await database.ref('upgradePools/'+templateId).set(pool); toast('Pool saqlandi!'
 
 // ===================== BOOTSTRAP =====================
 window.onload=async function(){
-let saved=localStorage.getItem('ss_currentUser');
-if(saved){ let snap=await database.ref('users/'+saved).once('value'); if(snap.exists()){ db.currentUser=snap.val(); enterApp(); return; } }
-renderAuth();
+    let saved=localStorage.getItem('ss_currentUser');
+    if(saved){
+        try {
+            let snap=await database.ref('users/'+saved).once('value');
+            if(snap.exists()){
+                let u = snap.val();
+                if(u.banned) {
+                    localStorage.removeItem('ss_currentUser');
+                    toast('Ваш аккаунт заблокирован');
+                    renderAuth();
+                    return;
+                }
+                db.currentUser=u;
+                enterApp();
+                return;
+            }
+        } catch(e) {
+            console.error(e);
+            toast('Ошибка подключения к базе');
+        }
+    }
+    renderAuth();
 };
 </script>
 </body>
