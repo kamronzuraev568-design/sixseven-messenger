@@ -66,13 +66,13 @@ input:checked + .slider-toggle:before { transform: translateX(16px); }
 <script>
 const firebaseConfig={apiKey:"AIzaSyCm5Ikh0OV1bP2fbep-7Kg7rcuNN4PujRY",authDomain:"sixseven-67001.firebaseapp.com",databaseURL:"https://sixseven-67001-default-rtdb.firebaseio.com",projectId:"sixseven-67001",storageBucket:"sixseven-67001.firebasestorage.app",messagingSenderId:"652602968843",appId:"1:652602968843:web:17dadd54f0f5bd6255b00e"};
 let database;
+const mockRef = { on: ()=>{}, off: ()=>{}, once: ()=>Promise.resolve({exists:()=>false, val:()=>null}), set: ()=>Promise.resolve(), remove: ()=>Promise.resolve(), push: ()=>({key:'local', set:()=>Promise.resolve()}) };
 try {
     firebase.initializeApp(firebaseConfig);
     database = firebase.database();
 } catch(e) {
     console.error("Firebase Init Error:", e);
-    // Фолбэк для оффлайна/блокировщиков
-    database = { ref: () => ({ on:()=>{}, off:()=>{}, once:()=>Promise.resolve({exists:()=>false, val:()=>null}), set:()=>Promise.resolve(), remove:()=>Promise.resolve(), push:()=>({key:'local'}) }) };
+    database = { ref: () => mockRef };
 }
 
 const BRAND='SixSeven';
@@ -163,7 +163,7 @@ renderAuth();
 function enterApp(){
 view='chats';
 if(db.currentUser && db.currentUser.scale) updateScaleVisuals(db.currentUser.scale);
-render(); // Немедленный рендер UI, чтобы убрать пустоту
+render(); 
 listenUsers(); listenMyChats(); listenTemplatesAndPools();
 }
 function listenTemplatesAndPools(){
@@ -611,7 +611,7 @@ window.onload=function(){
         let saved=localStorage.getItem('ss_currentUser');
         if(saved){
             db.currentUser = {username: saved, scale: 100};
-            enterApp(); // Мгновенная отрисовка
+            enterApp(); // Мгновенная отрисовка, без заглушек
             
             database.ref('users/'+saved).once('value').then(snap => {
                 if(snap.exists()){
@@ -636,7 +636,7 @@ window.onload=function(){
         }
     } catch(e) {
         console.error("Critical error:", e);
-        document.getElementById('app').innerHTML = '<div class="text-white p-10">Ошибка: ' + e.message + '</div>';
+        renderAuth();
     }
 };
 </script>
