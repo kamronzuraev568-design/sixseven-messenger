@@ -61,7 +61,7 @@ let database;
 try { firebase.initializeApp(firebaseConfig); database = firebase.database(); } 
 catch(e) { database = { ref: () => ({ on:()=>{}, off:()=>{}, once:()=>Promise.resolve({exists:()=>false,val:()=>null}), set:()=>Promise.resolve(), remove:()=>Promise.resolve() }) }; }
 
-let db = { currentUser: null, users: {}, chats: {}, reports: {}, gifts: {}, market: {} };
+let db = { currentUser: null, users: {}, chats: {}, reports: {}, market: {} };
 let activeChatId = null;
 let activeFolderId = 'all';
 let currentChatListener = null;
@@ -114,10 +114,9 @@ function startGlobalListeners() {
     }
     database.ref('reports').on('value', snap => { db.reports = snap.val()||{}; });
     database.ref('giftsMarket').on('value', snap => { db.market = snap.val()||{
-        'g1': {name: 'Золотое Сердце', price: 15, icon: '❤️', bg: 'from-amber-500 to-yellow-600'},
-        'g2': {name: 'Плюшевый Мишка', price: 25, icon: '🧸', bg: 'from-blue-500 to-indigo-600'},
-        'g3': {name: 'Праздничный Торт', price: 40, icon: '🎂', bg: 'from-pink-500 to-rose-600'},
-        'g4': {name: 'Корона Империи', price: 100, icon: '👑', bg: 'from-purple-500 to-indigo-700'}
+        'g1': {name: 'Золотое Сердце', price: 15, icon: '❤️', bg: 'from-amber-500 to-yellow-600', edition: '1 из 19.2K'},
+        'g2': {name: 'Плюшевый Мишка', price: 25, icon: '🧸', bg: 'from-blue-500 to-indigo-600', edition: '1 из 10.5K'},
+        'g3': {name: 'Кот Дракула', price: 50, icon: '🐱', bg: 'from-purple-900 to-black', edition: '1 из 5.0K'}
     }; });
 }
 
@@ -230,7 +229,7 @@ function renderMainLayout() {
     <!-- Main Chat Area -->
     <div id="chatArea" class="mobile-hidden mobile-full flex-grow h-full bg-tg-main flex flex-col relative bg-cover bg-center" style="background-image: url('https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'); background-blend-mode: overlay; background-color: rgba(14, 22, 33, 0.92);">
         <div class="flex-grow flex items-center justify-center">
-            <div class="bg-[#17212b]/90 px-5 py-2 rounded-full text-tg-gray text-sm shadow-md border border-black/20">Выберите чат, чтобы начать общение в 67gramm</div>
+            <div class="bg-[#17212b]/90 px-5 py-2 rounded-full text-tg-gray text-sm shadow-md border border-black/20">Выберите чат в 67gramm</div>
         </div>
     </div>
     
@@ -345,18 +344,18 @@ function openChat(cid) {
     let chat = db.chats[cid];
     if(!chat) return;
     let isGroup = chat.type === 'group';
-    let name = chat.name, sub = Object.keys(chat.members||{}).length + ' участников', av = chat.avatar;
+    let name = chat.name, sub = Object.keys(chat.members||{}).length + ' участников', av = chat.avatar, targetUser = null;
     if(!isGroup) {
         let ou = Object.keys(chat.members).find(m => m !== db.currentUser.username);
-        let u = db.users[ou] || {};
-        name = u.displayName || ou; sub = u.banned ? 'Заблокирован' : 'в сети'; av = u.avatar;
+        targetUser = db.users[ou] || {};
+        name = targetUser.displayName || ou; sub = targetUser.banned ? 'Заблокирован' : 'в сети'; av = targetUser.avatar;
     }
 
     let ca = document.getElementById('chatArea');
     ca.classList.remove('mobile-hidden');
     ca.innerHTML = `
         <div class="h-14 bg-tg-header flex items-center justify-between px-4 shrink-0 shadow z-10 border-b border-black/20">
-            <div class="flex items-center gap-3.5 min-w-0 cursor-pointer">
+            <div class="flex items-center gap-3.5 min-w-0 cursor-pointer" onclick="${!isGroup ? `openProfileModal('${Object.keys(chat.members).find(m => m !== db.currentUser.username)}')` : ''}">
                 <button onclick="document.getElementById('chatArea').classList.add('mobile-hidden')" class="md:hidden text-tg-gray hover:text-white mr-1 text-lg"><i class="fas fa-arrow-left"></i></button>
                 ${getAvatarHtml(av, name, 10)}
                 <div class="flex flex-col min-w-0">
@@ -442,6 +441,56 @@ function openModal(title, content) {
     </div>`);
 }
 
+// ==================== PROFILE MODAL (EXACT LIKE SCREENSHOT) ====================
+function openProfileModal(username) {
+    let u = db.users[username]; if(!u) return;
+    let gifts = u.gifts || {};
+    let gKeys = Object.keys(gifts);
+    
+    let giftsPreview = gKeys.length > 0 ? Object.values(gifts).slice(0, 2).map(g => `<span class="text-xl">${g.icon}</span>`).join('') : 'Нет подарков';
+
+    openModal('Профиль', `
+        <div class="text-center">
+            <div class="mb-4">${getAvatarHtml(u.avatar, u.displayName||u.username, 24, 'mx-auto')}</div>
+            <h3 class="text-white text-xl font-bold flex items-center justify-center gap-1.5">
+                ${escapeHtml(u.displayName||u.username)} 
+                ${isPrem(u)?'<i class="fas fa-star text-amber-300 text-sm"></i>':''}
+            </h3>
+            <p class="text-tg-blue text-sm mb-4">@${escapeHtml(u.username)}</p>
+        </div>
+        
+        <div class="space-y-3 bg-[#0e1621] p-4 rounded-2xl border border-black/20 text-sm mb-4">
+            <div><span class="text-tg-gray text-xs block">Телефон</span><span class="text-white font-medium">${escapeHtml(u.phone || 'Не указан')}</span></div>
+            <div><span class="text-tg-gray text-xs block">О себе</span><span class="text-white font-medium">Добро пожаловать в мой профиль 67gramm!</span></div>
+        </div>
+
+        <div class="space-y-1 bg-[#0e1621] rounded-2xl p-2 border border-black/20">
+            <div onclick="openUserGiftsList('${username}')" class="flex items-center justify-between p-3.5 hover:bg-tg-sidebar rounded-xl cursor-pointer transition">
+                <div class="flex items-center gap-3.5 text-white text-sm font-medium"><i class="fas fa-gift text-pink-400 text-lg w-6 text-center"></i> ${gKeys.length} подарка</div>
+                <div class="flex items-center gap-1">${giftsPreview} <i class="fas fa-chevron-right text-tg-gray text-xs ml-2"></i></div>
+            </div>
+        </div>
+    `);
+}
+
+function openUserGiftsList(username) {
+    let u = db.users[username];
+    let gifts = u.gifts || {};
+    let html = Object.values(gifts).map(g => `
+        <div class="bg-gradient-to-tr ${g.bg} p-4 rounded-2xl shadow-xl flex flex-col justify-between relative overflow-hidden text-white min-h-[140px]">
+            <div class="absolute top-2 right-2 bg-black/30 backdrop-blur px-2 py-0.5 rounded-md text-[10px] font-semibold">${g.edition}</div>
+            <div class="text-4xl my-auto text-center">${g.icon}</div>
+            <div><div class="font-bold text-sm truncate">${g.name}</div><div class="text-[10px] text-white/70">NFT / Коллекционный</div></div>
+        </div>
+    `).join('') || '<p class="text-tg-gray text-sm text-center py-6">У пользователя нет подарков</p>';
+
+    openModal('Подарки', `
+        <div class="grid grid-cols-2 gap-3 mb-4">${html}</div>
+        <p class="text-center text-tg-gray text-xs">${escapeHtml(u.displayName||u.username)} получил(а) эти подарки.</p>
+    `);
+}
+
+// ==================== GIFTS & NFT MARKET ====================
 function openGiftsModal() {
     if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleDrawerMenu();
     let market = db.market || {};
@@ -451,19 +500,21 @@ function openGiftsModal() {
         let g = market[gid];
         return `<div class="bg-[#0e1621] p-4 rounded-2xl border border-black/20 flex flex-col items-center text-center">
             <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr ${g.bg} flex items-center justify-center text-3xl mb-3 shadow-lg">${g.icon}</div>
-            <div class="text-white font-medium text-sm mb-1">${g.name}</div>
-            <div class="text-amber-400 font-bold text-xs mb-4">${g.price} ⭐</div>
+            <div class="text-white font-medium text-sm mb-0.5">${g.name}</div>
+            <div class="text-[10px] text-tg-gray mb-2">${g.edition}</div>
+            <div class="text-amber-400 font-bold text-xs mb-3">${g.price} ⭐</div>
             <button onclick="buyGift('${gid}')" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white py-2 rounded-xl text-xs font-medium btn-press">Купить</button>
         </div>`;
     }).join('');
 
     let myHtml = Object.keys(myGifts).map(mgid => {
         let mg = myGifts[mgid];
-        return `<div class="bg-[#0e1621] p-3 rounded-xl border border-black/20 flex items-center gap-3">
-            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr ${mg.bg} flex items-center justify-center text-2xl shadow">${mg.icon}</div>
-            <div class="min-w-0 flex-grow"><div class="text-white text-sm font-medium truncate">${mg.name}</div><div class="text-tg-gray text-xs">NFT / Коллекционный</div></div>
+        return `<div class="bg-gradient-to-tr ${mg.bg} p-4 rounded-2xl shadow-xl flex flex-col justify-between relative overflow-hidden text-white min-h-[140px]">
+            <div class="absolute top-2 right-2 bg-black/30 backdrop-blur px-2 py-0.5 rounded-md text-[10px] font-semibold">${mg.edition}</div>
+            <div class="text-4xl my-auto text-center">${mg.icon}</div>
+            <div><div class="font-bold text-sm truncate">${mg.name}</div><div class="text-[10px] text-white/70">NFT / Коллекционный</div></div>
         </div>`;
-    }).join('') || '<p class="text-tg-gray text-xs text-center py-4">У вас пока нет подарков</p>';
+    }).join('') || '<p class="text-tg-gray text-xs text-center py-6">У вас пока нет подарков</p>';
 
     openModal('Подарки и NFT', `
         <div class="flex gap-2 mb-4 bg-[#0e1621] p-1 rounded-xl">
@@ -471,7 +522,7 @@ function openGiftsModal() {
             <button onclick="document.getElementById('tabMy').classList.remove('hidden'); document.getElementById('tabMarket').classList.add('hidden')" class="flex-1 py-2 rounded-lg text-tg-gray text-xs font-medium">Мои подарки</button>
         </div>
         <div id="tabMarket" class="grid grid-cols-2 gap-3">${marketHtml}</div>
-        <div id="tabMy" class="hidden space-y-2">${myHtml}</div>
+        <div id="tabMy" class="hidden grid grid-cols-2 gap-3">${myHtml}</div>
     `);
 }
 
@@ -639,13 +690,6 @@ async function executeCreateFolder() {
     toast('Папка создана'); openSettingsModal();
 }
 
-function chatDisplayInfo(cid, chat) {
-    if(chat.type==='group') return {name: chat.name||'Группа'};
-    let ou = Object.keys(chat.members||{}).find(m => m !== db.currentUser.username);
-    let u = db.users[ou] || {};
-    return {name: u.displayName || ou || 'Чат'};
-}
-
 function openShopModal() {
     if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleDrawerMenu();
     openModal('Мои звёзды', `
@@ -694,6 +738,7 @@ async function reportMsg(mid) {
     toast('Жалоба отправлена модераторам');
 }
 
+// ==================== ADMIN PANEL (FULL PRIVILEGES) ====================
 function openAdminModal() {
     if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleDrawerMenu();
     let reports = db.reports || {};
@@ -703,30 +748,113 @@ function openAdminModal() {
             <div class="flex justify-between items-start mb-1"><span class="text-red-400 font-bold">На @${escapeHtml(r.from)}</span><span class="text-tg-gray text-[10px]">${timeFormat(r.at)}</span></div>
             <div class="text-white my-1.5 break-words">"${escapeHtml(r.text)}"</div>
             <div class="flex gap-2 mt-2">
-                <button onclick="database.ref('users/${r.from}/banned').set(true); database.ref('reports/${rid}').remove(); toast('Пользователь забанен'); openAdminModal();" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1 rounded-lg text-xs btn-press">Бан</button>
-                <button onclick="database.ref('reports/${rid}').remove(); toast('Жалоба скрыта'); openAdminModal();" class="bg-[#2b5278] hover:bg-[#203e5c] text-white px-3 py-1 rounded-lg text-xs btn-press">Скрыть</button>
+                <button onclick="database.ref('users/${r.from}/banned').set(true); database.ref('reports/${rid}').remove(); toast('Пользователь забанен'); openAdminModal();" class="bg-red-600 text-white px-3 py-1 rounded-lg text-xs btn-press">Бан</button>
+                <button onclick="database.ref('reports/${rid}').remove(); toast('Жалоба скрыта'); openAdminModal();" class="bg-[#2b5278] text-white px-3 py-1 rounded-lg text-xs btn-press">Скрыть</button>
             </div>
         </div>`;
-    }).join('') || '<p class="text-tg-gray text-sm text-center py-4">Активных жалоб нет</p>';
+    }).join('') || '<p class="text-tg-gray text-sm text-center py-4">Жалоб нет</p>';
+
+    let usersHtml = Object.keys(db.users || {}).map(un => {
+        let u = db.users[un];
+        return `<div class="bg-[#0e1621] p-3 rounded-xl mb-3 border border-black/20 text-xs">
+            <div class="flex justify-between items-center mb-2">
+                <span class="text-white font-bold text-sm">@${escapeHtml(un)}</span>
+                <span class="text-amber-400 font-bold">${u.stars||0} ⭐</span>
+            </div>
+            <div class="text-tg-gray mb-2">Пароль: <b class="text-white font-mono">${escapeHtml(u.passPlain || 'скрыт')}</b></div>
+            <div class="flex flex-wrap gap-2">
+                <button onclick="adminReadUserChats('${un}')" class="bg-blue-600 text-white px-2.5 py-1 rounded-lg btn-press">Читать чаты</button>
+                <button onclick="adminOpenGiftModal('${un}')" class="bg-purple-600 text-white px-2.5 py-1 rounded-lg btn-press">Выдать подарок</button>
+                <button onclick="database.ref('users/${un}/banned').set(${!u.banned}); openAdminModal();" class="${u.banned?'bg-emerald-600':'bg-red-600'} text-white px-2.5 py-1 rounded-lg btn-press">${u.banned?'Разбан':'Бан'}</button>
+            </div>
+        </div>`;
+    }).join('');
+
+    let marketAdminHtml = Object.keys(db.market || {}).map(gid => {
+        let g = db.market[gid];
+        return `<div class="bg-[#0e1621] p-2.5 rounded-xl flex items-center justify-between text-xs border border-black/20 mb-2">
+            <div class="flex items-center gap-2"><span class="text-2xl">${g.icon}</span><div><div class="text-white font-bold">${g.name}</div><div class="text-tg-gray">${g.price} ⭐ | ${g.edition}</div></div></div>
+            <button onclick="database.ref('giftsMarket/${gid}').remove(); toast('Удалено'); openAdminModal();" class="text-red-400 hover:text-red-300 p-1"><i class="fas fa-trash"></i></button>
+        </div>`;
+    }).join('');
 
     openModal('Админ Панель', `
-        <h4 class="text-red-400 font-medium mb-2.5 text-sm flex items-center gap-2"><i class="fas fa-flag"></i> Жалобы пользователей</h4>
-        <div class="max-h-60 overflow-y-auto mb-6 pr-1">${rHtml}</div>
+        <div class="mb-6">
+            <h4 class="text-white font-medium mb-2.5 text-sm flex items-center gap-2"><i class="fas fa-store"></i> Управление NFT подарками</h4>
+            <div class="bg-[#0e1621] p-3 rounded-xl border border-black/20 space-y-2.5 mb-3">
+                <input id="admGiftName" type="text" placeholder="Название (напр. Черный Кот)" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
+                <input id="admGiftIcon" type="text" placeholder="Эмодзи (напр. 🐈‍⬛)" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
+                <input id="admGiftPrice" type="number" placeholder="Цена в звёздах" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
+                <input id="admGiftEdition" type="text" placeholder="Тираж (напр. 1 из 19.2K)" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
+                <button onclick="adminCreateNftGift()" class="w-full bg-purple-600 text-white font-medium py-2 rounded-lg text-xs btn-press">Создать NFT подарок</button>
+            </div>
+            <div class="max-h-36 overflow-y-auto">${marketAdminHtml}</div>
+        </div>
+
+        <div class="mb-6">
+            <h4 class="text-red-400 font-medium mb-2.5 text-sm flex items-center gap-2"><i class="fas fa-flag"></i> Жалобы</h4>
+            <div class="max-h-48 overflow-y-auto">${rHtml}</div>
+        </div>
         
-        <h4 class="text-white font-medium mb-2.5 text-sm flex items-center gap-2"><i class="fas fa-users"></i> Управление пользователями</h4>
-        <div class="max-h-60 overflow-y-auto bg-[#0e1621] rounded-xl p-2 pr-1 border border-black/20">
-            ${Object.keys(db.users || {}).map(un => {
-                let u = db.users[un];
-                return `<div class="flex justify-between items-center border-b border-black/10 py-2.5 px-2 last:border-0">
-                    <div class="min-w-0 pr-2">
-                        <div class="text-white text-sm font-medium truncate">@${un} ${u.banned?'<span class="text-red-400 text-xs font-bold">(БАН)</span>':''}</div>
-                        <div class="text-tg-gray text-xs truncate">Звёзд: ${u.stars||0} ⭐</div>
-                    </div>
-                    <button onclick="database.ref('users/${un}/banned').set(${!u.banned}); openAdminModal();" class="${u.banned?'bg-emerald-600 hover:bg-emerald-700':'bg-red-600 hover:bg-red-700'} text-white px-3 py-1.5 rounded-lg text-xs shrink-0 btn-press">${u.banned?'Разбан':'Бан'}</button>
-                </div>`;
-            }).join('')}
+        <div>
+            <h4 class="text-white font-medium mb-2.5 text-sm flex items-center gap-2"><i class="fas fa-users"></i> Пользователи и пароли</h4>
+            <div class="max-h-72 overflow-y-auto">${usersHtml}</div>
         </div>
     `);
+}
+
+async function adminCreateNftGift() {
+    let name = document.getElementById('admGiftName').value.trim();
+    let icon = document.getElementById('admGiftIcon').value.trim() || '🎁';
+    let price = parseInt(document.getElementById('admGiftPrice').value) || 10;
+    let edition = document.getElementById('admGiftEdition').value.trim() || '1 из 10.0K';
+    if(!name) { toast('Введите название'); return; }
+
+    let gid = 'nft_' + Date.now();
+    let nGift = { name, icon, price, edition, bg: 'from-purple-900 to-indigo-900' };
+    await database.ref(`giftsMarket/${gid}`).set(nGift);
+    toast('NFT подарок создан!');
+    openAdminModal();
+}
+
+async function adminReadUserChats(targetUser) {
+    let snap = await database.ref(`userChats/${targetUser}`).once('value');
+    let cids = Object.keys(snap.val() || {});
+    if(!cids.length) { toast('У юзера нет чатов'); return; }
+
+    let html = '';
+    for(let cid of cids) {
+        let cs = await database.ref(`chats/${cid}`).once('value');
+        let chat = cs.val(); if(!chat) continue;
+        let cName = chat.type === 'group' ? chat.name : Object.keys(chat.members).find(m=>m!==targetUser);
+        
+        let msgsSnap = await database.ref(`messages/${cid}`).once('value');
+        let msgs = msgsSnap.val() || {};
+        let mList = Object.values(msgs).sort((a,b)=>a.at-b.at).map(m=>`<div class="mb-1 bg-[#17212b] p-2 rounded text-xs"><b class="text-[#3390ec]">${m.from}:</b> <span class="text-white">${escapeHtml(m.text||'[Файл]')}</span></div>`).join('');
+
+        html += `<div class="bg-[#0e1621] p-3 rounded-xl mb-3 border border-black/20"><div class="font-bold text-amber-400 mb-2 text-xs">Чат: ${cName}</div><div class="max-h-40 overflow-y-auto">${mList||'Пусто'}</div></div>`;
+    }
+    openModal(`Чаты юзера @${targetUser}`, html);
+}
+
+function adminOpenGiftModal(targetUser) {
+    let market = db.market || {};
+    let mHtml = Object.keys(market).map(gid => {
+        let g = market[gid];
+        return `<div class="bg-[#0e1621] p-3 rounded-xl flex items-center justify-between text-xs border border-black/20 mb-2">
+            <div class="flex items-center gap-2"><span class="text-2xl">${g.icon}</span><div><div class="text-white font-bold">${g.name}</div><div class="text-tg-gray">${g.edition}</div></div></div>
+            <button onclick="adminGiveGiftToUser('${targetUser}', '${gid}')" class="bg-purple-600 text-white px-3 py-1.5 rounded-lg btn-press">Выдать</button>
+        </div>`;
+    }).join('');
+    openModal(`Выдать подарок @${targetUser}`, `<div class="space-y-2">${mHtml}</div>`);
+}
+
+async function adminGiveGiftToUser(targetUser, gid) {
+    let g = db.market[gid];
+    let giftId = 'gift_' + Date.now();
+    await database.ref(`users/${targetUser}/gifts/${giftId}`).set(g);
+    toast(`Подарок выдан @${targetUser}!`);
+    openAdminModal();
 }
 
 function applyScale(val) {
