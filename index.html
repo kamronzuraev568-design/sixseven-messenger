@@ -68,6 +68,7 @@
 
 <input type="file" id="hiddenFileInput" class="hidden" accept="image/*,application/pdf,.zip,.rar,.doc,.docx">
 <input type="file" id="hiddenAvatarInput" class="hidden" accept="image/*">
+<input type="file" id="hiddenGiftIconInput" class="hidden" accept="image/*">
 
 <script>
 /* ============================================================
@@ -97,7 +98,7 @@ let activeAuthMode = 'login';
 let giftsTab = 'market';
 let currentChatListener = null;
 let globalListenersStarted = false;
-const chatRefs = {}; // cid -> callback
+const chatRefs = {};
 
 /* ============================================================
    UTILS
@@ -107,7 +108,7 @@ function toast(m, ms=2500){
     t.innerText = m;
     t.classList.remove('hidden');
     t.classList.remove('fade-in');
-    void t.offsetWidth; // reflow
+    void t.offsetWidth;
     t.classList.add('fade-in');
     clearTimeout(t._timer);
     t._timer = setTimeout(()=>t.classList.add('hidden'), ms);
@@ -150,16 +151,15 @@ async function hashPass(txt){
         try {
             const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(txt));
             return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-        } catch(e) { /* fallthrough */ }
+        } catch(e) {}
     }
-    // fallback (не крипто-стойкий, только для окружений без crypto.subtle)
     let h = 0;
     for(let i=0;i<txt.length;i++){ h = (Math.imul(31, h) + txt.charCodeAt(i)) | 0; }
     return 'fb_' + (h >>> 0).toString(16);
 }
 
 /* ============================================================
-   AVATARS
+   AVATARS & GIFT ICONS
 ============================================================ */
 const AVATAR_TEXT = {
     8:'text-xs', 10:'text-sm', 12:'text-base', 14:'text-lg',
@@ -173,6 +173,18 @@ function getAvatarHtml(src, name, size = 10, extra = ''){
     return `<div class="${dim} ${extra} rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-bold shrink-0 shadow ${AVATAR_TEXT[size] || 'text-sm'}">${letter}</div>`;
 }
 
+/* Универсальный рендер иконки подарка: URL/картинка ИЛИ эмодзи */
+function renderGiftIcon(icon, size = 'text-4xl', extra = ''){
+    const s = String(icon || '🎁').trim();
+    const isImg = /^(https?:\/\/|data:image\/)/i.test(s);
+    if(isImg){
+        return `<img src="${escapeHtml(s)}" alt="" class="${extra} object-contain inline-block align-middle"
+                    style="width:1em;height:1em;"
+                    onerror="this.outerHTML='<span class=\\'${size}\\'>🎁</span>'">`;
+    }
+    return `<span class="${size} ${extra} inline-block align-middle">${s}</span>`;
+}
+
 /* ============================================================
    BOOT
 ============================================================ */
@@ -180,7 +192,6 @@ window.onload = function(){
     try {
         const saved = localStorage.getItem('g67_currentUser');
         if(saved){
-            // мгновенный «оптимистичный» рендер
             db.currentUser = { username: saved, displayName: saved, stars: 0, scale: 100, folders: {}, gifts: {} };
             renderMainLayout();
             database.ref('users/' + saved).once('value').then(snap => {
@@ -222,7 +233,6 @@ function startGlobalListeners(){
     globalListenersStarted = true;
     const me = db.currentUser.username;
 
-    // live-обновление текущего пользователя
     database.ref('users/' + me).on('value', snap => {
         if(!snap.exists()) return;
         const u = snap.val();
@@ -234,14 +244,12 @@ function startGlobalListeners(){
         refreshChatHeader();
     });
 
-    // пользователи
     database.ref('users').on('value', snap => {
         db.users = snap.val() || {};
         renderSidebar();
         refreshChatHeader();
     });
 
-    // мои чаты
     database.ref('userChats/' + me).on('value', snap => {
         const map = snap.val() || {};
         const cids = Object.keys(map);
@@ -274,10 +282,8 @@ function startGlobalListeners(){
         renderSidebar();
     });
 
-    // жалобы
     database.ref('reports').on('value', snap => { db.reports = snap.val() || {}; });
 
-    // рынок подарков (засеваем дефолт, если пусто)
     database.ref('giftsMarket').on('value', snap => {
         if(!snap.exists()){
             database.ref('giftsMarket').set(DEFAULT_MARKET);
@@ -406,7 +412,6 @@ function renderMainLayout(){
     const el = document.getElementById('app'); if(!el) return;
 
     el.innerHTML = `
-    <!-- Sidebar -->
     <div id="sidebarSide" class="w-full md:w-[380px] h-full bg-tg-sidebar flex flex-col border-r border-black/20 z-10 shrink-0">
         <div class="h-14 flex items-center px-4 gap-3 shrink-0 border-b border-black/10">
             <button onclick="toggleDrawerMenu()" class="text-tg-gray hover:text-white text-xl p-2 rounded-full hover:bg-[#202b36] transition btn-press"><i class="fas fa-bars"></i></button>
@@ -419,7 +424,6 @@ function renderMainLayout(){
         <div id="chatList" class="flex-grow overflow-y-auto"></div>
     </div>
 
-    <!-- Chat Area -->
     <div id="chatArea" class="mobile-hidden mobile-full flex-grow h-full bg-tg-main flex flex-col relative bg-cover bg-center"
          style="background-image:url('https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'); background-blend-mode:overlay; background-color:rgba(14,22,33,.92);">
         <div class="flex-grow flex items-center justify-center">
@@ -427,7 +431,6 @@ function renderMainLayout(){
         </div>
     </div>
 
-    <!-- Drawer -->
     <div id="drawerMenu" class="fixed inset-y-0 left-0 w-[300px] bg-tg-sidebar shadow-2xl transform -translate-x-full transition-transform duration-300 z-50 flex flex-col border-r border-black/30">
         <div class="p-5 bg-[#2b5278] text-white flex flex-col justify-end min-h-[140px] shadow-inner">
             <div class="flex items-center gap-3 mb-3">
@@ -768,6 +771,15 @@ document.getElementById('hiddenAvatarInput').addEventListener('change', async e 
     openSettingsModal();
 });
 
+document.getElementById('hiddenGiftIconInput').addEventListener('change', async e => {
+    const f = e.target.files[0];
+    e.target.value = '';
+    if(!f) return;
+    if(f.size > 300000){ toast('Картинка слишком большая (макс 300KB)'); return; }
+    const b = await fileToBase64(f);
+    setGiftIcon(b);
+});
+
 /* ============================================================
    MODAL
 ============================================================ */
@@ -795,7 +807,7 @@ function openProfileModal(username){
     const gKeys = Object.keys(gifts);
     const gCount = gKeys.length;
     const preview = gCount > 0
-        ? Object.values(gifts).slice(0, 3).map(g => `<span class="text-xl">${g.icon}</span>`).join('')
+        ? Object.values(gifts).slice(0, 3).map(g => renderGiftIcon(g.icon, 'text-xl')).join('')
         : '<span class="text-tg-gray text-xs">нет</span>';
 
     openModal('Профиль', `
@@ -831,8 +843,8 @@ function openUserGiftsList(username){
     const gifts = u.gifts || {};
     const html = Object.values(gifts).map(g => `
         <div class="bg-gradient-to-tr ${g.bg} p-4 rounded-2xl shadow-xl flex flex-col justify-between relative overflow-hidden text-white min-h-[140px]">
-            <div class="absolute top-2 right-2 bg-black/30 backdrop-blur px-2 py-0.5 rounded-md text-[10px] font-semibold">${g.edition}</div>
-            <div class="text-4xl my-auto text-center">${g.icon}</div>
+            <div class="absolute top-2 right-2 bg-black/30 backdrop-blur px-2 py-0.5 rounded-md text-[10px] font-semibold">${escapeHtml(g.edition)}</div>
+            <div class="my-auto text-center">${renderGiftIcon(g.icon, 'text-4xl')}</div>
             <div><div class="font-bold text-sm truncate">${escapeHtml(g.name)}</div><div class="text-[10px] text-white/70">NFT / Коллекционный</div></div>
         </div>
     `).join('') || '<p class="text-tg-gray text-sm text-center py-6 col-span-2">У пользователя нет подарков</p>';
@@ -854,7 +866,9 @@ function openGiftsModal(){
     const marketHtml = Object.keys(market).map(gid => {
         const g = market[gid];
         return `<div class="bg-[#0e1621] p-4 rounded-2xl border border-black/20 flex flex-col items-center text-center">
-            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr ${g.bg} flex items-center justify-center text-3xl mb-3 shadow-lg">${g.icon}</div>
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr ${g.bg} flex items-center justify-center mb-3 shadow-lg">
+                ${renderGiftIcon(g.icon, 'text-3xl')}
+            </div>
             <div class="text-white font-medium text-sm mb-0.5">${escapeHtml(g.name)}</div>
             <div class="text-[10px] text-tg-gray mb-2">${escapeHtml(g.edition)}</div>
             <div class="text-amber-400 font-bold text-xs mb-3">${g.price} ⭐</div>
@@ -865,8 +879,8 @@ function openGiftsModal(){
     const myHtml = Object.keys(myGifts).map(mgid => {
         const mg = myGifts[mgid];
         return `<div class="bg-gradient-to-tr ${mg.bg} p-4 rounded-2xl shadow-xl flex flex-col justify-between relative overflow-hidden text-white min-h-[140px]">
-            <div class="absolute top-2 right-2 bg-black/30 backdrop-blur px-2 py-0.5 rounded-md text-[10px] font-semibold">${mg.edition}</div>
-            <div class="text-4xl my-auto text-center">${mg.icon}</div>
+            <div class="absolute top-2 right-2 bg-black/30 backdrop-blur px-2 py-0.5 rounded-md text-[10px] font-semibold">${escapeHtml(mg.edition)}</div>
+            <div class="my-auto text-center">${renderGiftIcon(mg.icon, 'text-4xl')}</div>
             <div><div class="font-bold text-sm truncate">${escapeHtml(mg.name)}</div><div class="text-[10px] text-white/70">NFT / Коллекционный</div></div>
         </div>`;
     }).join('') || '<p class="text-tg-gray text-xs text-center py-6 col-span-2">У вас пока нет подарков</p>';
@@ -1195,11 +1209,11 @@ function openAdminModal(){
     const marketAdminHtml = Object.keys(db.market || {}).map(gid => {
         const g = db.market[gid];
         return `<div class="bg-[#0e1621] p-2.5 rounded-xl flex items-center justify-between text-xs border border-black/20 mb-2">
-            <div class="flex items-center gap-2">
-                <span class="text-2xl">${g.icon}</span>
-                <div><div class="text-white font-bold">${escapeHtml(g.name)}</div><div class="text-tg-gray">${g.price} ⭐ | ${escapeHtml(g.edition)}</div></div>
+            <div class="flex items-center gap-2 min-w-0">
+                <div class="w-9 h-9 flex items-center justify-center shrink-0">${renderGiftIcon(g.icon, 'text-2xl')}</div>
+                <div class="min-w-0"><div class="text-white font-bold truncate">${escapeHtml(g.name)}</div><div class="text-tg-gray">${g.price} ⭐ | ${escapeHtml(g.edition)}</div></div>
             </div>
-            <button onclick="adminDeleteGift('${gid}')" class="text-red-400 hover:text-red-300 p-1"><i class="fas fa-trash"></i></button>
+            <button onclick="adminDeleteGift('${gid}')" class="text-red-400 hover:text-red-300 p-1 shrink-0"><i class="fas fa-trash"></i></button>
         </div>`;
     }).join('');
 
@@ -1207,11 +1221,40 @@ function openAdminModal(){
         <div class="mb-6">
             <h4 class="text-white font-medium mb-2.5 text-sm flex items-center gap-2"><i class="fas fa-store"></i> Управление NFT подарками</h4>
             <div class="bg-[#0e1621] p-3 rounded-xl border border-black/20 space-y-2.5 mb-3">
-                <input id="admGiftName" type="text" placeholder="Название" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
-                <input id="admGiftIcon" type="text" placeholder="Эмодзи (напр. 🐈‍⬛)" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
-                <input id="admGiftPrice" type="number" placeholder="Цена в звёздах" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
-                <input id="admGiftEdition" type="text" placeholder="Тираж (1 из 19.2K)" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
-                <button onclick="adminCreateNftGift()" class="w-full bg-purple-600 text-white font-medium py-2 rounded-lg text-xs btn-press">Создать NFT</button>
+                <input id="admGiftName" type="text" placeholder="Название (напр. Черный Кот)"
+                       class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
+
+                <div class="bg-[#17212b] rounded-lg p-2.5">
+                    <label class="text-[10px] text-tg-gray uppercase tracking-wider block mb-1.5">Иконка подарка</label>
+                    <div class="flex items-center gap-2.5 mb-2">
+                        <div id="admGiftIconPreview" class="w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center text-2xl shrink-0 border border-black/30">🎁</div>
+                        <input id="admGiftIcon" type="text" placeholder="https://.../cat.png или 🎁"
+                               oninput="updateGiftIconPreview()"
+                               class="flex-grow bg-[#0e1621] text-white px-3 py-2 rounded-lg text-xs border border-black/20 focus:border-[#3390ec] transition">
+                    </div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-[10px] text-tg-gray">Быстрый выбор:</span>
+                        <button type="button" onclick="document.getElementById('hiddenGiftIconInput').click()"
+                                class="text-[10px] text-[#3390ec] hover:text-[#5eb5f7] font-medium">
+                            <i class="fas fa-upload mr-1"></i>Загрузить файл
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-8 gap-1">
+                        ${['🎁','❤️','🧸','🐱','🐈‍⬛','🐶','🦊','🐼','🦄','👑','💎','🌸','🍀','⚽','🎮','🚀'].map(e =>
+                            `<button type="button" onclick="setGiftIcon('${e}')"
+                                     class="text-lg hover:bg-[#202b36] rounded-md p-1 transition">${e}</button>`
+                        ).join('')}
+                    </div>
+                </div>
+
+                <input id="admGiftPrice" type="number" placeholder="Цена в звёздах"
+                       class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
+                <input id="admGiftEdition" type="text" placeholder="Тираж (напр. 1 из 19.2K)"
+                       class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs">
+                <button onclick="adminCreateNftGift()"
+                        class="w-full bg-purple-600 hover:bg-purple-500 text-white font-medium py-2 rounded-lg text-xs btn-press transition">
+                    Создать NFT подарок
+                </button>
             </div>
             <div class="max-h-36 overflow-y-auto">${marketAdminHtml}</div>
         </div>
@@ -1226,6 +1269,27 @@ function openAdminModal(){
             <div class="max-h-72 overflow-y-auto">${usersHtml}</div>
         </div>
     `);
+
+    updateGiftIconPreview();
+}
+
+function setGiftIcon(v){
+    const inp = document.getElementById('admGiftIcon');
+    if(inp){ inp.value = v; updateGiftIconPreview(); }
+}
+
+function updateGiftIconPreview(){
+    const inp = document.getElementById('admGiftIcon');
+    const pv = document.getElementById('admGiftIconPreview');
+    if(!inp || !pv) return;
+    const v = inp.value.trim();
+    const isImg = /^(https?:\/\/|data:image\/)/i.test(v);
+    if(isImg){
+        pv.innerHTML = `<img src="${escapeHtml(v)}" class="w-full h-full object-contain rounded-xl"
+                             onerror="this.parentNode.innerHTML='<span class=\\'text-2xl\\'>⚠️</span>'">`;
+    } else {
+        pv.innerHTML = `<span class="text-2xl">${v || '🎁'}</span>`;
+    }
 }
 
 async function adminCreateNftGift(){
@@ -1234,11 +1298,20 @@ async function adminCreateNftGift(){
     const price = parseInt(document.getElementById('admGiftPrice').value) || 10;
     const edition = document.getElementById('admGiftEdition').value.trim() || '1 из 10.0K';
     if(!name){ toast('Введите название'); return; }
+
+    const isImg = /^(https?:\/\/|data:image\/)/i.test(icon);
+    const isEmoji = !isImg && icon.length <= 8;
+    if(!isImg && !isEmoji){ toast('Укажите URL картинки или эмодзи'); return; }
+
     const gid = 'nft_' + Date.now();
-    await database.ref('giftsMarket/' + gid).set({ name, icon, price, edition, bg: 'from-purple-900 to-indigo-900' });
+    await database.ref('giftsMarket/' + gid).set({
+        name, icon, price, edition,
+        bg: 'from-purple-900 to-indigo-900'
+    });
     toast('NFT подарок создан');
     openAdminModal();
 }
+
 async function adminDeleteGift(gid){
     if(!confirm('Удалить этот подарок из магазина?')) return;
     await database.ref('giftsMarket/' + gid).remove();
@@ -1287,8 +1360,11 @@ function adminOpenGiftModal(targetUser){
     const mHtml = Object.keys(market).map(gid => {
         const g = market[gid];
         return `<div class="bg-[#0e1621] p-3 rounded-xl flex items-center justify-between text-xs border border-black/20 mb-2">
-            <div class="flex items-center gap-2"><span class="text-2xl">${g.icon}</span><div><div class="text-white font-bold">${escapeHtml(g.name)}</div><div class="text-tg-gray">${escapeHtml(g.edition)}</div></div></div>
-            <button onclick="adminGiveGiftToUser('${targetUser}','${gid}')" class="bg-purple-600 text-white px-3 py-1.5 rounded-lg btn-press">Выдать</button>
+            <div class="flex items-center gap-2 min-w-0">
+                <div class="w-9 h-9 flex items-center justify-center shrink-0">${renderGiftIcon(g.icon, 'text-2xl')}</div>
+                <div class="min-w-0"><div class="text-white font-bold truncate">${escapeHtml(g.name)}</div><div class="text-tg-gray">${escapeHtml(g.edition)}</div></div>
+            </div>
+            <button onclick="adminGiveGiftToUser('${targetUser}','${gid}')" class="bg-purple-600 text-white px-3 py-1.5 rounded-lg btn-press shrink-0">Выдать</button>
         </div>`;
     }).join('');
     openModal(`Выдать подарок @${escapeHtml(targetUser)}`, `<div class="space-y-2">${mHtml || 'Магазин пуст'}</div>`);
