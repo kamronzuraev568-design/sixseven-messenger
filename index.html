@@ -33,57 +33,35 @@ body{background:#0b0e14;color:#e5e7eb;margin:0;overscroll-behavior:none;}
 input,textarea,select{outline:none;}
 .hidden{display:none!important;}
 
-/* Switch Toggle Styling */
-.switch {
-  position: relative;
-  display: inline-block;
-  width: 36px;
-  height: 20px;
-}
-.switch input { 
-  opacity: 0;
-  width: 0;
-  height: 0;
-}
-.slider-toggle {
-  position: absolute;
-  cursor: pointer;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background-color: #374151;
-  transition: .4s;
-  border-radius: 20px;
-}
-.slider-toggle:before {
-  position: absolute;
-  content: "";
-  height: 14px;
-  width: 14px;
-  left: 3px;
-  bottom: 3px;
-  background-color: white;
-  transition: .4s;
-  border-radius: 50%;
-}
-input:checked + .slider-toggle {
-  background-color: #7c3aed;
-}
-input:checked + .slider-toggle:before {
-  transform: translateX(16px);
-}
+.switch { position: relative; display: inline-block; width: 36px; height: 20px; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.slider-toggle { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #374151; transition: .4s; border-radius: 20px; }
+.slider-toggle:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; transition: .4s; border-radius: 50%; }
+input:checked + .slider-toggle { background-color: #3b82f6; }
+input:checked + .slider-toggle:before { transform: translateX(16px); }
+
+.custom-checkbox { appearance: none; background-color: transparent; border: 2px solid #4b5563; width: 18px; height: 18px; border-radius: 4px; cursor: pointer; position: relative; flex-shrink: 0; }
+.custom-checkbox:checked { background-color: #3b82f6; border-color: #3b82f6; }
+.custom-checkbox:checked::after { content: ''; position: absolute; top: 1px; left: 5px; width: 5px; height: 10px; border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+
+.theme-default { background: #0b0e14; }
+.theme-blue { background: linear-gradient(to bottom right, #0f172a, #1e3a8a); }
+.theme-purple { background: linear-gradient(to bottom right, #170f2a, #4c1d95); }
+.theme-emerald { background: linear-gradient(to bottom right, #0f2a1d, #065f46); }
+
+.folder-tab { transition: all 0.2s; border-bottom: 2px solid transparent; white-space: nowrap; cursor: pointer; }
+.folder-tab.active { color: #8b5cf6; border-bottom-color: #8b5cf6; font-weight: bold; }
 </style>
 </head>
-<body>
+<body class="bg-[#0b0e14]">
 
-<!-- Добавили обертку для масштабирования -->
-<div id="appScaleWrapper" style="transform-origin: top center; transition: transform 0.2s;">
-    <div id="app" class="h-screen w-screen flex overflow-hidden"></div>
+<div id="appScaleWrapper" style="transform-origin: top center; transition: transform 0.2s; width: 100vw; height: 100vh; overflow: hidden;">
+    <div id="app" class="h-full w-full flex overflow-hidden"></div>
 </div>
 
 <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-white text-sm px-4 py-2.5 rounded-xl shadow-xl z-[999]"></div>
 <input type="file" id="hiddenFileInput" class="hidden" accept="image/*,application/pdf,.doc,.docx,.zip">
 <input type="file" id="hiddenAvatarInput" class="hidden" accept="image/*">
-<input type="file" id="hiddenGroupAvatarInput" class="hidden" accept="image/*">
-<input type="file" id="hiddenTemplateImgInput" class="hidden" accept="image/*">
 
 <script>
 const firebaseConfig={apiKey:"AIzaSyCm5Ikh0OV1bP2fbep-7Kg7rcuNN4PujRY",authDomain:"sixseven-67001.firebaseapp.com",databaseURL:"https://sixseven-67001-default-rtdb.firebaseio.com",projectId:"sixseven-67001",storageBucket:"sixseven-67001.firebasestorage.app",messagingSenderId:"652602968843",appId:"1:652602968843:web:17dadd54f0f5bd6255b00e"};
@@ -94,9 +72,10 @@ const ADMIN_LOGIN='admin';
 const UPGRADE_COST=50;
 const MAX_FILE_SIZE=1200000;
 
-let db={currentUser:null,users:{},chats:{},templates:{},items:{}};
+let db={currentUser:null,users:{},chats:{},templates:{},items:{},reports:{}};
 let view='auth';
 let activeChatId=null;
+let activeFolderId='all';
 let _msgListeners={};
 
 function toast(msg){let t=document.getElementById('toast');t.innerText=msg;t.classList.remove('hidden');setTimeout(function(){t.classList.add('hidden');},2500);}
@@ -123,96 +102,75 @@ el.innerHTML=
 '</div>'+
 '<div class="space-y-3">'+
 '<input id="authUsername" type="text" placeholder="Username" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white">'+
+'<input id="authPhone" type="tel" placeholder="Номер телефона (+998...)" class="hidden w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white">'+
 '<input id="authPassword" type="password" placeholder="Parol" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white">'+
 '<button onclick="submitAuth()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl btn-press">Davom etish</button>'+
-'</div>'+
-'</div>'+
-'</div>';
+'</div></div></div>';
 }
 let authMode='login';
 function setAuthMode(m){
 authMode=m;
 document.getElementById('tabLogin').className='flex-1 py-2 rounded-lg font-bold '+(m==='login'?'bg-violet-600 text-white':'text-slate-400');
 document.getElementById('tabRegister').className='flex-1 py-2 rounded-lg font-bold '+(m==='register'?'bg-violet-600 text-white':'text-slate-400');
+document.getElementById('authPhone').classList.toggle('hidden', m!=='register');
 }
 async function submitAuth(){
 let username=document.getElementById('authUsername').value.trim().toLowerCase();
 let password=document.getElementById('authPassword').value;
-if(!username||!password){toast('Username va parolni kiriting');return;}
+let phone=document.getElementById('authPhone').value.trim();
+
+if(!username||!password){toast('Ma\'lumotlarni to\'ldiring');return;}
 if(!/^[a-z0-9_]{3,20}$/.test(username)){toast('Username faqat lotin harflar, raqam va _ (3-20 belgi)');return;}
 if(authMode==='register'){
 if(password.length<4){toast('Parol kamida 4 ta belgi');return;}
+if(!phone){toast('Telefon raqamni kiriting');return;}
 let snap=await database.ref('users/'+username).once('value');
 if(snap.exists()){toast('Bu username band');return;}
 let hash=await sha256(password);
-let nu={username:username, passHash:hash, passPlain:password, avatar:'', stars:0, isAdmin:username===ADMIN_LOGIN, createdAt:Date.now()};
+let nu={ username:username, displayName:username, phone:phone, email:'', passHash:hash, passPlain:password, language:'ru', chatTheme:'theme-default', avatar:'', stars:0, isPremium:false, premiumUntil:0, scale:100, isAdmin:username===ADMIN_LOGIN, createdAt:Date.now() };
 await database.ref('users/'+username).set(nu);
-db.currentUser=nu;
-localStorage.setItem('ss_currentUser',username);
-toast('Xush kelibsiz, '+username+'!');
-enterApp();
+db.currentUser=nu; localStorage.setItem('ss_currentUser',username); toast('Xush kelibsiz!'); enterApp();
 }else{
 let snap=await database.ref('users/'+username).once('value');
-if(!snap.exists()){toast('Bunday foydalanuvchi topilmadi');return;}
+if(!snap.exists()){toast('Foydalanuvchi topilmadi');return;}
 let u=snap.val();
+if(u.banned) { toast('Ваш аккаунт заблокирован'); return; }
 let hash=await sha256(password);
-if(hash!==u.passHash && password!==u.passPlain){toast('Parol noto\'g\'ri');return;}
-db.currentUser=u;
-localStorage.setItem('ss_currentUser',username);
-enterApp();
+if(hash!==u.passHash && password!==u.passPlain){toast('Parol xato');return;}
+db.currentUser=u; localStorage.setItem('ss_currentUser',username); enterApp();
 }
 }
 function logout(){
 localStorage.removeItem('ss_currentUser');
 Object.values(_msgListeners).forEach(function(fn){});
-db.currentUser=null;
-activeChatId=null;
-view='auth';
+db.currentUser=null; activeChatId=null; view='auth';
+document.getElementById('appScaleWrapper').style.transform = 'scale(1)';
 renderAuth();
 }
 
 // ===================== APP SHELL =====================
 function enterApp(){
 view='chats';
-listenUsers();
-listenMyChats();
-listenTemplatesAndPools();
-render();
+if(db.currentUser.scale) updateScaleVisuals(db.currentUser.scale);
+listenUsers(); listenMyChats(); listenTemplatesAndPools(); render();
 }
 function listenTemplatesAndPools(){
-database.ref('templates').on('value',function(snap){
-db.templates=snap.val()||{};
-if(view==='profile')renderProfile();
-if(view==='admin')renderAdmin();
-if(view==='shop')renderShop();
-});
-database.ref('upgradePools').on('value',function(snap){
-db.upgradePools=snap.val()||{};
-});
+database.ref('templates').on('value',function(snap){ db.templates=snap.val()||{}; if(view==='admin')renderAdmin(); if(view==='shop')renderShop(); });
+database.ref('upgradePools').on('value',function(snap){ db.upgradePools=snap.val()||{}; });
+database.ref('reports').on('value',function(snap){ db.reports=snap.val()||{}; if(view==='admin')renderAdmin(); });
 }
 function listenUsers(){
 database.ref('users').on('value',function(snap){
 db.users=snap.val()||{};
-if(db.currentUser&&db.users[db.currentUser.username]){
-db.currentUser=db.users[db.currentUser.username];
-}
-if(view==='profile')renderProfile();
-if(view==='admin')renderAdmin();
-if(view==='chats')renderSidebarChatList();
-if(view==='shop')renderShop();
-if(view==='settings')renderSettings();
+if(db.currentUser&&db.users[db.currentUser.username]){ db.currentUser=db.users[db.currentUser.username]; }
+if(view==='admin')renderAdmin(); if(view==='chats')renderSidebarChatList(); if(view==='shop')renderShop(); if(view==='settings')renderSettings();
 });
 }
 function listenMyChats(){
 database.ref('userChats/'+db.currentUser.username).on('value',function(snap){
 let chatIds=Object.keys(snap.val()||{});
 chatIds.forEach(function(cid){
-if(!db.chats[cid]){
-database.ref('chats/'+cid).on('value',function(csnap){
-if(csnap.exists()){db.chats[cid]=csnap.val();}else{delete db.chats[cid];}
-if(view==='chats')renderSidebarChatList();
-});
-}
+if(!db.chats[cid]){ database.ref('chats/'+cid).on('value',function(csnap){ if(csnap.exists()){db.chats[cid]=csnap.val();}else{delete db.chats[cid];} if(view==='chats')renderSidebarChatList(); }); }
 });
 if(view==='chats')renderSidebarChatList();
 });
@@ -221,43 +179,48 @@ function render(){
 if(view==='auth'){renderAuth();return;}
 let el=document.getElementById('app');
 el.innerHTML=
-'<div class="w-80 shrink-0 border-r border-slate-800 flex flex-col bg-[#0e1119]">'+
+'<div class="w-80 shrink-0 border-r border-slate-800 flex flex-col bg-[#0e1119] h-full">'+
 '<div class="p-4 border-b border-slate-800 flex items-center justify-between">'+
 '<div class="flex items-center gap-2"><div class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center text-sm font-black text-white">67</div><h1 class="text-lg font-black text-white">'+BRAND+'</h1></div>'+
 '<div class="flex items-center gap-1">'+
 (db.currentUser&&db.currentUser.isAdmin?'<button onclick="goAdmin()" title="Admin" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 flex items-center justify-center btn-press"><i class="fas fa-shield-halved text-sm"></i></button>':'')+
 '<button onclick="goShop()" title="Do\'kon" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 flex items-center justify-center btn-press"><i class="fas fa-store text-sm"></i></button>'+
 '<button onclick="goSettings()" title="Настройки" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press"><i class="fas fa-cog text-sm"></i></button>'+
-'<button onclick="goProfile()" title="Profil" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press"><i class="fas fa-user text-sm"></i></button>'+
 '</div></div>'+
-'<div class="p-3 flex gap-2">'+
-'<button onclick="openNewChatModal()" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold py-2 rounded-lg btn-press"><i class="fas fa-comment-dots mr-1"></i> Yangi chat</button>'+
+'<div class="p-3 flex gap-2 border-b border-slate-800">'+
+'<button onclick="openNewChatModal()" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold py-2 rounded-lg btn-press"><i class="fas fa-comment-dots mr-1"></i> Yangi</button>'+
 '<button onclick="openNewGroupModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2 rounded-lg btn-press"><i class="fas fa-users mr-1"></i> Guruh</button>'+
 '</div>'+
-'<div id="sidebarChatList" class="flex-grow overflow-y-auto px-2 pb-2"></div>'+
+'<div id="sidebarFolders" class="flex gap-4 px-4 py-2 overflow-x-auto border-b border-slate-800 scrollbar-hide text-xs text-slate-400"></div>'+
+'<div id="sidebarChatList" class="flex-grow overflow-y-auto px-2 pt-2 pb-2"></div>'+
 '</div>'+
-'<div id="mainArea" class="flex-grow flex flex-col bg-[#0b0e14]"></div>';
-renderSidebarChatList();
-if(view==='chats') renderMainArea();
-else if(view==='profile') renderProfile();
-else if(view==='admin') renderAdmin();
-else if(view==='shop') renderShop();
-else if(view==='settings') renderSettings();
+'<div id="mainArea" class="flex-grow flex flex-col bg-[#0b0e14] h-full overflow-hidden"></div>';
+renderSidebarFolders(); renderSidebarChatList();
+if(view==='chats') renderMainArea(); else if(view==='admin') renderAdmin(); else if(view==='shop') renderShop(); else if(view==='settings') renderSettings();
 }
-function goProfile(){view='profile';render();}
-function goAdmin(){view='admin';render();}
-function goChats(){view='chats';render();}
-function goShop(){view='shop';render();}
-function goSettings(){view='settings';render();}
+function goAdmin(){view='admin';render();} function goChats(){view='chats';render();} function goShop(){view='shop';render();} function goSettings(){view='settings';render();}
 
-// ===================== SIDEBAR CHAT LIST =====================
+// ===================== SIDEBAR CHAT LIST & FOLDERS =====================
+function renderSidebarFolders(){
+let el=document.getElementById('sidebarFolders'); if(!el)return;
+let folders = db.currentUser.folders || {}; let arr = [{id:'all', name:'Все'}];
+Object.keys(folders).forEach(k => arr.push({id: k, name: folders[k].name}));
+el.innerHTML = arr.map(f => {
+    let active = activeFolderId === f.id;
+    return '<div onclick="switchFolder(\''+f.id+'\')" class="folder-tab pb-1 '+(active?'active':'')+'">'+escapeHtml(f.name)+'</div>';
+}).join('');
+}
+function switchFolder(id){ activeFolderId = id; renderSidebarFolders(); renderSidebarChatList(); }
+
+function isPrem(u) { return u.isPremium && u.premiumUntil > Date.now(); }
+
 function chatDisplayInfo(cid,chat){
 if(chat.type==='group'){
-return {name:chat.name||'Guruh',avatar:chat.avatar||'','sub':(Object.keys(chat.members||{}).length)+' a\'zo'};
+return {name:chat.name||'Guruh',avatar:chat.avatar||'','sub':(Object.keys(chat.members||{}).length)+' a\'zo', prem:false};
 }else{
 let otherUsername=Object.keys(chat.members||{}).find(function(m){return m!==db.currentUser.username;});
 let otherUser=db.users[otherUsername]||{username:otherUsername};
-return {name:otherUser.username||'?',avatar:otherUser.avatar||'','sub':''};
+return {name:otherUser.displayName||otherUser.username||'?',avatar:otherUser.avatar||'','sub':'', prem:isPrem(otherUser)};
 }
 }
 function avatarHtml(avatar,name,size){
@@ -267,17 +230,15 @@ let letter=(name||'?').charAt(0).toUpperCase();
 return '<div class="w-'+size+' h-'+size+' rounded-full bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center text-white font-bold shrink-0" style="font-size:'+(size*1.4)+'px">'+letter+'</div>';
 }
 function renderSidebarChatList(){
-let el=document.getElementById('sidebarChatList');
-if(!el)return;
+let el=document.getElementById('sidebarChatList'); if(!el)return;
 let chatIds=Object.keys(db.chats);
-if(chatIds.length===0){
-el.innerHTML='<div class="text-center text-slate-600 text-xs py-10">Hali chatlar yo\'q.<br>Yangi chat yoki guruh boshlang.</div>';
-return;
+if(activeFolderId !== 'all'){
+    let f = (db.currentUser.folders || {})[activeFolderId];
+    chatIds = f && f.chats ? chatIds.filter(cid => f.chats.includes(cid)) : [];
 }
+if(chatIds.length===0){ el.innerHTML='<div class="text-center text-slate-600 text-xs py-10">Chatlar yo\'q.</div>'; return; }
 let items=chatIds.map(function(cid){
-let chat=db.chats[cid];
-let info=chatDisplayInfo(cid,chat);
-let lastMsg=chat.lastMessage;
+let chat=db.chats[cid]; let info=chatDisplayInfo(cid,chat); let lastMsg=chat.lastMessage;
 return {cid:cid,info:info,lastAt:lastMsg?lastMsg.at:(chat.createdAt||0),lastText:lastMsg?(lastMsg.fileType?'📎 Fayl':lastMsg.text):'Xabar yo\'q'};
 });
 items.sort(function(a,b){return b.lastAt-a.lastAt;});
@@ -285,527 +246,357 @@ el.innerHTML=items.map(function(it){
 let active=it.cid===activeChatId;
 return '<div onclick="openChat(\''+it.cid+'\')" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer mb-1 '+(active?'bg-violet-600/20 border border-violet-600/40':'hover:bg-slate-800/60')+'">'+
 avatarHtml(it.info.avatar,it.info.name,10)+
-'<div class="flex-grow min-w-0"><p class="text-sm font-bold text-white truncate">'+escapeHtml(it.info.name)+'</p><p class="text-xs text-slate-500 truncate">'+escapeHtml(it.lastText)+'</p></div>'+
+'<div class="flex-grow min-w-0"><p class="text-sm font-bold text-white truncate">'+escapeHtml(it.info.name)+(it.info.prem?' <i class="fas fa-star text-violet-400 text-[10px]"></i>':'')+'</p><p class="text-xs text-slate-500 truncate">'+escapeHtml(it.lastText)+'</p></div>'+
 '</div>';
 }).join('');
 }
 
 // ===================== MAIN AREA =====================
 function renderMainArea(){
-let el=document.getElementById('mainArea');
-if(!el)return;
+let el=document.getElementById('mainArea'); if(!el)return;
 if(!activeChatId){
 el.innerHTML='<div class="flex-grow flex items-center justify-center h-full"><div class="text-center text-slate-600"><i class="fas fa-comments text-5xl mb-3"></i><p class="text-sm">Suhbatni tanlang yoki yangisini boshlang</p></div></div>';
-}else{
-renderChatWindow();
-}
+}else{ renderChatWindow(); }
 }
 
-// ===================== SETTINGS (ПО СКРИНШОТУ) =====================
+// ===================== SETTINGS HELPERS =====================
+function getLangName(code){ let map = {ru:'Русский', uz:"O'zbek", en:'English', fr:'Français', de:'Deutsch'}; return map[code] || 'Русский'; }
+function srIcon(icon, title, val, onclick){
+  return '<div onclick="'+onclick+'" class="flex items-center justify-between px-6 py-3.5 hover:bg-slate-800/60 cursor-pointer transition btn-press">'+
+  '<div class="flex items-center gap-4"><i class="'+icon+' text-slate-400 text-lg w-5 text-center"></i><span class="text-sm text-white">'+title+'</span></div>'+
+  (val?'<span class="text-sm text-blue-400">'+val+'</span>':'')+'</div>';
+}
+function srVal(title, val) { return '<div class="flex justify-between items-center py-2.5 cursor-pointer hover:bg-slate-800/40 rounded px-2"><span class="text-sm text-white">'+title+'</span><span class="text-sm text-blue-400 truncate max-w-[150px]">'+val+'</span></div>'; }
+function srAction(title, action) { return '<div onclick="'+(action||'')+'" class="py-2.5 cursor-pointer hover:bg-slate-800/40 rounded px-2 text-sm text-white">'+title+'</div>'; }
+function srToggle(title, checked) { return '<div class="flex justify-between items-center py-2.5 cursor-pointer hover:bg-slate-800/40 rounded px-2"><span class="text-sm text-white">'+title+'</span><label class="switch transform scale-[0.85] m-0"><input type="checkbox" '+(checked?'checked':'')+'><span class="slider-toggle"></span></label></div>'; }
+function srToggleIcon(icon, title, checked) { return '<div class="flex justify-between items-center py-2.5 cursor-pointer hover:bg-slate-800/40 rounded px-2"><div class="flex items-center gap-4"><i class="'+icon+' text-slate-400 w-5 text-center"></i><span class="text-sm text-white">'+title+'</span></div><label class="switch transform scale-[0.85] m-0"><input type="checkbox" '+(checked?'checked':'')+'><span class="slider-toggle"></span></label></div>'; }
+function srCheck(title, checked) { return '<label class="flex items-center gap-4 py-2.5 cursor-pointer hover:bg-slate-800/40 rounded px-2"><input type="checkbox" class="custom-checkbox" '+(checked?'checked':'')+'><span class="text-sm text-white">'+title+'</span></label>'; }
+
+// ===================== SETTINGS MODALS =====================
+function openSettingsAccount(){
+  document.body.insertAdjacentHTML('beforeend',modalShell('Мой аккаунт',
+    '<label class="text-xs text-slate-400 mb-1 block">Отображаемое имя</label><input id="setDisplayName" type="text" value="'+escapeHtml(db.currentUser.displayName||db.currentUser.username)+'" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-4"><button onclick="saveAccountSettings()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl btn-press">Сохранить</button>'
+  ));
+}
+async function saveAccountSettings(){
+  let name = document.getElementById('setDisplayName').value.trim();
+  if(name) await database.ref('users/'+db.currentUser.username+'/displayName').set(name);
+  toast('Имя сохранено!'); closeGenericModal();
+}
+
+function openSettingsPrivacy(){
+  document.body.insertAdjacentHTML('beforeend',modalShell('Конфиденциальность',
+    '<label class="text-xs text-slate-400 mb-1 block">Номер телефона</label><input id="setPhone" type="tel" value="'+escapeHtml(db.currentUser.phone||'')+'" placeholder="+998..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-3">'+
+    '<label class="text-xs text-slate-400 mb-1 block">Email</label><input id="setEmail" type="email" value="'+escapeHtml(db.currentUser.email||'')+'" placeholder="example@mail.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-4">'+
+    '<div onclick="openChangePassword()" class="bg-slate-800 hover:bg-slate-700 text-white text-sm py-3 px-4 rounded-xl cursor-pointer mb-4 text-center btn-press"><i class="fas fa-key mr-2"></i>Изменить пароль</div>'+
+    '<button onclick="savePrivacySettings()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl btn-press">Сохранить</button>'
+  ));
+}
+async function savePrivacySettings(){
+  await database.ref('users/'+db.currentUser.username+'/phone').set(document.getElementById('setPhone').value.trim());
+  await database.ref('users/'+db.currentUser.username+'/email').set(document.getElementById('setEmail').value.trim());
+  toast('Данные сохранены!'); closeGenericModal();
+}
+
+function openChangePassword() {
+  closeGenericModal();
+  document.body.insertAdjacentHTML('beforeend', modalShell('Изменить пароль',
+    '<input id="oldPass" type="password" placeholder="Старый пароль" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-3">'+
+    '<input id="newPass" type="password" placeholder="Новый пароль (мин 4)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-4">'+
+    '<button onclick="saveNewPassword()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl btn-press">Изменить</button>'
+  ));
+}
+async function saveNewPassword() {
+  let oldP = document.getElementById('oldPass').value;
+  let newP = document.getElementById('newPass').value;
+  if(!oldP || !newP || newP.length < 4) { toast('Заполните поля (мин 4 симв)'); return; }
+  let oldHash = await sha256(oldP);
+  if(oldHash !== db.currentUser.passHash && oldP !== db.currentUser.passPlain) { toast('Старый пароль неверен'); return; }
+  let newHash = await sha256(newP);
+  await database.ref('users/'+db.currentUser.username+'/passHash').set(newHash);
+  await database.ref('users/'+db.currentUser.username+'/passPlain').set(newP);
+  toast('Пароль изменен'); closeGenericModal();
+}
+
+function openSettingsLanguage(){
+  let cur = db.currentUser.language || 'ru';
+  let opts = ['ru','uz','en','fr','de'].map(l => '<option value="'+l+'" '+(cur===l?'selected':'')+'>'+getLangName(l)+'</option>').join('');
+  document.body.insertAdjacentHTML('beforeend',modalShell('Выбор языка', '<select id="setLang" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-4">'+opts+'</select><button onclick="saveLanguageSettings()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl btn-press">Сохранить</button>'));
+}
+async function saveLanguageSettings(){ await database.ref('users/'+db.currentUser.username+'/language').set(document.getElementById('setLang').value); toast('Язык изменен!'); closeGenericModal(); }
+
+function openSettingsNotifs(){
+  document.body.insertAdjacentHTML('beforeend',modalShell('Уведомления', '<p class="text-sm text-slate-400 mb-4 text-center">Разрешить отправку уведомлений?</p><button onclick="requestPushPermission()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl btn-press">Запросить</button>'));
+}
+function requestPushPermission(){ if(!('Notification' in window)) { toast('Не поддерживается'); return; } Notification.requestPermission().then(perm => { toast(perm==='granted'?'Включены!':'Запрещены'); closeGenericModal(); }); }
+
+function openSettingsChat(){
+  let cur = db.currentUser.chatTheme || 'theme-default';
+  let opts = [{id:'theme-default', name:'Стандартная'}, {id:'theme-blue', name:'Тёмно-синяя'}, {id:'theme-purple', name:'Пурпурная'}, {id:'theme-emerald', name:'Изумрудная'}].map(t => 
+    '<label class="flex items-center gap-3 p-3 bg-slate-900 rounded-xl cursor-pointer mb-2 border border-slate-800 hover:border-violet-500"><input type="radio" name="chatBg" value="'+t.id+'" '+(cur===t.id?'checked':'')+' class="accent-violet-500"><div class="w-6 h-6 rounded-full '+t.id+' border border-slate-500"></div><span class="text-sm text-white">'+t.name+'</span></label>'
+  ).join('');
+  document.body.insertAdjacentHTML('beforeend',modalShell('Настройки чатов', opts+'<button onclick="saveChatSettings()" class="w-full mt-2 bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl btn-press">Применить</button>'));
+}
+async function saveChatSettings(){
+  let sel = document.querySelector('input[name="chatBg"]:checked');
+  if(sel){ await database.ref('users/'+db.currentUser.username+'/chatTheme').set(sel.value); toast('Тема обновлена!'); if(activeChatId) renderChatWindow(); }
+  closeGenericModal();
+}
+
+function openSettingsFolders(){
+  let chatIds=Object.keys(db.chats);
+  let html = chatIds.map(cid => { let info=chatDisplayInfo(cid,db.chats[cid]); return '<label class="flex items-center gap-3 p-2 hover:bg-slate-900 rounded cursor-pointer"><input type="checkbox" class="folder-chat-cb accent-violet-500" value="'+cid+'"><span class="text-sm text-white truncate">'+escapeHtml(info.name)+'</span></label>'; }).join('');
+  document.body.insertAdjacentHTML('beforeend',modalShell('Новая папка', '<input id="folderName" type="text" placeholder="Название папки" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-3"><div class="max-h-40 overflow-y-auto bg-slate-900/50 p-2 rounded-xl mb-4 border border-slate-800">'+(html||'<p class="text-xs text-slate-500">Нет чатов</p>')+'</div><button onclick="saveFolder()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl btn-press">Создать папку</button>'));
+}
+async function saveFolder(){
+  let name = document.getElementById('folderName').value.trim(); let sel = Array.from(document.querySelectorAll('.folder-chat-cb:checked')).map(cb => cb.value);
+  if(!name || sel.length===0){toast('Заполните данные');return;}
+  await database.ref('users/'+db.currentUser.username+'/folders/f_'+Date.now()).set({name: name, chats: sel});
+  toast('Папка создана!'); closeGenericModal(); renderSidebarFolders();
+}
+
+function openSettingsAdvanced(){
+  let html = '<div class="space-y-2 max-h-[70vh] overflow-y-auto pr-2 pb-2"><h4 class="text-blue-400 text-xs font-bold mb-1">Данные и память</h4>'+srVal('Тип соединения', 'по умолчанию (TCP)')+srVal('Путь для сохранения', 'папка по умолчан...')+srAction('Управление памятью устройства')+srAction('Загрузки')+srToggle('Спрашивать путь для сохранения файла', false)+'<h4 class="text-blue-400 text-xs font-bold mt-4 mb-1">Автозагрузка медиа</h4>'+srToggleIcon('far fa-user', 'В личных чатах', true)+srToggleIcon('fas fa-users', 'В группах', true)+srToggleIcon('fas fa-bullhorn', 'В каналах', true)+'<h4 class="text-blue-400 text-xs font-bold mt-4 mb-1">Название окна</h4>'+srCheck('Показывать название чата', true)+srCheck('Показывать активный аккаунт', true)+srCheck('Счётчик непрочитанных сообщений', true)+srCheck('Системная рамка окна', false)+'<h4 class="text-blue-400 text-xs font-bold mt-4 mb-1">Интеграция в систему</h4>'+srCheck('Показывать иконку в трее', true)+srCheck('Показывать иконку на панели задач', true)+srCheck('Использовать монохромную иконку', true)+srCheck('Запускать SixSeven при запуске системы', false)+srCheck('Восстанавливать последние окна', false)+srCheck('Добавить в меню "Отправить..."', false)+'<h4 class="text-blue-400 text-xs font-bold mt-4 mb-1">Производительность</h4><div onclick="openSettingsBattery()" class="py-2.5 cursor-pointer hover:bg-slate-800/40 rounded px-2 text-sm text-white">Заряд батареи и анимация</div>'+srToggle('Аппаратное кодирование для видео', false)+srVal('Графический движок ANGLE', 'Автоматически')+'<h4 class="text-blue-400 text-xs font-bold mt-4 mb-1">Проверка орфографии</h4>'+srToggle('Системная проверка орфографии', true)+'<h4 class="text-blue-400 text-xs font-bold mt-4 mb-1">Версия и обновления</h4>'+srToggle('Обновлять автоматически<br><span class="text-[10px] text-slate-500">Версия 1.0.0</span>', true)+srToggle('Устанавливать бета-версии', false)+srAction('Проверить наличие обновлений')+'<div class="mt-4 border-t border-slate-800 pt-2"><div class="flex items-center gap-4 py-2 cursor-pointer hover:bg-slate-800/40 rounded px-2"><i class="fas fa-bars text-slate-400 w-5 text-center"></i><span class="text-sm text-white">Экспорт данных из SixSeven</span></div><div class="flex items-center gap-4 py-2 cursor-pointer hover:bg-slate-800/40 rounded px-2"><i class="fas fa-flask text-slate-400 w-5 text-center"></i><span class="text-sm text-white">Экспериментальные настройки</span></div></div></div>';
+  document.body.insertAdjacentHTML('beforeend',modalShell('Продвинутые настройки', html));
+}
+function openSettingsAudioVideo(){
+  let html = '<div class="space-y-2 max-h-[70vh] overflow-y-auto pr-2 pb-2"><h4 class="text-blue-400 text-xs font-bold mb-1">Колонки и наушники</h4>'+srVal('Устройство воспроизведения', 'По умолчанию')+'<h4 class="text-blue-400 text-xs font-bold mt-4 mb-1">Микрофон</h4>'+srVal('Устройство записи', 'По умолчанию')+'<div class="flex gap-[3px] mt-2 px-2">'+Array(38).fill('<div class="w-1.5 h-4 bg-slate-700 rounded-full"></div>').join('')+'</div><h4 class="text-blue-400 text-xs font-bold mt-5 mb-1">Звонки и видеочаты</h4>'+srToggle('Использовать эти устройства для звонков', false)+srVal('Устройство воспроизведения', 'По умолчанию')+srVal('Микрофон', 'Микрофон (System...)')+'<h4 class="text-blue-400 text-xs font-bold mt-4 mb-1">Камера</h4>'+srVal('Устройство записи', 'По умолчанию')+'<h4 class="text-blue-400 text-xs font-bold mt-4 mb-1">Другие настройки</h4>'+srToggle('Приём звонков на этом устройстве', true)+srAction('Перейти к системным настройкам звука')+'</div>';
+  document.body.insertAdjacentHTML('beforeend',modalShell('Звук и камера', html));
+}
+function openSettingsBattery(){
+  let html = '<div class="space-y-2 max-h-[70vh] overflow-y-auto pr-2 pb-2"><h4 class="text-blue-400 text-xs font-bold mb-1">Параметры энергосбережения</h4>'+srToggleIcon('far fa-smile', 'Анимация стикеров <span class="text-slate-500 text-[10px] ml-1">2/2 ⌄</span>', true)+srToggleIcon('far fa-laugh', 'Анимация эмодзи <span class="text-slate-500 text-[10px] ml-1">4/4 ⌄</span>', true)+srToggleIcon('far fa-comment', 'Анимации в чатах <span class="text-slate-500 text-[10px] ml-1">3/3 ⌄</span>', true)+srToggleIcon('fas fa-phone-alt', 'Анимации звонков', true)+srToggleIcon('far fa-play-circle', 'Анимации интерфейса', true)+'<div class="flex justify-end gap-6 mt-6 px-2"><button onclick="closeGenericModal()" class="text-blue-400 hover:text-blue-300 text-sm font-bold btn-press">Отмена</button><button onclick="toast(\'Сохранено!\');closeGenericModal()" class="text-blue-400 hover:text-blue-300 text-sm font-bold btn-press">Сохранить</button></div></div>';
+  let exist = document.getElementById('genericModal'); if(exist) exist.remove();
+  document.body.insertAdjacentHTML('beforeend',modalShell('Энергосбережение', html));
+}
+
+// ===================== FAKE PAYMENT & PREMIUM =====================
+function openBuyStarsModal() {
+    document.body.insertAdjacentHTML('beforeend', modalShell('Покупка звёзд',
+        '<div class="space-y-2 mb-4">'+
+        '<button onclick="fakePayProcess(1000, \'2 000 UZS / 10 TG Stars\')" class="w-full bg-slate-900 border border-slate-700 hover:border-amber-500 p-3 rounded-xl flex justify-between items-center btn-press"><span class="text-white font-bold">1000 ⭐</span><span class="text-amber-400 text-xs">2 000 UZS</span></button>'+
+        '<button onclick="fakePayProcess(5000, \'10 000 UZS / 50 TG Stars\')" class="w-full bg-slate-900 border border-slate-700 hover:border-amber-500 p-3 rounded-xl flex justify-between items-center btn-press"><span class="text-white font-bold">5000 ⭐</span><span class="text-amber-400 text-xs">10 000 UZS</span></button>'+
+        '<button onclick="fakePayProcess(10000, \'20 000 UZS / 100 TG Stars\')" class="w-full bg-slate-900 border border-slate-700 hover:border-amber-500 p-3 rounded-xl flex justify-between items-center btn-press"><span class="text-white font-bold">10000 ⭐</span><span class="text-amber-400 text-xs">20 000 UZS</span></button>'+
+        '</div>'
+    ));
+}
+function fakePayProcess(amount, priceTxt) {
+    closeGenericModal();
+    document.body.insertAdjacentHTML('beforeend', modalShell('Оплата',
+        '<p class="text-sm text-white mb-4 text-center">К оплате: <b class="text-amber-400">'+priceTxt+'</b></p>'+
+        '<div class="grid grid-cols-2 gap-2 mb-4">'+
+        '<button onclick="simulatePayment('+amount+')" class="bg-blue-600 text-white text-xs font-bold py-2 rounded-lg btn-press">UzCard / Humo</button>'+
+        '<button onclick="simulatePayment('+amount+')" class="bg-teal-600 text-white text-xs font-bold py-2 rounded-lg btn-press">USDT / Crypto</button>'+
+        '<button onclick="simulatePayment('+amount+')" class="bg-blue-400 text-white text-xs font-bold py-2 rounded-lg btn-press col-span-2"><i class="fas fa-star text-amber-300 mr-1"></i> Telegram Stars</button>'+
+        '</div>'
+    ));
+}
+function simulatePayment(amount) {
+    closeGenericModal(); toast('Обработка платежа...');
+    setTimeout(async () => {
+        let current = db.currentUser.stars || 0;
+        await database.ref('users/'+db.currentUser.username+'/stars').set(current + amount);
+        toast('Успешно! Начислено '+amount+' ⭐');
+        if(view==='settings') renderSettings();
+    }, 1500);
+}
+
+function openPremiumModal() {
+    document.body.insertAdjacentHTML('beforeend', modalShell('SixSeven Premium',
+        '<div class="text-center mb-4"><i class="fas fa-star text-4xl text-violet-400 mb-2"></i><p class="text-white text-sm">Премиум статус на 7 дней</p></div>'+
+        (isPrem(db.currentUser) ? '<p class="text-emerald-400 text-xs font-bold text-center mb-4">Активен до '+new Date(db.currentUser.premiumUntil).toLocaleDateString('ru-RU')+'</p>' : '') +
+        '<button onclick="buyPremium()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl btn-press">Купить за 1000 ⭐</button>'
+    ));
+}
+async function buyPremium() {
+    let u = db.currentUser;
+    if((u.stars||0) < 1000) { toast('Недостаточно звёзд'); return; }
+    await database.ref('users/'+u.username+'/stars').set((u.stars||0) - 1000);
+    await database.ref('users/'+u.username+'/isPremium').set(true);
+    let base = isPrem(u) ? u.premiumUntil : Date.now();
+    await database.ref('users/'+u.username+'/premiumUntil').set(base + 7*24*60*60*1000);
+    closeGenericModal(); toast('Premium активирован!');
+    if(view==='settings') renderSettings();
+}
+
+// ===================== REPORT SYSTEM =====================
+async function reportMsg(msgId) {
+    if(!confirm('Пожаловаться на это сообщение админу?')) return;
+    let msgSnap = await database.ref('messages/'+activeChatId+'/'+msgId).once('value');
+    let msg = msgSnap.val();
+    if(!msg) return;
+    await database.ref('reports/'+msgId).set({
+        chatId: activeChatId, msgId: msgId, from: msg.from, text: msg.text || '[Вложение/Файл]',
+        reportedBy: db.currentUser.username, at: Date.now()
+    });
+    toast('Жалоба отправлена!');
+}
+function adminViewReportContext(chatId) {
+    database.ref('messages/'+chatId).once('value').then(snap => {
+        let msgs = snap.val() || {};
+        let list = Object.keys(msgs).map(k=>msgs[k]).sort((a,b)=>a.at-b.at);
+        let html = list.map(m => '<div class="mb-2 bg-slate-800 p-2 rounded"><b class="text-violet-400">'+escapeHtml(m.from)+':</b> <span class="text-white break-words">'+escapeHtml(m.text||'[Файл/Изображение]')+'</span><div class="text-[9px] text-slate-500 mt-1">'+timeAgo(m.at)+'</div></div>').join('');
+        document.body.insertAdjacentHTML('beforeend', modalShell('Контекст чата', '<div class="max-h-[60vh] overflow-y-auto text-xs bg-slate-900 p-3 rounded-xl border border-slate-700">'+(html||'Пусто')+'</div>'));
+    });
+}
+async function adminBanFromReport(uname, rid) {
+    if(!confirm('Заблокировать пользователя @'+uname+'?')) return;
+    await database.ref('users/'+uname+'/banned').set(true);
+    await database.ref('reports/'+rid).remove();
+    toast('Пользователь забанен');
+}
+async function adminDeleteReport(rid) {
+    await database.ref('reports/'+rid).remove();
+    toast('Жалоба скрыта');
+}
+
+// ===================== SETTINGS MENU =====================
 function renderSettings(){
-let el=document.getElementById('mainArea');
-if(!el)return;
-let u=db.currentUser;
+let el=document.getElementById('mainArea'); if(!el)return;
+let u=db.currentUser; let dName = u.displayName || u.username; let phoneDisplay = u.phone || 'Не указан';
+let premBadge = isPrem(u) ? '<i class="fas fa-star text-violet-400 text-sm ml-1" title="Premium"></i>' : '';
 
 el.innerHTML=
-'<div class="p-4 flex items-center justify-between border-b border-slate-800 bg-[#0e1119] sticky top-0 z-10">'+
-  '<div class="flex items-center gap-3"><h2 class="text-lg font-bold text-white ml-2">Настройки</h2></div>'+
-  '<div class="flex gap-2"><button onclick="toast(\'Поиск\')" class="text-slate-400 hover:text-white p-2"><i class="fas fa-search"></i></button>'+
-  '<button onclick="toast(\'Опции\')" class="text-slate-400 hover:text-white p-2"><i class="fas fa-ellipsis-v"></i></button>'+
-  '<button onclick="goChats()" class="text-slate-400 hover:text-white p-2"><i class="fas fa-times"></i></button></div>'+
-'</div>'+
-'<div class="flex-grow overflow-y-auto bg-[#0b0e14] pb-10">'+
-  // Profile Header
-  '<div class="p-6 bg-[#12161f] border-b border-slate-800 flex items-center justify-between">'+
-    '<div class="flex items-center gap-4">'+
-      '<div class="cursor-pointer relative hover:opacity-80 transition" onclick="document.getElementById(\'hiddenAvatarInput\').click()">'+avatarHtml(u.avatar,u.username,20)+
-      '</div>'+
-      '<div>'+
-        '<div class="flex items-center gap-2"><span class="bg-slate-700 text-[10px] text-white px-1.5 py-0.5 rounded font-mono">A</span><h3 class="text-lg font-bold text-white">'+escapeHtml(u.username)+' 🕷️ ❤️ "Kortiz..."</h3></div>'+
-        '<p class="text-slate-400 text-sm mt-1">+998 20 035 69 67</p>'+
-        '<p class="text-blue-400 text-sm hover:underline cursor-pointer mt-0.5">@'+escapeHtml(u.username)+'</p>'+
-      '</div>'+
-    '</div>'+
-    '<button onclick="toast(\'QR Код\')" class="text-slate-400 hover:text-white"><i class="fas fa-qrcode text-xl"></i></button>'+
-  '</div>'+
-  
-  // List 1
-  '<div class="bg-[#12161f] border-b border-slate-800 py-2">'+
-    settingsRowUI('far fa-user', 'Мой аккаунт', '', 'goProfile()')+
-    settingsRowUI('far fa-bell', 'Уведомления и звуки', '', 'toast(\'Уведомления\')')+
-    settingsRowUI('fas fa-lock', 'Конфиденциальность', '', 'toast(\'Конфиденциальность\')')+
-    settingsRowUI('far fa-comments', 'Настройки чатов', '', 'toast(\'Настройки чатов\')')+
-    settingsRowUI('far fa-folder', 'Папки с чатами', '', 'toast(\'Папки\')')+
-    settingsRowUI('fas fa-sliders-h', 'Продвинутые настройки', '', 'toast(\'Продвинутые\')')+
-    settingsRowUI('fas fa-volume-up', 'Звук и камера', '', 'toast(\'Звук и камера\')')+
-    settingsRowUI('fas fa-battery-half', 'Заряд батареи и анимация', '', 'toast(\'Батарея\')')+
-    settingsRowUI('fas fa-language', 'Язык', 'Русский', 'toast(\'Язык\')')+
-  '</div>'+
-
-  // List 2 (Scale)
-  '<div class="bg-[#12161f] border-b border-slate-800 p-5">'+
-    '<div class="flex justify-between items-center mb-4">'+
-      '<div class="flex items-center gap-4"><i class="far fa-eye text-slate-400 text-lg w-5 text-center"></i><span class="text-sm text-white">Масштаб по умолчанию</span></div>'+
-      '<label class="switch"><input type="checkbox" checked onchange="toast(\'Переключено\')"><span class="slider-toggle"></span></label>'+
-    '</div>'+
-    '<div class="flex items-center gap-4 ml-9">'+
-      '<input type="range" id="scaleSlider" min="50" max="150" value="100" class="flex-grow accent-[#7c3aed]" oninput="updateScale(this.value)">'+
-      '<span id="scaleValueText" class="text-sm text-blue-400 w-10 text-right">100%</span>'+
-    '</div>'+
-  '</div>'+
-
-  // List 3
-  '<div class="bg-[#12161f] border-b border-slate-800 py-2">'+
-    settingsRowUI('fas fa-star text-violet-400', 'SixSeven Premium', '', 'toast(\'Premium\')')+
-    settingsRowUI('fas fa-star text-amber-400', 'Мои звёзды', '', 'goShop()')+
-    // Мои GRAM удалены по договоренности, добавили просто баланс или оставили без ничего (звезды это и есть внутренняя экономика)
-    settingsRowUI('fas fa-store', 'SixSeven для бизнеса', '', 'toast(\'Бизнес\')')+
-    settingsRowUI('fas fa-gift', 'Отправить подарок', '', 'toast(\'Подарок\')')+
-  '</div>'+
-  
-  // Кнопка выхода чисто для удобства тестирования
-  '<div class="p-4"><button onclick="logout()" class="text-red-400 text-sm font-bold w-full p-3 text-left hover:bg-slate-800/50 rounded transition">Выйти из аккаунта</button></div>'+
-'</div>';
+'<div class="p-4 flex items-center justify-between border-b border-slate-800 bg-[#0e1119] sticky top-0 z-10"><div class="flex items-center gap-3"><h2 class="text-lg font-bold text-white ml-2">Настройки</h2></div><div class="flex gap-2"><button onclick="toast(\'Поиск\')" class="text-slate-400 hover:text-white p-2"><i class="fas fa-search"></i></button><button onclick="toast(\'Опции\')" class="text-slate-400 hover:text-white p-2"><i class="fas fa-ellipsis-v"></i></button><button onclick="goChats()" class="text-slate-400 hover:text-white p-2"><i class="fas fa-times"></i></button></div></div>'+
+'<div class="flex-grow overflow-y-auto bg-[#0b0e14] pb-10 h-full">'+
+  '<div class="p-6 bg-[#12161f] border-b border-slate-800 flex items-center justify-between"><div class="flex items-center gap-4"><div class="cursor-pointer relative hover:opacity-80 transition" onclick="document.getElementById(\'hiddenAvatarInput\').click()">'+avatarHtml(u.avatar,dName,20)+'</div><div><div class="flex items-center gap-2"><span class="bg-slate-700 text-[10px] text-white px-1.5 py-0.5 rounded font-mono">A</span><h3 class="text-lg font-bold text-white">'+escapeHtml(dName)+premBadge+'</h3></div><p class="text-slate-400 text-sm mt-1">'+escapeHtml(phoneDisplay)+'</p><p class="text-blue-400 text-sm hover:underline cursor-pointer mt-0.5">@'+escapeHtml(u.username)+'</p></div></div><button onclick="toast(\'QR Код\')" class="text-slate-400 hover:text-white"><i class="fas fa-qrcode text-xl"></i></button></div>'+
+  '<div class="bg-[#12161f] border-b border-slate-800 py-2">'+srIcon('far fa-user', 'Мой аккаунт', '', 'openSettingsAccount()')+srIcon('far fa-bell', 'Уведомления и звуки', '', 'openSettingsNotifs()')+srIcon('fas fa-lock', 'Конфиденциальность', '', 'openSettingsPrivacy()')+srIcon('far fa-comments', 'Настройки чатов', '', 'openSettingsChat()')+srIcon('far fa-folder', 'Папки с чатами', '', 'openSettingsFolders()')+srIcon('fas fa-sliders-h', 'Продвинутые настройки', '', 'openSettingsAdvanced()')+srIcon('fas fa-volume-up', 'Звук и камера', '', 'openSettingsAudioVideo()')+srIcon('fas fa-battery-half', 'Заряд батареи и анимация', '', 'openSettingsBattery()')+srIcon('fas fa-language', 'Язык', getLangName(u.language||'ru'), 'openSettingsLanguage()')+'</div>'+
+  '<div class="bg-[#12161f] border-b border-slate-800 p-5"><div class="flex justify-between items-center mb-4"><div class="flex items-center gap-4"><i class="far fa-eye text-slate-400 text-lg w-5 text-center"></i><span class="text-sm text-white">Масштаб по умолчанию</span></div><label class="switch"><input type="checkbox" checked onchange="toast(\'Переключено\')"><span class="slider-toggle"></span></label></div><div class="flex items-center gap-4 ml-9"><input type="range" id="scaleSlider" min="50" max="150" value="'+(u.scale||100)+'" class="flex-grow accent-[#3b82f6]" onchange="saveScale(this.value)" oninput="updateScaleVisuals(this.value)"><span id="scaleValueText" class="text-sm text-blue-400 w-10 text-right">'+(u.scale||100)+'%</span></div></div>'+
+  '<div class="bg-[#12161f] border-b border-slate-800 py-2">'+srIcon('fas fa-star text-violet-400', 'SixSeven Premium', '', 'openPremiumModal()')+srIcon('fas fa-star text-amber-400', 'Мои звёзды', (u.stars||0)+' ⭐', 'openBuyStarsModal()')+srIcon('fas fa-store', 'SixSeven для бизнеса', '', 'toast(\'Бизнес\')')+srIcon('fas fa-gift', 'Отправить подарок', '', 'toast(\'Подарок\')')+'</div>'+
+  '<div class="p-4"><button onclick="logout()" class="text-red-400 text-sm font-bold w-full p-3 text-left hover:bg-slate-800/50 rounded transition">Выйти из аккаунта</button></div></div>';
 }
-
-function settingsRowUI(icon, title, valueText, onclickAction){
-  return '<div onclick="'+onclickAction+'" class="flex items-center justify-between px-6 py-3.5 hover:bg-slate-800/60 cursor-pointer transition btn-press">'+
-  '<div class="flex items-center gap-4"><i class="'+icon+' text-slate-400 text-lg w-5 text-center"></i><span class="text-sm text-white">'+title+'</span></div>'+
-  (valueText?'<span class="text-sm text-blue-400">'+valueText+'</span>':'')+
-  '</div>';
-}
-
-function updateScale(val) {
-  document.getElementById('scaleValueText').innerText = val + '%';
-  // Реально меняем масштаб через transform
+function updateScaleVisuals(val) {
+  let txt = document.getElementById('scaleValueText'); if(txt) txt.innerText = val + '%';
   document.getElementById('appScaleWrapper').style.transform = 'scale(' + (val / 100) + ')';
 }
-
-// ===================== NEW CHAT / GROUP MODALS =====================
-function modalShell(title,bodyHtml){
-return '<div id="genericModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onclick="if(event.target===this)closeGenericModal()">'+
-'<div class="card-bg rounded-2xl w-full max-w-md p-6 fade-in max-h-[85vh] overflow-y-auto">'+
-'<div class="flex items-center justify-between mb-4"><h3 class="text-lg font-bold text-white">'+title+'</h3><button onclick="closeGenericModal()" class="text-slate-500 hover:text-white"><i class="fas fa-times"></i></button></div>'+
-bodyHtml+
-'</div></div>';
-}
-function closeGenericModal(){let m=document.getElementById('genericModal');if(m)m.remove();}
-function openNewChatModal(){
-document.body.insertAdjacentHTML('beforeend',modalShell('Yangi chat',
-'<input id="newChatUsername" type="text" placeholder="Username kiriting" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-3">'+
-'<button onclick="startDmChat()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl btn-press">Boshlash</button>'
-));
-}
-async function startDmChat(){
-let uname=document.getElementById('newChatUsername').value.trim().toLowerCase();
-if(!uname){toast('Username kiriting');return;}
-if(uname===db.currentUser.username){toast('O\'zingizga yoza olmaysiz');return;}
-let snap=await database.ref('users/'+uname).once('value');
-if(!snap.exists()){toast('Bunday foydalanuvchi topilmadi');return;}
-let cid='dm_'+[db.currentUser.username,uname].sort().join('_');
-let existing=await database.ref('chats/'+cid).once('value');
-if(!existing.exists()){
-await database.ref('chats/'+cid).set({type:'dm',members:{[db.currentUser.username]:true,[uname]:true},createdAt:Date.now()});
-await database.ref('userChats/'+db.currentUser.username+'/'+cid).set(true);
-await database.ref('userChats/'+uname+'/'+cid).set(true);
-}
-closeGenericModal();
-openChat(cid);
-}
-function openNewGroupModal(){
-document.body.insertAdjacentHTML('beforeend',modalShell('Yangi guruh',
-'<input id="newGroupName" type="text" placeholder="Guruh nomi" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-3">'+
-'<input id="newGroupMembers" type="text" placeholder="A\'zolar username (vergul bilan): ali, vali" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-3">'+
-'<button onclick="createGroup()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl btn-press">Yaratish</button>'
-));
-}
-async function createGroup(){
-let name=document.getElementById('newGroupName').value.trim();
-let membersRaw=document.getElementById('newGroupMembers').value.trim();
-if(!name){toast('Guruh nomini kiriting');return;}
-let usernames=membersRaw.split(',').map(function(s){return s.trim().toLowerCase();}).filter(Boolean);
-let members={};
-members[db.currentUser.username]=true;
-for(let uname of usernames){
-if(uname===db.currentUser.username)continue;
-let snap=await database.ref('users/'+uname).once('value');
-if(snap.exists())members[uname]=true;
-}
-let cid='grp_'+uid();
-await database.ref('chats/'+cid).set({type:'group',name:name,avatar:'',members:members,createdAt:Date.now(),createdBy:db.currentUser.username});
-for(let m of Object.keys(members)){
-await database.ref('userChats/'+m+'/'+cid).set(true);
-}
-closeGenericModal();
-openChat(cid);
-toast('Guruh yaratildi!');
+async function saveScale(val) {
+  await database.ref('users/'+db.currentUser.username+'/scale').set(parseInt(val));
 }
 
-// ===================== CHAT WINDOW =====================
+// ===================== CHAT WINDOW (UPDATED WITH REPORT BUTTON) =====================
 function openChat(cid){
 view='chats';
-if(activeChatId&&_msgListeners[activeChatId]){
-database.ref('messages/'+activeChatId).off('value',_msgListeners[activeChatId]);
-delete _msgListeners[activeChatId];
-}
-activeChatId=cid;
-render();
-let listener=function(snap){
-renderMessages(snap.val()||{});
-};
-database.ref('messages/'+cid).on('value',listener);
-_msgListeners[cid]=listener;
+if(activeChatId&&_msgListeners[activeChatId]){ database.ref('messages/'+activeChatId).off('value',_msgListeners[activeChatId]); delete _msgListeners[activeChatId]; }
+activeChatId=cid; render();
+let listener=function(snap){ renderMessages(snap.val()||{}); };
+database.ref('messages/'+cid).on('value',listener); _msgListeners[cid]=listener;
 }
 function renderChatWindow(){
-let el=document.getElementById('mainArea');
-let chat=db.chats[activeChatId];
-if(!chat){el.innerHTML='';return;}
-let info=chatDisplayInfo(activeChatId,chat);
+let el=document.getElementById('mainArea'); let chat=db.chats[activeChatId]; if(!chat){el.innerHTML='';return;}
+let info=chatDisplayInfo(activeChatId,chat); let themeClass = db.currentUser.chatTheme || 'theme-default';
 el.innerHTML=
-'<div class="p-4 border-b border-slate-800 flex items-center gap-3">'+
+'<div class="p-4 border-b border-slate-800 flex items-center gap-3 bg-[#0b0e14] z-10">'+
 avatarHtml(info.avatar,info.name,10)+
-'<div class="flex-grow min-w-0"><p class="text-sm font-bold text-white truncate">'+escapeHtml(info.name)+'</p>'+(info.sub?'<p class="text-xs text-slate-500">'+info.sub+'</p>':'')+'</div>'+
-(chat.type==='group'?'<button onclick="openGroupInfo()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press"><i class="fas fa-info text-sm"></i></button>':'')+
-'</div>'+
-'<div id="messagesArea" class="flex-grow overflow-y-auto p-4 space-y-2 flex flex-col"></div>'+
-'<div class="p-3 border-t border-slate-800 flex items-center gap-2">'+
-'<button onclick="document.getElementById(\'hiddenFileInput\').click()" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press shrink-0"><i class="fas fa-paperclip"></i></button>'+
-'<input id="msgInput" type="text" placeholder="Xabar yozing..." onkeydown="if(event.key===\'Enter\')sendTextMessage()" class="flex-grow bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white">'+
-'<button onclick="sendTextMessage()" class="w-10 h-10 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center btn-press shrink-0"><i class="fas fa-paper-plane"></i></button>'+
-'</div>';
+'<div class="flex-grow min-w-0"><p class="text-sm font-bold text-white truncate">'+escapeHtml(info.name)+(info.prem?' <i class="fas fa-star text-violet-400 text-[10px]"></i>':'')+'</p>'+(info.sub?'<p class="text-xs text-slate-500">'+info.sub+'</p>':'')+'</div>'+
+(chat.type==='group'?'<button onclick="openGroupInfo()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press"><i class="fas fa-info text-sm"></i></button>':'')+'</div>'+
+'<div id="messagesArea" class="flex-grow overflow-y-auto p-4 space-y-2 flex flex-col '+themeClass+'"></div>'+
+'<div class="p-3 border-t border-slate-800 flex items-center gap-2 bg-[#0b0e14] z-10"><button onclick="document.getElementById(\'hiddenFileInput\').click()" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press shrink-0"><i class="fas fa-paperclip"></i></button><input id="msgInput" type="text" placeholder="Xabar yozing..." onkeydown="if(event.key===\'Enter\')sendTextMessage()" class="flex-grow bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white"><button onclick="sendTextMessage()" class="w-10 h-10 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center btn-press shrink-0"><i class="fas fa-paper-plane"></i></button></div>';
 }
 function renderMessages(msgs){
-let el=document.getElementById('messagesArea');
-if(!el)return;
-let list=Object.keys(msgs).map(function(k){let m=msgs[k];m._id=k;return m;});
-list.sort(function(a,b){return a.at-b.at;});
+let el=document.getElementById('messagesArea'); if(!el)return;
+let list=Object.keys(msgs).map(function(k){let m=msgs[k];m._id=k;return m;}); list.sort(function(a,b){return a.at-b.at;});
 el.innerHTML=list.map(function(m){
-let mine=m.from===db.currentUser.username;
-let bubble=mine?'msg-bubble-out':'msg-bubble-in';
-let content='';
-if(m.fileType&&m.fileType.startsWith('image/')){
-content='<img src="'+m.fileData+'" class="max-w-[240px] rounded-lg mb-1">';
-}else if(m.fileType){
-content='<a href="'+m.fileData+'" download="'+escapeHtml(m.fileName||'file')+'" class="flex items-center gap-2 text-white underline"><i class="fas fa-file"></i> '+escapeHtml(m.fileName||'Fayl')+'</a>';
-}
+let mine=m.from===db.currentUser.username; let bubble=mine?'msg-bubble-out':'msg-bubble-in'; let content='';
+if(m.fileType&&m.fileType.startsWith('image/')){ content='<img src="'+m.fileData+'" class="max-w-[240px] rounded-lg mb-1">'; }
+else if(m.fileType){ content='<a href="'+m.fileData+'" download="'+escapeHtml(m.fileName||'file')+'" class="flex items-center gap-2 text-white underline"><i class="fas fa-file"></i> '+escapeHtml(m.fileName||'Fayl')+'</a>'; }
 if(m.text)content+='<p class="text-sm text-white break-words">'+escapeHtml(m.text)+'</p>';
 return '<div class="flex '+(mine?'justify-end':'justify-start')+'">'+
-(!mine&&db.chats[activeChatId].type==='group'?'<div class="flex flex-col items-start max-w-[70%]"><p class="text-[10px] text-violet-400 font-bold ml-1 mb-0.5">'+escapeHtml(m.from)+'</p><div class="'+bubble+' rounded-2xl px-3 py-2">'+content+'<p class="text-[9px] text-slate-400 text-right mt-1">'+timeAgo(m.at)+'</p></div></div>'
-:'<div class="'+bubble+' rounded-2xl px-3 py-2 max-w-[70%]">'+content+'<p class="text-[9px] text-slate-300 text-right mt-1">'+timeAgo(m.at)+'</p></div>')+
-'</div>';
+(!mine&&db.chats[activeChatId].type==='group'?
+    '<div class="flex flex-col items-start max-w-[70%]"><div class="flex items-center gap-2"><p class="text-[10px] text-violet-400 font-bold ml-1 mb-0.5">'+escapeHtml(m.from)+'</p><button onclick="reportMsg(\''+m._id+'\')" class="text-slate-500 hover:text-red-400 text-[10px] mb-0.5" title="Пожаловаться"><i class="fas fa-exclamation-triangle"></i></button></div><div class="'+bubble+' rounded-2xl px-3 py-2 shadow-lg">'+content+'<p class="text-[9px] text-slate-400 text-right mt-1">'+timeAgo(m.at)+'</p></div></div>'
+:
+    '<div class="flex items-end gap-1"><div class="'+bubble+' rounded-2xl px-3 py-2 max-w-[70%] shadow-lg">'+content+'<p class="text-[9px] text-slate-300 text-right mt-1">'+timeAgo(m.at)+'</p></div>'+
+    (!mine?'<button onclick="reportMsg(\''+m._id+'\')" class="text-slate-500 hover:text-red-400 text-[10px] pb-2" title="Пожаловаться"><i class="fas fa-exclamation-triangle"></i></button>':'')+'</div>'
+)+'</div>';
 }).join('');
 el.scrollTop=el.scrollHeight;
-let chat=db.chats[activeChatId];
-chat.lastMessage=list.length?{text:list[list.length-1].text||'',fileType:list[list.length-1].fileType||null,at:list[list.length-1].at}:null;
+let chat=db.chats[activeChatId]; chat.lastMessage=list.length?{text:list[list.length-1].text||'',fileType:list[list.length-1].fileType||null,at:list[list.length-1].at}:null;
 renderSidebarChatList();
 }
 function sendTextMessage(){
-let input=document.getElementById('msgInput');
-let text=input.value.trim();
-if(!text||!activeChatId)return;
-let msgId=uid();
+let input=document.getElementById('msgInput'); let text=input.value.trim(); if(!text||!activeChatId)return; let msgId=uid();
 database.ref('messages/'+activeChatId+'/'+msgId).set({from:db.currentUser.username,text:text,at:Date.now()});
-database.ref('chats/'+activeChatId+'/lastMessage').set({text:text,fileType:null,at:Date.now()});
-input.value='';
+database.ref('chats/'+activeChatId+'/lastMessage').set({text:text,fileType:null,at:Date.now()}); input.value='';
 }
 document.getElementById('hiddenFileInput').addEventListener('change',async function(e){
-let file=e.target.files[0];
-if(!file||!activeChatId)return;
+let file=e.target.files[0]; if(!file||!activeChatId)return;
 if(file.size>MAX_FILE_SIZE){toast('Fayl juda katta (max 1.2MB)');e.target.value='';return;}
-let base64=await fileToBase64(file);
-let msgId=uid();
+let base64=await fileToBase64(file); let msgId=uid();
 database.ref('messages/'+activeChatId+'/'+msgId).set({from:db.currentUser.username,fileData:base64,fileType:file.type,fileName:file.name,at:Date.now()});
-database.ref('chats/'+activeChatId+'/lastMessage').set({text:'',fileType:file.type,at:Date.now()});
-e.target.value='';
+database.ref('chats/'+activeChatId+'/lastMessage').set({text:'',fileType:file.type,at:Date.now()}); e.target.value='';
 });
 function openGroupInfo(){
-let chat=db.chats[activeChatId];
-if(!chat||chat.type!=='group')return;
-let members=Object.keys(chat.members||{});
-document.body.insertAdjacentHTML('beforeend',modalShell('Guruh: '+escapeHtml(chat.name),
-'<p class="text-xs text-slate-400 mb-2 font-bold uppercase">A\'zolar ('+members.length+')</p>'+
-'<div class="space-y-1 mb-4">'+members.map(function(m){return '<div class="flex items-center gap-2 p-2 bg-slate-900 rounded-lg">'+avatarHtml((db.users[m]||{}).avatar,m,8)+'<span class="text-sm text-white">'+escapeHtml(m)+'</span></div>';}).join('')+'</div>'+
-'<input id="addMemberInput" type="text" placeholder="Yangi a\'zo username" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white mb-2">'+
-'<button onclick="addGroupMember()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 rounded-xl btn-press">A\'zo qo\'shish</button>'
-));
+let chat=db.chats[activeChatId]; if(!chat||chat.type!=='group')return; let members=Object.keys(chat.members||{});
+document.body.insertAdjacentHTML('beforeend',modalShell('Guruh: '+escapeHtml(chat.name),'<p class="text-xs text-slate-400 mb-2 font-bold uppercase">A\'zolar ('+members.length+')</p><div class="space-y-1 mb-4">'+members.map(function(m){return '<div class="flex items-center gap-2 p-2 bg-slate-900 rounded-lg">'+avatarHtml((db.users[m]||{}).avatar,m,8)+'<span class="text-sm text-white">'+escapeHtml(m)+'</span></div>';}).join('')+'</div><input id="addMemberInput" type="text" placeholder="Yangi a\'zo username" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white mb-2"><button onclick="addGroupMember()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 rounded-xl btn-press">A\'zo qo\'shish</button>'));
 }
 async function addGroupMember(){
-let uname=document.getElementById('addMemberInput').value.trim().toLowerCase();
-if(!uname)return;
-let snap=await database.ref('users/'+uname).once('value');
-if(!snap.exists()){toast('Topilmadi');return;}
-await database.ref('chats/'+activeChatId+'/members/'+uname).set(true);
-await database.ref('userChats/'+uname+'/'+activeChatId).set(true);
-toast('Qo\'shildi!');
-closeGenericModal();
-openGroupInfo();
+let uname=document.getElementById('addMemberInput').value.trim().toLowerCase(); if(!uname)return;
+let snap=await database.ref('users/'+uname).once('value'); if(!snap.exists()){toast('Topilmadi');return;}
+await database.ref('chats/'+activeChatId+'/members/'+uname).set(true); await database.ref('userChats/'+uname+'/'+activeChatId).set(true);
+toast('Qo\'shildi!'); closeGenericModal(); openGroupInfo();
 }
 
-// ===================== PROFILE =====================
-function renderProfile(){
-let el=document.getElementById('mainArea');
-if(!el)return;
-let u=db.currentUser;
-let items=Object.keys(u.items||{}).map(function(k){let it=u.items[k];it._id=k;return it;});
-el.innerHTML=
-'<div class="p-4 border-b border-slate-800 flex items-center justify-between gap-3">'+
-'<div class="flex items-center gap-3"><button onclick="goChats()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press"><i class="fas fa-arrow-left"></i></button>'+
-'<h2 class="text-lg font-bold text-white">Profil</h2></div>'+
-'<button onclick="logout()" class="text-red-400 text-xs font-bold px-3 py-1.5 rounded-lg bg-red-400/10 hover:bg-red-400/20 btn-press"><i class="fas fa-sign-out-alt mr-1"></i> Chiqish</button>'+
-'</div>'+
-'<div class="flex-grow overflow-y-auto p-6">'+
-'<div class="flex flex-col items-center mb-6">'+
-'<div onclick="document.getElementById(\'hiddenAvatarInput\').click()" class="cursor-pointer relative">'+avatarHtml(u.avatar,u.username,20)+'<div class="absolute bottom-0 right-0 w-6 h-6 bg-violet-600 rounded-full flex items-center justify-center text-white text-[10px]"><i class="fas fa-pen"></i></div></div>'+
-'<p class="text-lg font-bold text-white mt-3">@'+escapeHtml(u.username)+'</p>'+
-'<div class="flex items-center gap-1 mt-1 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full"><i class="fas fa-star text-amber-400 text-xs"></i><span class="text-amber-400 font-bold text-sm">'+(u.stars||0)+'</span></div>'+
-'</div>'+
-'<h3 class="text-sm font-bold text-white mb-3 uppercase tracking-wide">Kolleksiya ('+items.length+')</h3>'+
-(items.length===0?'<p class="text-xs text-slate-500">Hali predmetlaringiz yo\'q. Do\'kondan xarid qiling.</p>':
-'<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">'+items.map(function(it){
-let tpl=db.templates[it.templateId]||{};
-return '<div onclick="openItemModal(\''+it._id+'\')" class="rarity-'+it.rarity+' rounded-2xl p-3 cursor-pointer btn-press relative overflow-hidden">'+
-(tpl.modelImage?'<img src="'+tpl.modelImage+'" class="w-full h-20 object-contain mb-1">':'<div class="w-full h-20 flex items-center justify-center text-3xl">🎁</div>')+
-'<p class="text-xs font-bold text-white truncate">'+escapeHtml(tpl.name||'?')+'</p>'+
-'<p class="text-[9px] uppercase font-bold text-white/70">'+it.rarity+'</p>'+
-'</div>';
-}).join('')+'</div>')+
-'</div>';
-}
-document.getElementById('hiddenAvatarInput').addEventListener('change',async function(e){
-let file=e.target.files[0];
-if(!file)return;
-if(file.size>MAX_FILE_SIZE){toast('Rasm juda katta');e.target.value='';return;}
-let base64=await fileToBase64(file);
-await database.ref('users/'+db.currentUser.username+'/avatar').set(base64);
-toast('Avatar yangilandi');
-e.target.value='';
-});
-function openItemModal(itemId){
-let u=db.currentUser;
-let item=(u.items||{})[itemId];
-if(!item)return;
-let tpl=db.templates[item.templateId]||{};
-let pool=db.upgradePools?db.upgradePools[item.templateId]:null;
-document.body.insertAdjacentHTML('beforeend',modalShell(escapeHtml(tpl.name||'Predmet'),
-'<div class="rarity-'+item.rarity+' rounded-2xl p-6 flex flex-col items-center mb-4">'+
-(tpl.modelImage?'<img id="itemModalImg" src="'+tpl.modelImage+'" class="w-32 h-32 object-contain mb-2">':'<div class="text-6xl mb-2">🎁</div>')+
-'<p id="itemModalRarity" class="text-xs uppercase font-bold text-white/80">'+item.rarity+'</p>'+
-'</div>'+
-(pool&&pool.length>0?
-'<button onclick="upgradeItem(\''+itemId+'\')" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-3 rounded-xl btn-press"><i class="fas fa-star mr-1"></i> Yaxshilash ('+UPGRADE_COST+' ⭐)</button>'
-:'<p class="text-xs text-slate-500 text-center">Bu predmet uchun yaxshilash hali sozlanmagan.</p>')
-));
-}
-async function upgradeItem(itemId){
-let u=db.currentUser;
-let item=(u.items||{})[itemId];
-if(!item)return;
-if((u.stars||0)<UPGRADE_COST){toast('Yulduzlar yetarli emas');return;}
-let pool=(db.upgradePools||{})[item.templateId];
-if(!pool||pool.length===0){toast('Yaxshilash sozlanmagan');return;}
-let totalWeight=pool.reduce(function(s,p){return s+(p.weight||1);},0);
-let roll=Math.random()*totalWeight;
-let acc=0,result=pool[0];
-for(let p of pool){acc+=(p.weight||1);if(roll<=acc){result=p;break;}}
-await database.ref('users/'+u.username+'/stars').set((u.stars||0)-UPGRADE_COST);
-await database.ref('users/'+u.username+'/items/'+itemId+'/rarity').set(result.rarity);
-await database.ref('users/'+u.username+'/items/'+itemId+'/background').set(result.background||'');
-closeGenericModal();
-setTimeout(function(){
-document.body.insertAdjacentHTML('beforeend',modalShell('Natija!',
-'<div class="rarity-'+result.rarity+' spin-reveal rounded-2xl p-8 flex flex-col items-center">'+
-'<div class="text-6xl mb-3">'+(result.rarity==='mythic'?'🌌':result.rarity==='legendary'?'👑':result.rarity==='epic'?'💜':result.rarity==='rare'?'💎':'⭐')+'</div>'+
-'<p class="text-lg font-black text-white uppercase">'+result.rarity+'</p>'+
-'<p class="text-xs text-white/70 mt-1">'+(result.background?escapeHtml(result.background):'')+'</p>'+
-'</div>'
-));
-},200);
-}
-
-// ===================== SHOP =====================
-function renderShop(){
-let el=document.getElementById('mainArea');
-if(!el)return;
-let u = db.currentUser;
-let templates = Object.keys(db.templates||{}).map(function(k){let t=db.templates[k]; t._id=k; return t;});
-el.innerHTML=
-'<div class="p-4 border-b border-slate-800 flex items-center justify-between gap-3">'+
-'<div class="flex items-center gap-3"><button onclick="goChats()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press"><i class="fas fa-arrow-left"></i></button>'+
-'<h2 class="text-lg font-bold text-white"><i class="fas fa-store text-amber-400 mr-1"></i> Do\'kon</h2></div>'+
-'<div class="bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full"><i class="fas fa-star text-amber-400 text-xs mr-1"></i><span class="text-amber-400 font-bold text-sm">'+(u.stars||0)+'</span></div>'+
-'</div>'+
-'<div class="flex-grow overflow-y-auto p-6">'+
-(templates.length===0?'<p class="text-xs text-slate-500">Do\'konda hali predmetlar yo\'q.</p>':
-'<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">'+templates.map(function(t){
-    let price = t.price || 0;
-    return '<div class="card-bg rounded-2xl p-4 flex flex-col items-center hover:border-slate-700 transition">'+
-    (t.modelImage?'<img src="'+t.modelImage+'" class="w-16 h-16 object-contain mb-3">':'<div class="text-4xl mb-3">🎁</div>')+
-    '<p class="text-sm font-bold text-white text-center mb-1">'+escapeHtml(t.name)+'</p>'+
-    '<p class="text-[10px] uppercase font-bold text-slate-400 mb-3">'+(t.baseRarity||'common')+'</p>'+
-    '<button onclick="buyFromShop(\''+t._id+'\')" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 text-xs font-bold py-2.5 rounded-lg btn-press">Sotib olish ('+price+' ⭐)</button>'+
-    '</div>';
-}).join('')+'</div>')+
-'</div>';
-}
-async function buyFromShop(tid){
-let t = db.templates[tid];
-if(!t)return;
-let u = db.currentUser;
-let price = t.price || 0;
-if((u.stars||0) < price){ toast('Yulduzlar yetarli emas!'); return; }
-if(!confirm(t.name + ' predmetini ' + price + ' ⭐ ga sotib olasizmi?')) return;
-
-let itemId = 'item_'+uid();
-await database.ref('users/'+u.username+'/stars').set((u.stars||0) - price);
-await database.ref('users/'+u.username+'/items/'+itemId).set({
-    templateId: tid, rarity: t.baseRarity||'common', background: '', obtainedAt: Date.now()
-});
-toast('Muvaffaqiyatli xarid qilindi!');
-}
-
-// ===================== ADMIN PANEL =====================
+// ===================== ADMIN PANEL (WITH REPORTS) =====================
 function renderAdmin(){
-let el=document.getElementById('mainArea');
-if(!el)return;
+let el=document.getElementById('mainArea'); if(!el)return;
 if(!db.currentUser.isAdmin){el.innerHTML='<div class="p-6 text-slate-500">Ruxsat yo\'q</div>';return;}
 let templates=Object.keys(db.templates||{}).map(function(k){let t=db.templates[k];t._id=k;return t;});
-
 let usersHtml = Object.keys(db.users||{}).map(function(uname){
     let u = db.users[uname];
-    return '<div class="bg-slate-900 rounded-xl p-3 flex justify-between items-center text-xs">'+
-    '<div><span class="text-white font-bold">@'+escapeHtml(uname)+'</span> <span class="text-slate-500 ml-2">Parol: <b class="text-white">'+escapeHtml(u.passPlain||'yashirin')+'</b></span></div>'+
-    '<div class="text-amber-400 font-bold">'+(u.stars||0)+' ⭐</div></div>';
+    return '<div class="bg-slate-900 rounded-xl p-3 flex justify-between items-center text-xs"><div><span class="text-white font-bold">@'+escapeHtml(uname)+'</span> <span class="text-slate-500 ml-2">Parol: <b class="text-white">'+escapeHtml(u.passPlain||'yashirin')+'</b></span></div><div class="text-amber-400 font-bold">'+(u.stars||0)+' ⭐</div></div>';
+}).join('');
+
+let reportsHtml = Object.keys(db.reports||{}).map(function(rid){
+    let r = db.reports[rid];
+    return '<div class="bg-slate-900 rounded-xl p-3 text-xs mb-2"><div><span class="text-red-400 font-bold">Жалоба от @'+escapeHtml(r.reportedBy)+'</span> на <span class="text-white font-bold">@'+escapeHtml(r.from)+'</span></div><div class="text-slate-400 mt-1 pb-2 break-words">"'+escapeHtml(r.text)+'"</div><div class="flex gap-2 border-t border-slate-800 pt-2"><button onclick="adminViewReportContext(\''+r.chatId+'\')" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg font-bold btn-press">Читать чат</button><button onclick="adminBanFromReport(\''+r.from+'\', \''+rid+'\')" class="bg-orange-600 hover:bg-orange-700 text-white px-3 py-1.5 rounded-lg font-bold btn-press">Бан</button><button onclick="adminDeleteReport(\''+rid+'\')" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded-lg font-bold btn-press">Скрыть</button></div></div>';
 }).join('');
 
 el.innerHTML=
-'<div class="p-4 border-b border-slate-800 flex items-center gap-3">'+
-'<button onclick="goChats()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press"><i class="fas fa-arrow-left"></i></button>'+
-'<h2 class="text-lg font-bold text-white"><i class="fas fa-shield-halved text-amber-400 mr-1"></i> Admin panel</h2>'+
-'</div>'+
+'<div class="p-4 border-b border-slate-800 flex items-center gap-3"><button onclick="goChats()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press"><i class="fas fa-arrow-left"></i></button><h2 class="text-lg font-bold text-white"><i class="fas fa-shield-halved text-amber-400 mr-1"></i> Admin panel</h2></div>'+
 '<div class="flex-grow overflow-y-auto p-6 space-y-6">'+
-'<div class="card-bg rounded-2xl p-5">'+
-'<h3 class="text-sm font-bold text-white mb-3">⭐ Yulduz berish</h3>'+
-'<div class="flex gap-2">'+
-'<input id="grantStarsUsername" type="text" placeholder="Username" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">'+
-'<input id="grantStarsAmount" type="number" placeholder="Miqdor" class="w-28 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">'+
-'<button onclick="adminGrantStars()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-4 py-2.5 rounded-xl btn-press">Berish</button>'+
-'</div></div>'+
-'<div class="card-bg rounded-2xl p-5">'+
-'<h3 class="text-sm font-bold text-white mb-3">🎁 Yangi predmet turi yaratish</h3>'+
-'<div class="space-y-2">'+
-'<input id="tplName" type="text" placeholder="Nomi" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">'+
-'<input id="tplPrice" type="number" placeholder="Narxi (⭐)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">'+
-'<div class="flex items-center gap-2">'+
-'<button onclick="document.getElementById(\'hiddenTemplateImgInput\').click()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-3 py-2.5 rounded-lg btn-press">Rasm tanlash</button>'+
-'<img id="tplImgPreview" class="w-10 h-10 rounded-lg object-contain hidden">'+
-'</div>'+
-'<select id="tplBaseRarity" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">'+
-'<option value="common">Common</option><option value="rare">Rare</option><option value="epic">Epic</option><option value="legendary">Legendary</option><option value="mythic">Mythic</option>'+
-'</select>'+
-'<button onclick="adminCreateTemplate()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 rounded-xl btn-press">Yaratish</button>'+
-'</div></div>'+
-'<div class="card-bg rounded-2xl p-5">'+
-'<h3 class="text-sm font-bold text-white mb-3">📦 Predmetlar ro\'yxati ('+templates.length+')</h3>'+
-'<div class="space-y-2">'+templates.map(function(t){
-return '<div class="bg-slate-900 rounded-xl p-3">'+
-'<div class="flex items-center gap-2 mb-2">'+(t.modelImage?'<img src="'+t.modelImage+'" class="w-8 h-8 object-contain">':'')+'<span class="text-sm font-bold text-white">'+escapeHtml(t.name)+'</span><span class="text-amber-400 font-bold text-xs ml-2">['+(t.price||0)+' ⭐]</span><span class="text-[10px] text-slate-500 ml-auto">'+t._id+'</span></div>'+
-'<div class="flex gap-2">'+
-'<input id="grantItemUser_'+t._id+'" type="text" placeholder="Username" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white">'+
-'<button onclick="adminGrantItem(\''+t._id+'\')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg btn-press">Berish</button>'+
-'<button onclick="openUpgradePoolModal(\''+t._id+'\')" class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg btn-press">Pool</button>'+
-'</div></div>';
-}).join('')+'</div></div>'+
-'<div class="card-bg rounded-2xl p-5">'+
-'<h3 class="text-sm font-bold text-white mb-3">👥 Foydalanuvchilar va parollar</h3>'+
-'<div class="space-y-2 max-h-64 overflow-y-auto">'+(usersHtml||'<p class="text-xs text-slate-500">Foydalanuvchilar yo\'q</p>')+'</div></div>'+
-'</div>';
+'<div class="card-bg rounded-2xl p-5 border border-red-900/50"><h3 class="text-sm font-bold text-red-400 mb-3"><i class="fas fa-flag mr-1"></i> Жалобы (Репорты)</h3><div class="space-y-2 max-h-64 overflow-y-auto">'+(reportsHtml||'<p class="text-xs text-slate-500">Жалоб нет</p>')+'</div></div>'+
+'<div class="card-bg rounded-2xl p-5"><h3 class="text-sm font-bold text-white mb-3">⭐ Yulduz berish</h3><div class="flex gap-2"><input id="grantStarsUsername" type="text" placeholder="Username" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"><input id="grantStarsAmount" type="number" placeholder="Miqdor" class="w-28 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"><button onclick="adminGrantStars()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-4 py-2.5 rounded-xl btn-press">Berish</button></div></div>'+
+'<div class="card-bg rounded-2xl p-5"><h3 class="text-sm font-bold text-white mb-3">🎁 Yangi predmet turi yaratish</h3><div class="space-y-2"><input id="tplName" type="text" placeholder="Nomi" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"><input id="tplPrice" type="number" placeholder="Narxi (⭐)" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"><div class="flex items-center gap-2"><button onclick="document.getElementById(\'hiddenTemplateImgInput\').click()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-3 py-2.5 rounded-lg btn-press">Rasm tanlash</button><img id="tplImgPreview" class="w-10 h-10 rounded-lg object-contain hidden"></div><select id="tplBaseRarity" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white"><option value="common">Common</option><option value="rare">Rare</option><option value="epic">Epic</option><option value="legendary">Legendary</option><option value="mythic">Mythic</option></select><button onclick="adminCreateTemplate()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 rounded-xl btn-press">Yaratish</button></div></div>'+
+'<div class="card-bg rounded-2xl p-5"><h3 class="text-sm font-bold text-white mb-3">📦 Predmetlar ro\'yxati ('+templates.length+')</h3><div class="space-y-2">'+templates.map(function(t){ return '<div class="bg-slate-900 rounded-xl p-3"><div class="flex items-center gap-2 mb-2">'+(t.modelImage?'<img src="'+t.modelImage+'" class="w-8 h-8 object-contain">':'')+'<span class="text-sm font-bold text-white">'+escapeHtml(t.name)+'</span><span class="text-amber-400 font-bold text-xs ml-2">['+(t.price||0)+' ⭐]</span><span class="text-[10px] text-slate-500 ml-auto">'+t._id+'</span></div><div class="flex gap-2"><input id="grantItemUser_'+t._id+'" type="text" placeholder="Username" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white"><button onclick="adminGrantItem(\''+t._id+'\')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg btn-press">Berish</button><button onclick="openUpgradePoolModal(\''+t._id+'\')" class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg btn-press">Pool</button></div></div>'; }).join('')+'</div></div>'+
+'<div class="card-bg rounded-2xl p-5"><h3 class="text-sm font-bold text-white mb-3">👥 Foydalanuvchilar ва пароли</h3><div class="space-y-2 max-h-64 overflow-y-auto">'+(usersHtml||'<p class="text-xs text-slate-500">Foydalanuvchilar yo\'q</p>')+'</div></div></div>';
 }
 async function adminGrantStars(){
-let uname=document.getElementById('grantStarsUsername').value.trim().toLowerCase();
-let amount=parseInt(document.getElementById('grantStarsAmount').value);
-if(!uname||!amount){toast('Ma\'lumotlarni to\'ldiring');return;}
-let snap=await database.ref('users/'+uname).once('value');
-if(!snap.exists()){toast('Foydalanuvchi topilmadi');return;}
-let cur=snap.val().stars||0;
-await database.ref('users/'+uname+'/stars').set(cur+amount);
-toast(amount+' yulduz berildi @'+uname);
-document.getElementById('grantStarsUsername').value='';
-document.getElementById('grantStarsAmount').value='';
+let uname=document.getElementById('grantStarsUsername').value.trim().toLowerCase(); let amount=parseInt(document.getElementById('grantStarsAmount').value);
+if(!uname||!amount){toast('Ma\'lumotlarni to\'ldiring');return;} let snap=await database.ref('users/'+uname).once('value');
+if(!snap.exists()){toast('Foydalanuvchi topilmadi');return;} let cur=snap.val().stars||0; await database.ref('users/'+uname+'/stars').set(cur+amount);
+toast(amount+' yulduz berildi @'+uname); document.getElementById('grantStarsUsername').value=''; document.getElementById('grantStarsAmount').value='';
 }
 let _pendingTplImg='';
-document.getElementById('hiddenTemplateImgInput').addEventListener('change',async function(e){
-let file=e.target.files[0];
-if(!file)return;
-_pendingTplImg=await fileToBase64(file);
-let img=document.getElementById('tplImgPreview');
-img.src=_pendingTplImg;img.classList.remove('hidden');
-e.target.value='';
-});
+document.getElementById('hiddenTemplateImgInput').addEventListener('change',async function(e){ let file=e.target.files[0]; if(!file)return; _pendingTplImg=await fileToBase64(file); let img=document.getElementById('tplImgPreview'); img.src=_pendingTplImg; img.classList.remove('hidden'); e.target.value=''; });
 async function adminCreateTemplate(){
-let name=document.getElementById('tplName').value.trim();
-let price=parseInt(document.getElementById('tplPrice').value) || 0;
-let rarity=document.getElementById('tplBaseRarity').value;
-if(!name){toast('Nomini kiriting');return;}
-let tid='tpl_'+uid();
+let name=document.getElementById('tplName').value.trim(); let price=parseInt(document.getElementById('tplPrice').value) || 0; let rarity=document.getElementById('tplBaseRarity').value;
+if(!name){toast('Nomini kiriting');return;} let tid='tpl_'+uid();
 await database.ref('templates/'+tid).set({name:name, price:price, modelImage:_pendingTplImg||'', baseRarity:rarity, createdAt:Date.now()});
-_pendingTplImg='';
-toast('Predmet turi yaratildi!');
-document.getElementById('tplName').value='';
-document.getElementById('tplPrice').value='';
-document.getElementById('tplImgPreview').classList.add('hidden');
+_pendingTplImg=''; toast('Predmet turi yaratildi!'); document.getElementById('tplName').value=''; document.getElementById('tplPrice').value=''; document.getElementById('tplImgPreview').classList.add('hidden');
 }
 async function adminGrantItem(templateId){
-let uname=document.getElementById('grantItemUser_'+templateId).value.trim().toLowerCase();
-if(!uname){toast('Username kiriting');return;}
-let snap=await database.ref('users/'+uname).once('value');
-if(!snap.exists()){toast('Foydalanuvchi topilmadi');return;}
-let tpl=db.templates[templateId];
-let itemId='item_'+uid();
-await database.ref('users/'+uname+'/items/'+itemId).set({templateId:templateId,rarity:tpl.baseRarity||'common',background:'',obtainedAt:Date.now()});
-toast('Predmet berildi @'+uname);
+let uname=document.getElementById('grantItemUser_'+templateId).value.trim().toLowerCase(); if(!uname){toast('Username kiriting');return;}
+let snap=await database.ref('users/'+uname).once('value'); if(!snap.exists()){toast('Foydalanuvchi topilmadi');return;}
+let tpl=db.templates[templateId]; let itemId='item_'+uid();
+await database.ref('users/'+uname+'/items/'+itemId).set({templateId:templateId,rarity:tpl.baseRarity||'common',background:'',obtainedAt:Date.now()}); toast('Predmet berildi @'+uname);
 }
 function openUpgradePoolModal(templateId){
 let pool=(db.upgradePools||{})[templateId]||[];
-document.body.insertAdjacentHTML('beforeend',modalShell('Yaxshilash puli',
-'<div id="poolRows" class="space-y-2 mb-3">'+pool.map(function(p,i){return poolRowHtml(i,p);}).join('')+'</div>'+
-'<button onclick="addPoolRow()" class="w-full bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2 rounded-lg btn-press mb-2">+ Qator qo\'shish</button>'+
-'<button onclick="saveUpgradePool(\''+templateId+'\')" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 rounded-xl btn-press">Saqlash</button>'
-));
+document.body.insertAdjacentHTML('beforeend',modalShell('Yaxshilash puli','<div id="poolRows" class="space-y-2 mb-3">'+pool.map(function(p,i){return poolRowHtml(i,p);}).join('')+'</div><button onclick="addPoolRow()" class="w-full bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2 rounded-lg btn-press mb-2">+ Qator qo\'shish</button><button onclick="saveUpgradePool(\''+templateId+'\')" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 rounded-xl btn-press">Saqlash</button>'));
 }
 function poolRowHtml(i,p){
 p=p||{rarity:'common',background:'',weight:1};
-return '<div class="flex gap-1 pool-row">'+
-'<select class="pr-rarity flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white">'+
-['common','rare','epic','legendary','mythic'].map(function(r){return '<option value="'+r+'" '+(p.rarity===r?'selected':'')+'>'+r+'</option>';}).join('')+
-'</select>'+
-'<input class="pr-bg w-24 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white" placeholder="Fon nomi" value="'+escapeHtml(p.background||'')+'">'+
-'<input class="pr-weight w-14 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white" type="number" placeholder="Vazn" value="'+(p.weight||1)+'">'+
-'</div>';
+return '<div class="flex gap-1 pool-row"><select class="pr-rarity flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white">'+['common','rare','epic','legendary','mythic'].map(function(r){return '<option value="'+r+'" '+(p.rarity===r?'selected':'')+'>'+r+'</option>';}).join('')+'</select><input class="pr-bg w-24 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white" placeholder="Fon nomi" value="'+escapeHtml(p.background||'')+'"><input class="pr-weight w-14 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white" type="number" placeholder="Vazn" value="'+(p.weight||1)+'"></div>';
 }
-function addPoolRow(){
-document.getElementById('poolRows').insertAdjacentHTML('beforeend',poolRowHtml(0,{}));
-}
+function addPoolRow(){ document.getElementById('poolRows').insertAdjacentHTML('beforeend',poolRowHtml(0,{})); }
 async function saveUpgradePool(templateId){
 let rows=document.querySelectorAll('#poolRows .pool-row');
-let pool=Array.from(rows).map(function(r){
-return {rarity:r.querySelector('.pr-rarity').value,background:r.querySelector('.pr-bg').value.trim(),weight:parseFloat(r.querySelector('.pr-weight').value)||1};
-});
-await database.ref('upgradePools/'+templateId).set(pool);
-toast('Pool saqlandi!');
-closeGenericModal();
+let pool=Array.from(rows).map(function(r){ return {rarity:r.querySelector('.pr-rarity').value,background:r.querySelector('.pr-bg').value.trim(),weight:parseFloat(r.querySelector('.pr-weight').value)||1}; });
+await database.ref('upgradePools/'+templateId).set(pool); toast('Pool saqlandi!'); closeGenericModal();
 }
 
 // ===================== BOOTSTRAP =====================
 window.onload=async function(){
 let saved=localStorage.getItem('ss_currentUser');
-if(saved){
-let snap=await database.ref('users/'+saved).once('value');
-if(snap.exists()){
-db.currentUser=snap.val();
-enterApp();
-return;
-}
-}
+if(saved){ let snap=await database.ref('users/'+saved).once('value'); if(snap.exists()){ db.currentUser=snap.val(); enterApp(); return; } }
 renderAuth();
 };
 </script>
