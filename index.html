@@ -12,11 +12,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
-    * { font-family: 'Roboto', sans-serif; box-sizing: border-box; }
-    body, html { background-color: #0e1621; color: #f5f5f5; margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; }
-    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    * { font-family: 'Roboto', sans-serif; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body, html { background-color: #0e1621; color: #f5f5f5; margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; position: fixed; }
+    ::-webkit-scrollbar { width: 3px; height: 3px; }
     ::-webkit-scrollbar-thumb { background: #2b3a4a; border-radius: 2px; }
-    ::-webkit-scrollbar-track { background: transparent; }
     
     .bg-tg-main { background-color: #0e1621; }
     .bg-tg-sidebar { background-color: #17212b; }
@@ -30,12 +29,18 @@
     .msg-in { background-color: #182533; border-radius: 12px 12px 12px 0; }
     
     .btn-press { transition: transform 0.1s; }
-    .btn-press:active { transform: scale(0.97); }
+    .btn-press:active { transform: scale(0.96); }
     .fade-in { animation: fadeIn 0.15s ease-out; }
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     
     input, textarea, select { outline: none; }
     .modal-overlay { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(3px); }
+
+    /* Mobile Adaptive Views */
+    @media (max-width: 768px) {
+        .mobile-hidden { display: none !important; }
+        .mobile-full { width: 100% !important; position: absolute !important; inset: 0 !important; z-index: 30 !important; }
+    }
 </style>
 </head>
 <body>
@@ -57,7 +62,7 @@ let database;
 try { firebase.initializeApp(firebaseConfig); database = firebase.database(); } 
 catch(e) { database = { ref: () => ({ on:()=>{}, off:()=>{}, once:()=>Promise.resolve({exists:()=>false,val:()=>null}), set:()=>Promise.resolve(), remove:()=>Promise.resolve() }) }; }
 
-let db = { currentUser: null, users: {}, chats: {}, reports: {} };
+let db = { currentUser: null, users: {}, chats: {}, reports: {}, gifts: {}, market: {} };
 let activeChatId = null;
 let activeFolderId = 'all';
 let currentChatListener = null;
@@ -73,7 +78,7 @@ window.onload = function() {
     try {
         let saved = localStorage.getItem('tg_currentUser');
         if(saved) {
-            db.currentUser = { username: saved, displayName: saved, stars: 0, scale: 100, folders: {} };
+            db.currentUser = { username: saved, displayName: saved, stars: 100, scale: 100, folders: {} };
             renderMainLayout();
             database.ref(`users/${saved}`).once('value').then(snap => {
                 if(snap.exists()){
@@ -109,6 +114,12 @@ function startGlobalListeners() {
         });
     }
     database.ref('reports').on('value', snap => { db.reports = snap.val()||{}; });
+    database.ref('giftsMarket').on('value', snap => { db.market = snap.val()||{
+        'g1': {name: 'Золотое Сердце', price: 15, icon: '❤️', bg: 'from-amber-500 to-yellow-600'},
+        'g2': {name: 'Плюшевый Мишка', price: 25, icon: '🧸', bg: 'from-blue-500 to-indigo-600'},
+        'g3': {name: 'Праздничный Торт', price: 40, icon: '🎂', bg: 'from-pink-500 to-rose-600'},
+        'g4': {name: 'Корона Империи', price: 100, icon: '👑', bg: 'from-purple-500 to-indigo-700'}
+    }; });
 }
 
 function renderAuthScreen() {
@@ -129,8 +140,8 @@ function renderAuthScreen() {
             </div>
             
             <div class="space-y-3 text-left">
-                <input id="authUsername" type="text" placeholder="Имя пользователя (логин)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm">
-                <input id="authPhone" type="tel" placeholder="Номер телефона (+998...)" class="hidden w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm">
+                <input id="authUsername" type="text" placeholder="Логин (латиница)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm">
+                <input id="authPhone" type="tel" placeholder="Телефон (+998...)" class="hidden w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm">
                 <input id="authPass" type="password" placeholder="Пароль" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-transparent focus:border-[#3390ec] text-sm">
                 <button type="button" onclick="handleAuthSubmit()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press mt-2 text-sm shadow-md">ПРОДОЛЖИТЬ</button>
             </div>
@@ -160,40 +171,33 @@ async function handleAuthSubmit() {
     let ph = phInp ? phInp.value.trim() : '';
 
     if(!u || !p) { toast('Заполните все поля'); return; }
-    if(!/^[a-z0-9_]{3,20}$/.test(u)) { toast('Логин: латиница, цифры и _ (3-20 символов)'); return; }
+    if(!/^[a-z0-9_]{3,20}$/.test(u)) { toast('Логин: латиница, цифры и _'); return; }
 
     if(activeAuthMode === 'register') {
-        if(p.length < 4) { toast('Пароль должен быть от 4 символов'); return; }
+        if(p.length < 4) { toast('Пароль от 4 символов'); return; }
         if(!ph) { toast('Укажите номер телефона'); return; }
         let snap = await database.ref(`users/${u}`).once('value');
-        if(snap.exists()) { toast('Этот логин уже занят'); return; }
+        if(snap.exists()) { toast('Логин занят'); return; }
         
         let hash = await hashPass(p);
         let nu = { 
-            username: u, displayName: u, phone: ph, email: '', 
-            passHash: hash, passPlain: p, avatar: '', stars: 0, 
+            username: u, displayName: u, phone: ph, 
+            passHash: hash, passPlain: p, avatar: '', stars: 100, 
             isPremium: false, premiumUntil: 0, scale: 100, 
-            isAdmin: u === 'admin', createdAt: Date.now(), folders: {} 
+            isAdmin: u === 'admin', createdAt: Date.now(), folders: {}, gifts: {} 
         };
         await database.ref(`users/${u}`).set(nu);
-        db.currentUser = nu; 
-        localStorage.setItem('tg_currentUser', u); 
-        toast('Регистрация успешна!'); 
-        renderMainLayout();
-        startGlobalListeners();
+        db.currentUser = nu; localStorage.setItem('tg_currentUser', u); 
+        toast('Успешно!'); renderMainLayout(); startGlobalListeners();
     } else {
         let snap = await database.ref(`users/${u}`).once('value');
-        if(!snap.exists()) { toast('Пользователь не найден'); return; }
+        if(!snap.exists()) { toast('Не найден'); return; }
         let ud = snap.val();
-        if(ud.banned) { toast('Ваш аккаунт заблокирован'); return; }
-        
+        if(ud.banned) { toast('Заблокирован'); return; }
         let hash = await hashPass(p);
         if(hash !== ud.passHash && p !== ud.passPlain) { toast('Неверный пароль'); return; }
-        
-        db.currentUser = ud; 
-        localStorage.setItem('tg_currentUser', u); 
-        renderMainLayout();
-        startGlobalListeners();
+        db.currentUser = ud; localStorage.setItem('tg_currentUser', u); 
+        renderMainLayout(); startGlobalListeners();
     }
 }
 
@@ -212,8 +216,7 @@ function renderMainLayout() {
     
     el.innerHTML = `
     <!-- Sidebar -->
-    <div class="w-[320px] md:w-[380px] h-full bg-tg-sidebar flex flex-col border-r border-black/20 z-10 shrink-0">
-        <!-- Header -->
+    <div id="sidebarSide" class="w-full md:w-[380px] h-full bg-tg-sidebar flex flex-col border-r border-black/20 z-10 shrink-0">
         <div class="h-14 flex items-center px-4 gap-3 shrink-0 border-b border-black/10">
             <button onclick="toggleDrawerMenu()" class="text-tg-gray hover:text-white text-xl p-2 rounded-full hover:bg-[#202b36] transition btn-press"><i class="fas fa-bars"></i></button>
             <div class="flex-grow bg-[#0e1621] rounded-full flex items-center px-3.5 py-2 border border-black/20">
@@ -221,20 +224,18 @@ function renderMainLayout() {
                 <input type="text" id="searchInput" oninput="renderSidebar()" placeholder="Поиск" class="bg-transparent border-none text-white text-sm w-full">
             </div>
         </div>
-        <!-- Folders -->
         <div id="folderTabs" class="flex overflow-x-auto scrollbar-hide px-2 border-b border-black/20 shrink-0 bg-tg-sidebar"></div>
-        <!-- Chat List -->
         <div id="chatList" class="flex-grow overflow-y-auto"></div>
     </div>
     
     <!-- Main Chat Area -->
-    <div id="chatArea" class="flex-grow h-full bg-tg-main flex flex-col relative bg-cover bg-center" style="background-image: url('https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'); background-blend-mode: overlay; background-color: rgba(14, 22, 33, 0.92);">
+    <div id="chatArea" class="mobile-hidden mobile-full flex-grow h-full bg-tg-main flex flex-col relative bg-cover bg-center" style="background-image: url('https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'); background-blend-mode: overlay; background-color: rgba(14, 22, 33, 0.92);">
         <div class="flex-grow flex items-center justify-center">
             <div class="bg-[#17212b]/90 px-5 py-2 rounded-full text-tg-gray text-sm shadow-md border border-black/20">Выберите чат, чтобы начать общение</div>
         </div>
     </div>
     
-    <!-- Left Drawer Menu (Telegram Hamburger Menu) -->
+    <!-- Drawer Menu -->
     <div id="drawerMenu" class="fixed inset-y-0 left-0 w-[300px] bg-tg-sidebar shadow-2xl transform -translate-x-full transition-transform duration-300 z-50 flex flex-col border-r border-black/30">
         <div class="p-5 bg-[#2b5278] text-white flex flex-col justify-end min-h-[140px] shadow-inner">
             <div class="flex items-center gap-3 mb-3">
@@ -246,6 +247,7 @@ function renderMainLayout() {
             </div>
         </div>
         <div class="py-2 overflow-y-auto flex-grow text-white font-normal text-[15px] space-y-0.5">
+            <div onclick="openGiftsModal()" class="px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition"><i class="fas fa-gift text-pink-400 text-lg w-6 text-center"></i> Подарки и NFT</div>
             <div onclick="openNewChatModal()" class="px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition"><i class="far fa-user text-tg-gray text-lg w-6 text-center"></i> Создать чат</div>
             <div onclick="openNewGroupModal()" class="px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition"><i class="fas fa-users text-tg-gray text-lg w-6 text-center"></i> Создать группу</div>
             <div onclick="openSettingsModal()" class="px-5 py-3.5 hover:bg-[#202b36] cursor-pointer flex items-center gap-5 transition"><i class="fas fa-cog text-tg-gray text-lg w-6 text-center"></i> Настройки</div>
@@ -352,9 +354,11 @@ function openChat(cid) {
     }
 
     let ca = document.getElementById('chatArea');
+    ca.classList.remove('mobile-hidden');
     ca.innerHTML = `
         <div class="h-14 bg-tg-header flex items-center justify-between px-4 shrink-0 shadow z-10 border-b border-black/20">
             <div class="flex items-center gap-3.5 min-w-0 cursor-pointer">
+                <button onclick="document.getElementById('chatArea').classList.add('mobile-hidden')" class="md:hidden text-tg-gray hover:text-white mr-1 text-lg"><i class="fas fa-arrow-left"></i></button>
                 ${getAvatarHtml(av, name, 10)}
                 <div class="flex flex-col min-w-0">
                     <span class="text-white font-medium text-[15px] truncate">${escapeHtml(name)}</span>
@@ -437,6 +441,58 @@ function openModal(title, content) {
             <div class="p-6 overflow-y-auto flex-grow">${content}</div>
         </div>
     </div>`);
+}
+
+// ==================== GIFTS & NFT MARKET ====================
+function openGiftsModal() {
+    if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleDrawerMenu();
+    let market = db.market || {};
+    let myGifts = db.currentUser.gifts || {};
+    
+    let marketHtml = Object.keys(market).map(gid => {
+        let g = market[gid];
+        return `<div class="bg-[#0e1621] p-4 rounded-2xl border border-black/20 flex flex-col items-center text-center">
+            <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr ${g.bg} flex items-center justify-center text-3xl mb-3 shadow-lg">${g.icon}</div>
+            <div class="text-white font-medium text-sm mb-1">${g.name}</div>
+            <div class="text-amber-400 font-bold text-xs mb-4">${g.price} ⭐</div>
+            <button onclick="buyGift('${gid}')" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white py-2 rounded-xl text-xs font-medium btn-press">Купить</button>
+        </div>`;
+    }).join('');
+
+    let myHtml = Object.keys(myGifts).map(mgid => {
+        let mg = myGifts[mgid];
+        return `<div class="bg-[#0e1621] p-3 rounded-xl border border-black/20 flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-gradient-to-tr ${mg.bg} flex items-center justify-center text-2xl shadow">${mg.icon}</div>
+            <div class="min-w-0 flex-grow"><div class="text-white text-sm font-medium truncate">${mg.name}</div><div class="text-tg-gray text-xs">NFT / Коллекционный</div></div>
+        </div>`;
+    }).join('') || '<p class="text-tg-gray text-xs text-center py-4">У вас пока нет подарков</p>';
+
+    openModal('Подарки и NFT', `
+        <div class="flex gap-2 mb-4 bg-[#0e1621] p-1 rounded-xl">
+            <button onclick="document.getElementById('tabMarket').classList.remove('hidden'); document.getElementById('tabMy').classList.add('hidden')" class="flex-1 py-2 rounded-lg bg-[#2b5278] text-white text-xs font-medium">Магазин</button>
+            <button onclick="document.getElementById('tabMy').classList.remove('hidden'); document.getElementById('tabMarket').classList.add('hidden')" class="flex-1 py-2 rounded-lg text-tg-gray text-xs font-medium">Мои подарки</button>
+        </div>
+        <div id="tabMarket" class="grid grid-cols-2 gap-3">${marketHtml}</div>
+        <div id="tabMy" class="hidden space-y-2">${myHtml}</div>
+    `);
+}
+
+async function buyGift(gid) {
+    let g = db.market[gid];
+    let stars = db.currentUser.stars || 0;
+    if(stars < g.price) { toast('Недостаточно звёзд'); return; }
+    
+    let newStars = stars - g.price;
+    let giftId = 'gift_' + Date.now();
+    
+    await database.ref(`users/${db.currentUser.username}/stars`).set(newStars);
+    await database.ref(`users/${db.currentUser.username}/gifts/${giftId}`).set(g);
+    db.currentUser.stars = newStars;
+    if(!db.currentUser.gifts) db.currentUser.gifts = {};
+    db.currentUser.gifts[giftId] = g;
+    
+    toast('Подарок успешно куплен!');
+    openGiftsModal();
 }
 
 function openNewChatModal() {
@@ -542,8 +598,8 @@ function openSetPrivacyModal() {
         <input id="spr" type="tel" value="${escapeHtml(db.currentUser.phone||'')}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-4">
         <div class="border-t border-black/20 pt-4 mb-5">
             <p class="text-sm text-white mb-3 font-medium">Смена пароля</p>
-            <input id="op" type="password" placeholder="Старый пароль" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-2.5">
-            <input id="np" type="password" placeholder="Новый пароль (мин 4)" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm">
+            <input id="op" type="password" placeholder="Старый пароль" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm mb-2.5">
+            <input id="np" type="password" placeholder="Новый пароль (мин 4)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/20 focus:border-[#3390ec] text-sm">
         </div>
         <button onclick="savePrivacyData()" class="w-full bg-[#3390ec] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Сохранить изменения</button>
     `);
