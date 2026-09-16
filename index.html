@@ -56,12 +56,7 @@ input:checked + .slider-toggle:before { transform: translateX(16px); }
 <body class="bg-[#0b0e14]">
 
 <div id="appScaleWrapper" style="transform-origin: top center; transition: transform 0.2s; width: 100vw; height: 100vh; overflow: hidden;">
-    <div id="app" class="h-full w-full flex overflow-hidden">
-        <div class="w-full h-full flex flex-col items-center justify-center text-white fade-in">
-            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center text-2xl font-black mb-4 animate-pulse">67</div>
-            <p class="text-sm text-slate-400">Загрузка SixSeven...</p>
-        </div>
-    </div>
+    <div id="app" class="h-full w-full flex overflow-hidden"></div>
 </div>
 
 <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-white text-sm px-4 py-2.5 rounded-xl shadow-xl z-[999]"></div>
@@ -602,29 +597,32 @@ await database.ref('upgradePools/'+templateId).set(pool); toast('Pool saqlandi!'
 }
 
 // ===================== BOOTSTRAP =====================
-window.onload=async function(){
+window.onload=function(){
     let saved=localStorage.getItem('ss_currentUser');
     if(saved){
-        try {
-            let snap=await database.ref('users/'+saved).once('value');
+        db.currentUser = {username: saved};
+        enterApp();
+        database.ref('users/'+saved).once('value').then(snap => {
             if(snap.exists()){
                 let u = snap.val();
                 if(u.banned) {
-                    localStorage.removeItem('ss_currentUser');
+                    logout();
                     toast('Ваш аккаунт заблокирован');
-                    renderAuth();
-                    return;
+                } else {
+                    db.currentUser=u;
+                    if(u.scale) updateScaleVisuals(u.scale);
+                    render();
                 }
-                db.currentUser=u;
-                enterApp();
-                return;
+            } else {
+                logout();
             }
-        } catch(e) {
+        }).catch(e => {
             console.error(e);
-            toast('Ошибка подключения к базе');
-        }
+            toast('Ошибка сети. Работаем в оффлайне.');
+        });
+    } else {
+        renderAuth();
     }
-    renderAuth();
 };
 </script>
 </body>
