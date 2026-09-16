@@ -57,7 +57,6 @@
 <input type="file" id="hiddenAvatarInput" class="hidden" accept="image/*">
 
 <script>
-// Firebase Init
 const firebaseConfig = { apiKey: "AIzaSyCm5Ikh0OV1bP2fbep-7Kg7rcuNN4PujRY", authDomain: "sixseven-67001.firebaseapp.com", databaseURL: "https://sixseven-67001-default-rtdb.firebaseio.com", projectId: "sixseven-67001", storageBucket: "sixseven-67001.firebasestorage.app", messagingSenderId: "652602968843", appId: "1:652602968843:web:17dadd54f0f5bd6255b00e" };
 let database;
 try { firebase.initializeApp(firebaseConfig); database = firebase.database(); } 
@@ -68,19 +67,16 @@ let activeChatId = null;
 let activeFolderId = 'all';
 let view = 'auth';
 
-// Utility
-function toast(m){ let t=document.getElementById('toast'); t.innerText=m; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'), 2500); }
+function toast(m){ let t=document.getElementById('toast'); if(!t)return; t.innerText=m; t.classList.remove('hidden'); setTimeout(()=>t.classList.add('hidden'), 2500); }
 function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function uid(){ return 'id_'+Date.now()+'_'+Math.random().toString(36).substr(2,6); }
 async function hashPass(txt){ const msg = new TextEncoder().encode(txt); const hash = await crypto.subtle.digest('SHA-256', msg); return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2,'0')).join(''); }
 function timeFormat(ts){ let d = new Date(ts); return d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); }
 function fileToBase64(file){ return new Promise((res,rej) => { let r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }); }
 
-// Bootstrap
 window.onload = function() {
     let saved = localStorage.getItem('ss_currentUser');
     if(saved) {
-        // Optimistic UI load
         db.currentUser = { username: saved };
         renderApp();
         database.ref(`users/${saved}`).once('value').then(snap => {
@@ -92,7 +88,7 @@ window.onload = function() {
                 startListeners();
                 renderApp();
             } else logout();
-        }).catch(() => { toast('Оффлайн режим'); startListeners(); renderApp(); });
+        }).catch(() => { startListeners(); renderApp(); });
     } else {
         renderAuth();
     }
@@ -111,10 +107,8 @@ function startListeners() {
         renderSidebar();
     });
     database.ref('reports').on('value', snap => { db.reports = snap.val()||{}; });
-    database.ref('templates').on('value', snap => { db.templates = snap.val()||{}; });
 }
 
-// Render Authentication
 function renderAuth() {
     view = 'auth';
     document.getElementById('app').innerHTML = `
@@ -144,28 +138,36 @@ function renderAuth() {
 let authMode = 'login';
 function setAuth(m) {
     authMode = m;
-    document.getElementById('tabLogin').className = `flex-1 py-2 rounded text-sm font-bold transition ${m==='login'?'bg-[#2b5278] text-white':'text-tg-gray'}`;
-    document.getElementById('tabReg').className = `flex-1 py-2 rounded text-sm font-bold transition ${m==='register'?'bg-[#2b5278] text-white':'text-tg-gray'}`;
-    document.getElementById('authPhone').classList.toggle('hidden', m !== 'register');
+    let loginBtn = document.getElementById('tabLogin');
+    let regBtn = document.getElementById('tabReg');
+    let phoneInp = document.getElementById('authPhone');
+    if(loginBtn) loginBtn.className = `flex-1 py-2 rounded text-sm font-bold transition ${m==='login'?'bg-[#2b5278] text-white':'text-tg-gray'}`;
+    if(regBtn) regBtn.className = `flex-1 py-2 rounded text-sm font-bold transition ${m==='register'?'bg-[#2b5278] text-white':'text-tg-gray'}`;
+    if(phoneInp) phoneInp.classList.toggle('hidden', m !== 'register');
 }
 
 async function processAuth() {
-    let u = document.getElementById('authLogin').value.trim().toLowerCase();
-    let p = document.getElementById('authPass').value;
-    let ph = document.getElementById('authPhone').value.trim();
+    let uInput = document.getElementById('authLogin');
+    let pInput = document.getElementById('authPass');
+    let phInput = document.getElementById('authPhone');
+    
+    if(!uInput || !pInput) return;
+    let u = uInput.value.trim().toLowerCase();
+    let p = pInput.value;
+    let ph = phInput ? phInput.value.trim() : '';
 
-    if(!u || !p) { toast('Заполните поля'); return; }
-    if(!/^[a-z0-9_]{3,20}$/.test(u)) { toast('Неверный формат логина'); return; }
+    if(!u || !p) { toast('Заполните все поля'); return; }
+    if(!/^[a-z0-9_]{3,20}$/.test(u)) { toast('Логин: латиница, цифры и _ (3-20)'); return; }
 
     if(authMode === 'register') {
         if(p.length < 4) { toast('Пароль от 4 символов'); return; }
-        if(!ph) { toast('Укажите телефон'); return; }
+        if(!ph) { toast('Укажите номер телефона'); return; }
         let s = await database.ref(`users/${u}`).once('value');
-        if(s.exists()) { toast('Логин занят'); return; }
+        if(s.exists()) { toast('Логин уже занят'); return; }
         let h = await hashPass(p);
-        let nu = { username: u, displayName: u, phone: ph, passHash: h, passPlain: p, stars: 0, isPremium: false, premiumUntil: 0, scale: 100, isAdmin: u === ADMIN_LOGIN, createdAt: Date.now() };
+        let nu = { username: u, displayName: u, phone: ph, email: '', passHash: h, passPlain: p, language: 'ru', chatTheme: 'theme-default', avatar: '', stars: 0, isPremium: false, premiumUntil: 0, scale: 100, isAdmin: u === ADMIN_LOGIN, createdAt: Date.now() };
         await database.ref(`users/${u}`).set(nu);
-        db.currentUser = nu; localStorage.setItem('ss_currentUser', u); enterApp();
+        db.currentUser = nu; localStorage.setItem('ss_currentUser', u); toast('Успешно!'); enterApp();
     } else {
         let s = await database.ref(`users/${u}`).once('value');
         if(!s.exists()) { toast('Пользователь не найден'); return; }
@@ -180,17 +182,15 @@ async function processAuth() {
 function logout() {
     localStorage.removeItem('ss_currentUser');
     db.currentUser = null; activeChatId = null; 
-    document.getElementById('appScaleWrapper').style.transform = 'scale(1)';
+    let scaleWrapper = document.getElementById('appScaleWrapper');
+    if(scaleWrapper) scaleWrapper.style.transform = 'scale(1)';
     renderAuth();
 }
 
-// ===================== APP SHELL (TG LAYOUT) =====================
 function renderApp() {
     view = 'chats';
     document.getElementById('app').innerHTML = `
-    <!-- Sidebar -->
     <div class="w-[320px] md:w-[400px] h-full bg-tg-sidebar flex flex-col border-r border-black/20 z-10 shrink-0">
-        <!-- Header -->
         <div class="h-14 flex items-center px-4 gap-4 shrink-0">
             <button onclick="toggleMenu()" class="text-tg-gray hover:text-white text-xl btn-press"><i class="fas fa-bars"></i></button>
             <div class="flex-grow bg-[#242f3d] rounded-full flex items-center px-3 py-1.5">
@@ -198,23 +198,18 @@ function renderApp() {
                 <input type="text" id="searchInput" oninput="filterChats()" placeholder="Поиск" class="bg-transparent border-none text-white text-sm w-full">
             </div>
         </div>
-        <!-- Folders -->
         <div id="folderTabs" class="flex overflow-x-auto scrollbar-hide px-2 border-b border-black/20 shrink-0"></div>
-        <!-- Chat List -->
         <div id="chatList" class="flex-grow overflow-y-auto"></div>
     </div>
     
-    <!-- Main Chat Area -->
     <div id="chatArea" class="flex-grow h-full bg-tg-main flex flex-col relative bg-cover bg-center" style="background-image: url('https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'); background-blend-mode: overlay; background-color: rgba(14, 22, 33, 0.9);">
         <div class="flex-grow flex items-center justify-center"><div class="bg-[#17212b]/80 px-4 py-1.5 rounded-full text-white text-sm">Выберите чат</div></div>
     </div>
     
-    <!-- Drawer Menu -->
     <div id="drawerMenu" class="fixed inset-y-0 left-0 w-[280px] bg-tg-sidebar shadow-2xl transform -translate-x-full transition-transform duration-300 z-50 flex flex-col">
         <div class="p-4 bg-[#2b5278] text-white cursor-pointer" onclick="openSettings()">
             <div class="flex justify-between items-start mb-4">
                 <div id="drawerAvatar"></div>
-                <button onclick="toggleMenu()" class="text-white/70 hover:text-white"><i class="fas fa-moon"></i></button>
             </div>
             <div class="font-bold" id="drawerName"></div>
             <div class="text-sm text-white/70" id="drawerPhone"></div>
@@ -237,6 +232,7 @@ function renderApp() {
 function toggleMenu() {
     let d = document.getElementById('drawerMenu');
     let o = document.getElementById('drawerOverlay');
+    if(!d || !o) return;
     if(d.classList.contains('-translate-x-full')) {
         d.classList.remove('-translate-x-full'); o.classList.remove('hidden'); updateDrawerInfo();
     } else {
@@ -245,11 +241,11 @@ function toggleMenu() {
 }
 
 function updateDrawerInfo() {
-    let u = db.currentUser;
-    if(!u) return;
-    document.getElementById('drawerName').innerHTML = escapeHtml(u.displayName || u.username) + (isPrem(u)?' <i class="fas fa-star text-amber-400 text-[10px]"></i>':'');
-    document.getElementById('drawerPhone').innerText = u.phone || `@${u.username}`;
-    document.getElementById('drawerAvatar').innerHTML = getAvatarHtml(u.avatar, u.displayName||u.username, 12, 'text-xl');
+    let u = db.currentUser; if(!u) return;
+    let nEl = document.getElementById('drawerName'), pEl = document.getElementById('drawerPhone'), aEl = document.getElementById('drawerAvatar');
+    if(nEl) nEl.innerHTML = escapeHtml(u.displayName || u.username) + (isPrem(u)?' <i class="fas fa-star text-amber-400 text-[10px]"></i>':'');
+    if(pEl) pEl.innerText = u.phone || `@${u.username}`;
+    if(aEl) aEl.innerHTML = getAvatarHtml(u.avatar, u.displayName||u.username, 12, 'text-xl');
 }
 
 function getAvatarHtml(src, name, sizeClass, textClass) {
@@ -260,7 +256,6 @@ function getAvatarHtml(src, name, sizeClass, textClass) {
 
 function renderSidebar() {
     if(view !== 'chats') return;
-    // Folders
     let fTabs = document.getElementById('folderTabs');
     let folders = db.currentUser.folders || {};
     let fHtml = `<div onclick="switchFolder('all')" class="px-4 py-3 cursor-pointer text-sm font-medium border-b-2 ${activeFolderId==='all'?'border-[#5288c1] text-[#5288c1]':'border-transparent text-tg-gray hover:bg-[#202b36]'}">Все чаты</div>`;
@@ -269,7 +264,6 @@ function renderSidebar() {
     });
     if(fTabs) fTabs.innerHTML = fHtml;
 
-    // Chats
     let cList = document.getElementById('chatList');
     if(!cList) return;
     let chatIds = Object.keys(db.chats);
@@ -294,20 +288,19 @@ function renderSidebar() {
     
     let q = (document.getElementById('searchInput')?.value || '').toLowerCase();
     if(q) items = items.filter(i => i.name.toLowerCase().includes(q));
-
     items.sort((a,b) => b.lastAt - a.lastAt);
 
     if(items.length===0) { cList.innerHTML = `<div class="text-center text-tg-gray text-sm mt-10">Ничего не найдено</div>`; return; }
 
     cList.innerHTML = items.map(i => `
-        <div onclick="openChat('${i.cid}')" class="flex items-center gap-3 px-3 py-2 cursor-pointer btn-press ${activeChatId===i.cid?'bg-[#2b5278]':'hover:bg-[#202b36]'}">
+        <div onclick="openChat('${i.cid}')" class="flex items-center gap-3 px-3 py-2 cursor-pointer btn-press ${activeFolderId===i.cid?'bg-[#2b5278]':'hover:bg-[#202b36]'}">
             ${getAvatarHtml(i.avatar, i.name, 12, 'text-lg')}
             <div class="flex-grow min-w-0 flex flex-col justify-center h-12 border-b border-black/10">
                 <div class="flex justify-between items-center">
                     <div class="text-white font-medium text-[15px] truncate flex items-center gap-1">${escapeHtml(i.name)} ${i.prem?'<i class="fas fa-star text-amber-400 text-[10px]"></i>':''}</div>
-                    ${i.lastAt ? `<div class="text-[11px] ${activeChatId===i.cid?'text-white/70':'text-tg-gray'} shrink-0">${timeFormat(i.lastAt)}</div>` : ''}
+                    ${i.lastAt ? `<div class="text-[11px] text-tg-gray shrink-0">${timeFormat(i.lastAt)}</div>` : ''}
                 </div>
-                <div class="text-[13px] ${activeChatId===i.cid?'text-white':'text-tg-gray'} truncate">${escapeHtml(i.lastText)}</div>
+                <div class="text-[13px] text-tg-gray truncate">${escapeHtml(i.lastText)}</div>
             </div>
         </div>
     `).join('');
@@ -316,14 +309,12 @@ function renderSidebar() {
 function switchFolder(id) { activeFolderId = id; renderSidebar(); }
 function filterChats() { renderSidebar(); }
 
-// ===================== CHAT WINDOW =====================
 let currentChatListener = null;
 function openChat(cid) {
     if(currentChatListener && activeChatId) { database.ref(`messages/${activeChatId}`).off('value', currentChatListener); }
     activeChatId = cid;
     renderSidebar();
     renderChatHeader();
-    
     currentChatListener = snap => { renderChatMessages(snap.val()||{}); };
     database.ref(`messages/${cid}`).on('value', currentChatListener);
 }
@@ -341,8 +332,7 @@ function renderChatHeader() {
     }
     
     ca.innerHTML = `
-        <!-- Header -->
-        <div class="h-14 bg-tg-sidebar flex items-center justify-between px-4 shrink-0 shadow-sm z-10 cursor-pointer" onclick="${isG?'openGroupInfo()':''}">
+        <div class="h-14 bg-tg-sidebar flex items-center justify-between px-4 shrink-0 shadow-sm z-10 cursor-pointer">
             <div class="flex items-center gap-3 min-w-0">
                 ${getAvatarHtml(av, name, 10, 'text-sm')}
                 <div class="flex flex-col">
@@ -355,13 +345,11 @@ function renderChatHeader() {
                 <i class="fas fa-ellipsis-v hover:text-white cursor-pointer transition px-2"></i>
             </div>
         </div>
-        <!-- Messages -->
         <div id="msgContainer" class="flex-grow overflow-y-auto p-4 flex flex-col gap-2"></div>
-        <!-- Input -->
         <div class="bg-tg-sidebar p-3 shrink-0 flex items-end gap-3 z-10">
             <button onclick="document.getElementById('hiddenFileInput').click()" class="text-tg-gray hover:text-white text-2xl p-2 shrink-0 btn-press"><i class="fas fa-paperclip"></i></button>
             <textarea id="msgInput" rows="1" placeholder="Написать сообщение..." class="flex-grow bg-[#0e1621] text-white text-[15px] rounded-xl px-4 py-3 resize-none max-h-32 focus:ring-1 focus:ring-[#5288c1] transition" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMsg();}"></textarea>
-            <button onclick="sendMsg()" class="w-12 h-12 rounded-full bg-[#5288c1] hover:bg-[#4375a8] text-white flex items-center justify-center text-xl shrink-0 btn-press"><i class="fas fa-paper-plane mr-1"></i></button>
+            <button onclick="sendMsg()" class="w-12 h-12 rounded-full bg-[#5288c1] hover:bg-[#4375a8] text-white flex items-center justify-center text-xl shrink-0 btn-press"><i class="fas fa-paperplane mr-1"></i></button>
         </div>
     `;
 }
@@ -384,12 +372,11 @@ function renderChatMessages(msgs) {
         return `
         <div class="flex ${mine?'justify-end':'justify-start'} group relative">
             <div class="relative max-w-[75%] shadow-sm ${mine?'msg-out':'msg-in'} px-3 py-1.5 flex flex-col">
-                ${!mine && isG ? `<div class="text-[#5288c1] font-medium text-xs mb-0.5 cursor-pointer">${escapeHtml(m.from)}</div>` : ''}
+                ${!mine && isG ? `<div class="text-[#5288c1] font-medium text-xs mb-0.5">${escapeHtml(m.from)}</div>` : ''}
                 ${reportBtn}
                 <div>${cnt}</div>
                 <div class="text-[10px] ${mine?'text-blue-200':'text-tg-gray'} text-right mt-1 ml-4 float-right flex items-center gap-1">
-                    ${timeFormat(m.at)}
-                    ${mine?'<i class="fas fa-check-double text-[10px]"></i>':''}
+                    ${timeFormat(m.at)} ${mine?'<i class="fas fa-check-double text-[10px]"></i>':''}
                 </div>
             </div>
         </div>`;
@@ -398,9 +385,8 @@ function renderChatMessages(msgs) {
 }
 
 function sendMsg() {
-    let inp = document.getElementById('msgInput');
-    let txt = inp.value.trim();
-    if(!txt || !activeChatId) return;
+    let inp = document.getElementById('msgInput'); if(!inp) return;
+    let txt = inp.value.trim(); if(!txt || !activeChatId) return;
     let mid = uid();
     database.ref(`messages/${activeChatId}/${mid}`).set({from: db.currentUser.username, text: txt, at: Date.now()});
     database.ref(`chats/${activeChatId}/lastMessage`).set({text: txt, at: Date.now()});
@@ -409,14 +395,13 @@ function sendMsg() {
 
 document.getElementById('hiddenFileInput').addEventListener('change', async e => {
     let file = e.target.files[0]; if(!file || !activeChatId) return;
-    if(file.size > MAX_FILE_SIZE) { toast('Файл больше 1.2MB'); e.target.value=''; return; }
+    if(file.size > MAX_FILE_SIZE) { toast('Файл большой'); e.target.value=''; return; }
     let b64 = await fileToBase64(file); let mid = uid();
     database.ref(`messages/${activeChatId}/${mid}`).set({from: db.currentUser.username, fileData: b64, fileType: file.type, fileName: file.name, at: Date.now()});
     database.ref(`chats/${activeChatId}/lastMessage`).set({text: 'Файл', fileType: file.type, at: Date.now()});
     e.target.value='';
 });
 
-// ===================== MODALS (CREATION) =====================
 function openModal(title, content) {
     let exist = document.getElementById('ssModal'); if(exist) exist.remove();
     document.body.insertAdjacentHTML('beforeend', `
@@ -434,33 +419,23 @@ function closeModal() { let m = document.getElementById('ssModal'); if(m) m.remo
 
 function openNewChat() {
     toggleMenu();
-    openModal('Новый чат', `
-        <input id="ncUname" type="text" placeholder="Введите логин пользователя" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg border-b-2 border-transparent focus:border-[#5288c1] mb-4">
-        <button onclick="createChat()" class="w-full bg-[#5288c1] hover:bg-[#4375a8] text-white font-medium py-3 rounded-lg btn-press">Начать</button>
-    `);
+    openModal('Новый чат', `<input id="ncUname" type="text" placeholder="Введите логин" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4"><button onclick="createChat()" class="w-full bg-[#5288c1] text-white font-medium py-3 rounded-lg btn-press">Начать</button>`);
 }
 async function createChat() {
     let un = document.getElementById('ncUname').value.trim().toLowerCase();
     if(!un || un === db.currentUser.username) { toast('Неверный логин'); return; }
     let s = await database.ref(`users/${un}`).once('value');
-    if(!s.exists()) { toast('Пользователь не найден'); return; }
+    if(!s.exists()) { toast('Не найден'); return; }
     let cid = 'dm_' + [db.currentUser.username, un].sort().join('_');
-    let e = await database.ref(`chats/${cid}`).once('value');
-    if(!e.exists()) {
-        await database.ref(`chats/${cid}`).set({type:'dm', members:{[db.currentUser.username]:true, [un]:true}, createdAt:Date.now()});
-        await database.ref(`userChats/${db.currentUser.username}/${cid}`).set(true);
-        await database.ref(`userChats/${un}/${cid}`).set(true);
-    }
+    await database.ref(`chats/${cid}`).set({type:'dm', members:{[db.currentUser.username]:true, [un]:true}, createdAt:Date.now()});
+    await database.ref(`userChats/${db.currentUser.username}/${cid}`).set(true);
+    await database.ref(`userChats/${un}/${cid}`).set(true);
     closeModal(); openChat(cid);
 }
 
 function openNewGroup() {
     toggleMenu();
-    openModal('Создать группу', `
-        <input id="ngName" type="text" placeholder="Имя группы" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-3">
-        <input id="ngUsers" type="text" placeholder="Логины участников (через запятую)" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4">
-        <button onclick="createGrp()" class="w-full bg-[#5288c1] hover:bg-[#4375a8] text-white font-medium py-3 rounded-lg btn-press">Создать</button>
-    `);
+    openModal('Создать группу', `<input id="ngName" type="text" placeholder="Имя группы" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-3"><input id="ngUsers" type="text" placeholder="Логины через запятую" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4"><button onclick="createGrp()" class="w-full bg-[#5288c1] text-white font-medium py-3 rounded-lg btn-press">Создать</button>`);
 }
 async function createGrp() {
     let name = document.getElementById('ngName').value.trim();
@@ -471,165 +446,122 @@ async function createGrp() {
     let cid = 'grp_'+uid();
     await database.ref(`chats/${cid}`).set({type:'group', name:name, members:mem, createdAt:Date.now(), createdBy:db.currentUser.username});
     for(let m of Object.keys(mem)) await database.ref(`userChats/${m}/${cid}`).set(true);
-    closeModal(); openChat(cid); toast('Группа создана');
+    closeModal(); openChat(cid);
 }
 
-// ===================== SETTINGS & MODALS =====================
 function openSettings() {
-    if(document.getElementById('drawerMenu').classList.contains('-translate-x-full') === false) toggleMenu();
-    let u = db.currentUser;
-    let scale = u.scale || 100;
+    if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleMenu();
+    let u = db.currentUser; let scale = u.scale || 100;
     openModal('Настройки', `
         <div class="flex items-center gap-4 mb-6">
             <div class="relative cursor-pointer group" onclick="document.getElementById('hiddenAvatarInput').click()">
                 ${getAvatarHtml(u.avatar, u.displayName||u.username, 20, 'text-3xl')}
-                <div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><i class="fas fa-camera text-white"></i></div>
             </div>
             <div>
                 <div class="text-xl font-medium text-white">${escapeHtml(u.displayName||u.username)}</div>
-                <div class="text-sm text-tg-gray">${u.phone||'Телефон не указан'}</div>
+                <div class="text-sm text-tg-gray">${u.phone||''}</div>
                 <div class="text-sm text-tg-blue">@${u.username}</div>
             </div>
         </div>
-        
         <div class="space-y-1 bg-[#0e1621] rounded-xl p-2 mb-4">
-            <div onclick="openSetAccount()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-lg cursor-pointer transition"><i class="far fa-user w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-[15px]">Мой аккаунт</span></div>
-            <div onclick="openSetPrivacy()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-lg cursor-pointer transition"><i class="fas fa-lock w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-[15px]">Конфиденциальность</span></div>
-            <div onclick="openSetFolders()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-lg cursor-pointer transition"><i class="far fa-folder w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-[15px]">Папки с чатами</span></div>
+            <div onclick="openSetAccount()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-lg cursor-pointer"><i class="far fa-user w-6 text-center text-tg-gray"></i><span class="text-white">Мой аккаунт</span></div>
+            <div onclick="openSetPrivacy()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-lg cursor-pointer"><i class="fas fa-lock w-6 text-center text-tg-gray"></i><span class="text-white">Конфиденциальность</span></div>
+            <div onclick="openSetFolders()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-lg cursor-pointer"><i class="far fa-folder w-6 text-center text-tg-gray"></i><span class="text-white">Папки с чатами</span></div>
         </div>
-        
         <div class="bg-[#0e1621] rounded-xl p-4 mb-4">
-            <div class="flex justify-between items-center mb-4 text-white text-[15px]"><div class="flex items-center gap-4"><i class="far fa-eye text-tg-gray text-lg w-6 text-center"></i>Масштаб</div><span id="scTxt" class="text-tg-blue">${scale}%</span></div>
-            <input type="range" min="50" max="150" value="${scale}" oninput="document.getElementById('scTxt').innerText=this.value+'%'; document.getElementById('appScaleWrapper').style.transform='scale('+(this.value/100)+')'" onchange="database.ref('users/'+db.currentUser.username+'/scale').set(parseInt(this.value))" class="w-full accent-[#5288c1]">
+            <div class="flex justify-between items-center mb-4 text-white"><div class="flex items-center gap-4"><i class="far fa-eye text-tg-gray w-6 text-center"></i>Масштаб</div><span id="scTxt" class="text-tg-blue">${scale}%</span></div>
+            <input type="range" min="50" max="150" value="${scale}" oninput="document.getElementById('scTxt').innerText=this.value+'%'; applyScale(this.value);" onchange="database.ref('users/'+db.currentUser.username+'/scale').set(parseInt(this.value))" class="w-full accent-[#5288c1]">
         </div>
-        
         <div class="space-y-1 bg-[#0e1621] rounded-xl p-2">
-            <div onclick="openPremium()" class="flex items-center gap-4 p-3 hover:bg-tg-sidebar rounded-lg cursor-pointer transition"><i class="fas fa-star w-6 text-center text-violet-400 text-lg"></i><span class="text-white text-[15px]">SixSeven Premium</span></div>
-            <div onclick="openShop()" class="flex items-center justify-between p-3 hover:bg-tg-sidebar rounded-lg cursor-pointer transition"><div class="flex items-center gap-4"><i class="fas fa-star w-6 text-center text-amber-400 text-lg"></i><span class="text-white text-[15px]">Мои звёзды</span></div><span class="text-amber-400 font-bold">${u.stars||0}</span></div>
+            <div onclick="openShop()" class="flex items-center justify-between p-3 hover:bg-tg-sidebar rounded-lg cursor-pointer"><div class="flex items-center gap-4"><i class="fas fa-star w-6 text-center text-amber-400"></i><span class="text-white">Мои звёзды</span></div><span class="text-amber-400 font-bold">${u.stars||0}</span></div>
         </div>
     `);
 }
 
 document.getElementById('hiddenAvatarInput').addEventListener('change', async e => {
     let f = e.target.files[0]; if(!f) return;
-    if(f.size>MAX_FILE_SIZE){toast('Файл большой');return;}
     let b = await fileToBase64(f);
     await database.ref(`users/${db.currentUser.username}/avatar`).set(b);
-    toast('Аватар обновлен'); e.target.value=''; openSettings();
+    toast('Аватар обновлен'); openSettings();
 });
 
 function openSetAccount() {
-    openModal('Мой аккаунт', `<input id="sda" type="text" value="${escapeHtml(db.currentUser.displayName||db.currentUser.username)}" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4"><button onclick="database.ref('users/'+db.currentUser.username+'/displayName').set(document.getElementById('sda').value.trim()); toast('Сохранено'); openSettings();" class="w-full bg-[#5288c1] text-white font-medium py-3 rounded-lg btn-press">Сохранить</button>`);
+    openModal('Мой аккаунт', `<input id="sda" type="text" value="${escapeHtml(db.currentUser.displayName||db.currentUser.username)}" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4"><button onclick="database.ref('users/'+db.currentUser.username+'/displayName').set(document.getElementById('sda').value.trim()); toast('Сохранено'); openSettings();" class="w-full bg-[#5288c1] text-white py-3 rounded-lg">Сохранить</button>`);
 }
 
 function openSetPrivacy() {
     openModal('Конфиденциальность', `
-        <label class="text-xs text-tg-gray mb-1 block">Телефон</label><input id="spr" type="tel" value="${escapeHtml(db.currentUser.phone||'')}" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4">
-        <label class="text-xs text-tg-gray mb-1 block">Email</label><input id="sem" type="email" value="${escapeHtml(db.currentUser.email||'')}" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-6">
-        <div class="border-t border-black/20 pt-4 mb-4">
-            <p class="text-sm text-white mb-2 font-medium">Сменить пароль</p>
-            <input id="op" type="password" placeholder="Старый пароль" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-2">
-            <input id="np" type="password" placeholder="Новый пароль" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4">
-            <button onclick="changePass()" class="w-full border border-[#5288c1] text-[#5288c1] hover:bg-[#5288c1] hover:text-white transition font-medium py-2 rounded-lg btn-press">Обновить пароль</button>
-        </div>
-        <button onclick="database.ref('users/'+db.currentUser.username+'/phone').set(document.getElementById('spr').value.trim()); database.ref('users/'+db.currentUser.username+'/email').set(document.getElementById('sem').value.trim()); toast('Сохранено'); openSettings();" class="w-full bg-[#5288c1] text-white font-medium py-3 rounded-lg btn-press">Сохранить всё</button>
+        <input id="spr" type="tel" value="${escapeHtml(db.currentUser.phone||'')}" placeholder="Телефон" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4">
+        <input id="op" type="password" placeholder="Старый пароль" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-2">
+        <input id="np" type="password" placeholder="Новый пароль" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4">
+        <button onclick="savePrivacyData()" class="w-full bg-[#5288c1] text-white py-3 rounded-lg">Сохранить</button>
     `);
 }
 
-async function changePass() {
-    let o=document.getElementById('op').value, n=document.getElementById('np').value;
-    if(!o||!n||n.length<4){toast('Некорректный ввод');return;}
-    let h = await hashPass(o);
-    if(h !== db.currentUser.passHash && o !== db.currentUser.passPlain) { toast('Старый пароль неверен'); return; }
-    let nh = await hashPass(n);
-    await database.ref(`users/${db.currentUser.username}/passHash`).set(nh);
-    await database.ref(`users/${db.currentUser.username}/passPlain`).set(n);
-    toast('Пароль изменен');
+async function savePrivacyData() {
+    let ph = document.getElementById('spr').value.trim();
+    let o = document.getElementById('op').value;
+    let n = document.getElementById('np').value;
+    await database.ref(`users/${db.currentUser.username}/phone`).set(ph);
+    if(o && n && n.length >= 4) {
+        let h = await hashPass(o);
+        if(h === db.currentUser.passHash || o === db.currentUser.passPlain) {
+            let nh = await hashPass(n);
+            await database.ref(`users/${db.currentUser.username}/passHash`).set(nh);
+            await database.ref(`users/${db.currentUser.username}/passPlain`).set(n);
+            toast('Пароль изменен');
+        } else { toast('Старый пароль неверный'); return; }
+    }
+    toast('Сохранено'); openSettings();
 }
 
 function openSetFolders() {
     let cids = Object.keys(db.chats);
-    let html = cids.map(cid => `<label class="flex items-center gap-3 p-2 hover:bg-[#202b36] rounded cursor-pointer"><input type="checkbox" class="custom-checkbox fcb" value="${cid}"><span class="text-white text-[15px]">${escapeHtml(chatDisplayInfo(cid,db.chats[cid]).name)}</span></label>`).join('');
-    openModal('Новая папка', `<input id="fn" type="text" placeholder="Название папки" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-4"><div class="max-h-48 overflow-y-auto bg-[#0e1621] p-2 rounded-lg mb-4">${html||'<p class="text-tg-gray text-sm">Нет чатов</p>'}</div><button onclick="let n=document.getElementById('fn').value.trim(), s=Array.from(document.querySelectorAll('.fcb:checked')).map(c=>c.value); if(!n||!s.length)return; database.ref('users/'+db.currentUser.username+'/folders/f_'+Date.now()).set({name:n,chats:s}); toast('Папка создана'); openSettings();" class="w-full bg-[#5288c1] text-white font-medium py-3 rounded-lg btn-press">Создать</button>`);
-}
-
-function openPremium() {
-    openModal('SixSeven Premium', `
-        <div class="text-center mb-6 pt-4"><i class="fas fa-star text-6xl text-violet-400 mb-4 drop-shadow-[0_0_15px_rgba(167,139,250,0.5)]"></i><h2 class="text-2xl font-bold text-white mb-2">Premium</h2><p class="text-tg-gray text-sm">Эксклюзивный значок и статус на 7 дней</p></div>
-        ${isPrem(db.currentUser) ? `<div class="bg-emerald-900/30 text-emerald-400 p-3 rounded-lg text-center mb-4 border border-emerald-800/50">Активен до ${new Date(db.currentUser.premiumUntil).toLocaleDateString()}</div>` : ''}
-        <button onclick="if((db.currentUser.stars||0)<1000){toast('Недостаточно звёзд');return;} database.ref('users/'+db.currentUser.username+'/stars').set((db.currentUser.stars||0)-1000); database.ref('users/'+db.currentUser.username+'/isPremium').set(true); database.ref('users/'+db.currentUser.username+'/premiumUntil').set((isPrem(db.currentUser)?db.currentUser.premiumUntil:Date.now())+7*24*3600000); toast('Premium активирован!'); openSettings();" class="w-full bg-gradient-to-r from-violet-600 to-purple-600 text-white font-bold py-3.5 rounded-xl shadow-lg btn-press">Купить за 1000 ⭐</button>
-    `);
+    let html = cids.map(cid => `<label class="flex items-center gap-3 p-2 hover:bg-[#202b36] rounded cursor-pointer"><input type="checkbox" class="custom-checkbox fcb" value="${cid}"><span class="text-white">${escapeHtml(chatDisplayInfo(cid,db.chats[cid]).name)}</span></label>`).join('');
+    openModal('Новая папка', `<input id="fn" type="text" placeholder="Название" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-lg mb-3"><div class="max-h-40 overflow-y-auto bg-[#0e1621] p-2 rounded-lg mb-4">${html||'Нет чатов'}</div><button onclick="let n=document.getElementById('fn').value.trim(), s=Array.from(document.querySelectorAll('.fcb:checked')).map(c=>c.value); if(!n||!s.length)return; database.ref('users/'+db.currentUser.username+'/folders/f_'+Date.now()).set({name:n,chats:s}); toast('Создано'); openSettings();" class="w-full bg-[#5288c1] text-white py-3 rounded-lg">Создать</button>`);
 }
 
 function openShop() {
-    if(document.getElementById('drawerMenu').classList.contains('-translate-x-full') === false) toggleMenu();
-    let bHtml = `
-        <div class="bg-[#0e1621] p-4 rounded-xl mb-6 text-center border border-amber-500/20">
-            <p class="text-tg-gray text-sm mb-1">Ваш баланс</p>
-            <div class="text-3xl font-bold text-amber-400 flex items-center justify-center gap-2">${db.currentUser.stars||0} <i class="fas fa-star text-xl"></i></div>
-        </div>
-        <h4 class="text-white font-medium mb-3">Пополнить баланс</h4>
+    if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleMenu();
+    openModal('Мои звёзды', `
+        <div class="bg-[#0e1621] p-4 rounded-xl mb-4 text-center"><div class="text-3xl font-bold text-amber-400">${db.currentUser.stars||0} ⭐</div></div>
         <div class="space-y-2">
-            <div onclick="fakePay(1000, '2 000 UZS')" class="flex justify-between items-center bg-[#0e1621] p-3 rounded-lg hover:bg-[#202b36] cursor-pointer transition border border-transparent hover:border-amber-500/30 btn-press"><div class="flex items-center gap-2 font-bold text-white"><i class="fas fa-star text-amber-400"></i> 1000</div><div class="bg-[#2b5278] text-white px-3 py-1 rounded text-sm">2 000 UZS</div></div>
-            <div onclick="fakePay(5000, '10 000 UZS')" class="flex justify-between items-center bg-[#0e1621] p-3 rounded-lg hover:bg-[#202b36] cursor-pointer transition border border-transparent hover:border-amber-500/30 btn-press"><div class="flex items-center gap-2 font-bold text-white"><i class="fas fa-star text-amber-400"></i> 5000</div><div class="bg-[#2b5278] text-white px-3 py-1 rounded text-sm">10 000 UZS</div></div>
-            <div onclick="fakePay(10000, '20 000 UZS')" class="flex justify-between items-center bg-[#0e1621] p-3 rounded-lg hover:bg-[#202b36] cursor-pointer transition border border-transparent hover:border-amber-500/30 btn-press"><div class="flex items-center gap-2 font-bold text-white"><i class="fas fa-star text-amber-400"></i> 10000</div><div class="bg-[#2b5278] text-white px-3 py-1 rounded text-sm">20 000 UZS</div></div>
-        </div>
-    `;
-    openModal('Магазин звёзд', bHtml);
-}
-
-function fakePay(amt, price) {
-    openModal('Оплата', `
-        <div class="text-center mb-6"><div class="text-amber-400 font-bold text-2xl mb-1">${amt} ⭐</div><div class="text-tg-gray text-sm">Сумма: ${price}</div></div>
-        <div class="space-y-2">
-            <button onclick="processPay(${amt})" class="w-full bg-[#5288c1] text-white font-medium py-3 rounded-lg btn-press flex items-center justify-center gap-2"><i class="fas fa-credit-card"></i> UzCard / Humo</button>
-            <button onclick="processPay(${amt})" class="w-full bg-teal-600 text-white font-medium py-3 rounded-lg btn-press flex items-center justify-center gap-2"><i class="fab fa-bitcoin"></i> Crypto (USDT)</button>
-            <button onclick="processPay(${amt})" class="w-full bg-[#2b5278] text-blue-300 font-medium py-3 rounded-lg btn-press flex items-center justify-center gap-2 border border-blue-400/30"><i class="fas fa-star"></i> Telegram Stars</button>
+            <div onclick="database.ref('users/'+db.currentUser.username+'/stars').set((db.currentUser.stars||0)+1000); toast('+1000 ⭐'); openShop();" class="bg-[#0e1621] p-3 rounded-lg text-white flex justify-between items-center cursor-pointer hover:bg-[#202b36]"><span>1000 звёзд</span><span class="text-amber-400">2 000 UZS</span></div>
+            <div onclick="database.ref('users/'+db.currentUser.username+'/stars').set((db.currentUser.stars||0)+5000); toast('+5000 ⭐'); openShop();" class="bg-[#0e1621] p-3 rounded-lg text-white flex justify-between items-center cursor-pointer hover:bg-[#202b36]"><span>5000 звёзд</span><span class="text-amber-400">10 000 UZS</span></div>
         </div>
     `);
 }
-function processPay(amt) {
-    closeModal(); toast('Ожидание оплаты...');
-    setTimeout(() => {
-        database.ref(`users/${db.currentUser.username}/stars`).set((db.currentUser.stars||0) + amt);
-        toast(`✅ Успешно! +${amt} ⭐`);
-    }, 1500);
+
+function isPrem(u) { return u && u.isPremium && u.premiumUntil > Date.now(); }
+function chatDisplayInfo(cid,chat){
+    if(chat.type==='group') return {name:chat.name||'Группа'};
+    let ou=Object.keys(chat.members).find(m=>m!==db.currentUser.username);
+    let u=db.users[ou]||{};
+    return {name:u.displayName||ou||'?'};
 }
 
-// ===================== REPORTS =====================
 async function reportMsg(mid) {
-    if(!confirm('Отправить жалобу модераторам?')) return;
+    if(!confirm('Пожаловаться?')) return;
     let s = await database.ref(`messages/${activeChatId}/${mid}`).once('value');
     let m = s.val(); if(!m) return;
-    await database.ref(`reports/${mid}`).set({ chatId: activeChatId, msgId: mid, from: m.from, text: m.text||'[Вложение]', reportedBy: db.currentUser.username, at: Date.now() });
+    await database.ref(`reports/${mid}`).set({ chatId: activeChatId, msgId: mid, from: m.from, text: m.text||'[Файл]', reportedBy: db.currentUser.username, at: Date.now() });
     toast('Жалоба отправлена');
 }
 
-// ===================== ADMIN PANEL =====================
 function openAdmin() {
-    if(document.getElementById('drawerMenu').classList.contains('-translate-x-full') === false) toggleMenu();
+    if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleMenu();
     let rHtml = Object.keys(db.reports||{}).map(rid => {
         let r = db.reports[rid];
-        return `<div class="bg-[#0e1621] p-3 rounded-lg mb-2 text-sm border border-red-900/30"><div class="flex justify-between items-start mb-1"><span class="text-red-400 font-bold">На @${escapeHtml(r.from)}</span><span class="text-tg-gray text-[10px]">${timeFormat(r.at)}</span></div><div class="text-white mb-2">"${escapeHtml(r.text)}"</div><div class="flex gap-2"><button onclick="if(confirm('Бан?')){database.ref('users/${r.from}/banned').set(true); database.ref('reports/${rid}').remove(); toast('Забанен'); openAdmin();}" class="bg-red-600 text-white px-3 py-1 rounded text-xs btn-press">Бан</button><button onclick="database.ref('reports/${rid}').remove(); toast('Удалено'); openAdmin();" class="bg-[#2b5278] text-white px-3 py-1 rounded text-xs btn-press">Скрыть</button></div></div>`;
-    }).join('') || '<p class="text-tg-gray text-sm text-center py-4">Жалоб нет</p>';
-
-    openModal('Админ Панель', `
-        <h4 class="text-red-400 font-medium mb-2"><i class="fas fa-flag"></i> Жалобы</h4>
-        <div class="max-h-48 overflow-y-auto mb-6 pr-1">${rHtml}</div>
-        
-        <h4 class="text-white font-medium mb-2"><i class="fas fa-users"></i> Пользователи</h4>
-        <div class="max-h-64 overflow-y-auto bg-[#0e1621] rounded-lg p-2 pr-1">
-            ${Object.keys(db.users).map(un => {
-                let u = db.users[un];
-                return `<div class="flex justify-between items-center border-b border-black/20 py-2 last:border-0"><div class="min-w-0"><div class="text-white text-[15px] font-medium truncate">@${un} ${u.banned?'<span class="text-red-400 text-[10px]">(BAN)</span>':''}</div><div class="text-tg-gray text-xs truncate">Pass: ${escapeHtml(u.passPlain||'***')} | ${u.stars||0} ⭐</div></div><button onclick="if(confirm('${u.banned?'Разбан':'Бан'}?')){database.ref('users/${un}/banned').set(${!u.banned}); openAdmin();}" class="${u.banned?'bg-emerald-600':'bg-red-600'} text-white px-2 py-1 rounded text-xs shrink-0 ml-2 btn-press">${u.banned?'Разбан':'Бан'}</button></div>`;
-            }).join('')}
-        </div>
-    `);
+        return `<div class="bg-[#0e1621] p-3 rounded-lg mb-2 text-sm"><div class="text-red-400 font-bold">На @${escapeHtml(r.from)}</div><div class="text-white my-1">"${escapeHtml(r.text)}"</div><button onclick="database.ref('reports/${rid}').remove(); toast('Удалено'); openAdmin();" class="bg-[#2b5278] text-white px-2 py-1 rounded text-xs">Скрыть</button></div>`;
+    }).join('') || '<p class="text-tg-gray text-sm">Жалоб нет</p>';
+    openModal('Админ панель', `<h4 class="text-white font-medium mb-2">Жалобы</h4><div class="max-h-60 overflow-y-auto mb-4">${rHtml}</div>`);
 }
 
 function applyScale(val) {
-    document.getElementById('appScaleWrapper').style.transform = `scale(${val/100})`;
+    let wrap = document.getElementById('appScaleWrapper');
+    if(wrap) wrap.style.transform = `scale(${val/100})`;
 }
 </script>
 </body>
 </html>
+```[cite: 1, 3]
