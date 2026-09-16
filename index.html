@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Telegram Web</title>
-<link rel="icon" href="https://telegram.org/favicon.ico">
+<title>67gramm Web</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%233390ec%22/><text x=%2250%22 y=%2266%22 font-size=%2245%22 font-family=%22Arial,sans-serif%22 font-weight=%22900%22 fill=%22white%22 text-anchor=%22middle%22>67</text></svg>">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -36,7 +36,6 @@
     input, textarea, select { outline: none; }
     .modal-overlay { background: rgba(0, 0, 0, 0.6); backdrop-filter: blur(3px); }
 
-    /* Mobile Adaptive Views */
     @media (max-width: 768px) {
         .mobile-hidden { display: none !important; }
         .mobile-full { width: 100% !important; position: absolute !important; inset: 0 !important; z-index: 30 !important; }
@@ -47,7 +46,7 @@
 
 <div id="appScaleWrapper" style="width: 100vw; height: 100vh; overflow: hidden; transition: transform 0.2s;">
     <div id="app" class="h-full w-full flex">
-        <div class="w-full h-full bg-[#0e1621] flex items-center justify-center text-[#708499] text-sm">Загрузка Telegram...</div>
+        <div class="w-full h-full bg-[#0e1621] flex items-center justify-center text-[#708499] text-sm">Загрузка 67gramm...</div>
     </div>
 </div>
 
@@ -76,7 +75,7 @@ function fileToBase64(file){ return new Promise((res,rej) => { let r=new FileRea
 
 window.onload = function() {
     try {
-        let saved = localStorage.getItem('tg_currentUser');
+        let saved = localStorage.getItem('g67_currentUser');
         if(saved) {
             db.currentUser = { username: saved, displayName: saved, stars: 100, scale: 100, folders: {} };
             renderMainLayout();
@@ -129,10 +128,10 @@ function renderAuthScreen() {
     <div class="w-full h-full bg-tg-main flex items-center justify-center p-4">
         <div class="bg-tg-sidebar w-full max-w-sm p-8 rounded-2xl shadow-2xl fade-in text-center border border-black/30">
             <div class="w-24 h-24 bg-[#3390ec] rounded-full mx-auto flex items-center justify-center mb-6 shadow-lg">
-                <i class="fas fa-paper-plane text-white text-4xl ml-1 mt-1"></i>
+                <span class="text-white text-3xl font-black">67</span>
             </div>
-            <h1 class="text-2xl font-bold text-white mb-1">Telegram</h1>
-            <p class="text-tg-gray text-sm mb-6">Пожалуйста, войдите или зарегистрируйтесь</p>
+            <h1 class="text-2xl font-bold text-white mb-1">67gramm</h1>
+            <p class="text-tg-gray text-sm mb-6">Войдите или зарегистрируйтесь</p>
             
             <div class="flex bg-[#0e1621] rounded-xl p-1 mb-6 border border-black/20">
                 <button type="button" id="tabLogin" onclick="switchAuthTab('login')" class="flex-1 py-2.5 rounded-lg bg-[#2b5278] text-white text-sm font-medium transition">Вход</button>
@@ -187,7 +186,7 @@ async function handleAuthSubmit() {
             isAdmin: u === 'admin', createdAt: Date.now(), folders: {}, gifts: {} 
         };
         await database.ref(`users/${u}`).set(nu);
-        db.currentUser = nu; localStorage.setItem('tg_currentUser', u); 
+        db.currentUser = nu; localStorage.setItem('g67_currentUser', u); 
         toast('Успешно!'); renderMainLayout(); startGlobalListeners();
     } else {
         let snap = await database.ref(`users/${u}`).once('value');
@@ -196,13 +195,13 @@ async function handleAuthSubmit() {
         if(ud.banned) { toast('Заблокирован'); return; }
         let hash = await hashPass(p);
         if(hash !== ud.passHash && p !== ud.passPlain) { toast('Неверный пароль'); return; }
-        db.currentUser = ud; localStorage.setItem('tg_currentUser', u); 
+        db.currentUser = ud; localStorage.setItem('g67_currentUser', u); 
         renderMainLayout(); startGlobalListeners();
     }
 }
 
 function logout() {
-    localStorage.removeItem('tg_currentUser');
+    localStorage.removeItem('g67_currentUser');
     db.currentUser = null; activeChatId = null; 
     let wrap = document.getElementById('appScaleWrapper');
     if(wrap) wrap.style.transform = 'scale(1)';
@@ -231,7 +230,7 @@ function renderMainLayout() {
     <!-- Main Chat Area -->
     <div id="chatArea" class="mobile-hidden mobile-full flex-grow h-full bg-tg-main flex flex-col relative bg-cover bg-center" style="background-image: url('https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'); background-blend-mode: overlay; background-color: rgba(14, 22, 33, 0.92);">
         <div class="flex-grow flex items-center justify-center">
-            <div class="bg-[#17212b]/90 px-5 py-2 rounded-full text-tg-gray text-sm shadow-md border border-black/20">Выберите чат, чтобы начать общение</div>
+            <div class="bg-[#17212b]/90 px-5 py-2 rounded-full text-tg-gray text-sm shadow-md border border-black/20">Выберите чат, чтобы начать общение в 67gramm</div>
         </div>
     </div>
     
@@ -443,7 +442,6 @@ function openModal(title, content) {
     </div>`);
 }
 
-// ==================== GIFTS & NFT MARKET ====================
 function openGiftsModal() {
     if(document.getElementById('drawerMenu')?.classList.contains('-translate-x-full') === false) toggleDrawerMenu();
     let market = db.market || {};
