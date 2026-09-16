@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SixSeven</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%237c3aed%22/><text x=%2250%22 y=%2266%22 font-size=%2242%22 font-family=%22Arial,sans-serif%22 font-weight=%22900%22 fill=%22white%22 text-anchor=%22middle%22>67</text></svg>">
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<style>
+*{font-family:'Inter',sans-serif;box-sizing:border-box;}
+body{background:#0b0e14;color:#e5e7eb;margin:0;overscroll-behavior:none;}
+::-webkit-scrollbar{width:6px;height:6px;}
+::-webkit-scrollbar-thumb{background:#374151;border-radius:3px;}
+.card-bg{background:#12161f;border:1px solid #1f2530;}
+.btn-press{transition:transform .1s;}
+.btn-press:active{transform:scale(.96);}
+.fade-in{animation:fadeIn .25s ease;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
+.rarity-common{background:linear-gradient(135deg,#4b5563,#374151);}
+.rarity-rare{background:linear-gradient(135deg,#2563eb,#1e3a8a);}
+.rarity-epic{background:linear-gradient(135deg,#9333ea,#581c87);}
+.rarity-legendary{background:linear-gradient(135deg,#f59e0b,#b45309);}
+.rarity-mythic{background:linear-gradient(135deg,#111827,#000000);border:1px solid #7c3aed;}
+.msg-bubble-in{background:#1a1f2b;}
+.msg-bubble-out{background:#5b21b6;}
+.spin-reveal{animation:spinReveal 1.8s cubic-bezier(.2,.8,.3,1);}
+@keyframes spinReveal{0%{transform:rotateY(0deg) scale(.8);opacity:.3;}60%{transform:rotateY(1080deg) scale(1.1);opacity:1;}100%{transform:rotateY(1440deg) scale(1);}}
+input,textarea{outline:none;}
+.hidden{display:none!important;}
+</style>
+</head>
+<body>
+
+<div id="app" class="h-screen w-screen flex overflow-hidden"></div>
+<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-white text-sm px-4 py-2.5 rounded-xl shadow-xl z-[999]"></div>
+<input type="file" id="hiddenFileInput" class="hidden" accept="image/*,application/pdf,.doc,.docx,.zip">
+<input type="file" id="hiddenAvatarInput" class="hidden" accept="image/*">
+<input type="file" id="hiddenGroupAvatarInput" class="hidden" accept="image/*">
+<input type="file" id="hiddenTemplateImgInput" class="hidden" accept="image/*">
+
+<script>
+const firebaseConfig={apiKey:"AIzaSyCm5Ikh0OV1bP2fbep-7Kg7rcuNN4PujRY",authDomain:"sixseven-67001.firebaseapp.com",databaseURL:"https://sixseven-67001-default-rtdb.firebaseio.com",projectId:"sixseven-67001",storageBucket:"sixseven-67001.firebasestorage.app",messagingSenderId:"652602968843",appId:"1:652602968843:web:17dadd54f0f5bd6255b00e"};
+firebase.initializeApp(firebaseConfig);
+const database=firebase.database();
+const BRAND='SixSeven';
+const ADMIN_LOGIN='admin';
+const UPGRADE_COST=50;
+const MAX_FILE_SIZE=1200000;
+
+let db={currentUser:null,users:{},chats:{},templates:{},items:{}};
+let view='auth';
+let activeChatId=null;
+let _msgListeners={};
+let _chatsListenerAttached=false;
+
+function toast(msg){let t=document.getElementById('toast');t.innerText=msg;t.classList.remove('hidden');setTimeout(function(){t.classList.add('hidden');},2500);}
+function escapeHtml(s){if(s===undefined||s===null)return '';return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function uid(){return 'id_'+Date.now()+'_'+Math.random().toString(36).slice(2,9);}
+async function sha256(text){const enc=new TextEncoder().encode(text);const buf=await crypto.subtle.digest('SHA-256',enc);return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');}
+function fileToBase64(file){return new Promise(function(res,rej){let r=new FileReader();r.onload=function(){res(r.result);};r.onerror=rej;r.readAsDataURL(file);});}
+function timeAgo(ts){if(!ts)return '';let d=new Date(ts);return d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});}
+
+// ===================== AUTH =====================
+function renderAuth(){
+let el=document.getElementById('app');
+el.innerHTML=
+'<div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-[#0b0e14] to-[#1a1030] p-4">'+
+'<div class="w-full max-w-sm card-bg rounded-3xl p-8 fade-in">'+
+'<div class="flex flex-col items-center mb-6">'+
+'<div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center text-2xl font-black text-white mb-3">67</div>'+
+'<h1 class="text-2xl font-black text-white">'+BRAND+'</h1>'+
+'<p class="text-xs text-slate-500">Sizning shaxsiy messenjeringiz</p>'+
+'</div>'+
+'<div id="authModeTabs" class="flex bg-slate-900 rounded-xl p-1 mb-5 text-sm font-bold">'+
+'<button onclick="setAuthMode(\'login\')" id="tabLogin" class="flex-1 py-2 rounded-lg bg-violet-600 text-white">Kirish</button>'+
+'<button onclick="setAuthMode(\'register\')" id="tabRegister" class="flex-1 py-2 rounded-lg text-slate-400">Ro\'yxatdan o\'tish</button>'+
+'</div>'+
+'<div class="space-y-3">'+
+'<input id="authUsername" type="text" placeholder="Username" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white">'+
+'<input id="authPassword" type="password" placeholder="Parol" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white">'+
+'<button onclick="submitAuth()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl btn-press">Davom etish</button>'+
+'</div>'+
+'</div>'+
+'</div>';
+}
+let authMode='login';
+function setAuthMode(m){
+authMode=m;
+document.getElementById('tabLogin').className='flex-1 py-2 rounded-lg font-bold '+(m==='login'?'bg-violet-600 text-white':'text-slate-400');
+document.getElementById('tabRegister').className='flex-1 py-2 rounded-lg font-bold '+(m==='register'?'bg-violet-600 text-white':'text-slate-400');
+}
+async function submitAuth(){
+let username=document.getElementById('authUsername').value.trim().toLowerCase();
+let password=document.getElementById('authPassword').value;
+if(!username||!password){toast('Username va parolni kiriting');return;}
+if(!/^[a-z0-9_]{3,20}$/.test(username)){toast('Username faqat lotin harflar, raqam va _ (3-20 belgi)');return;}
+if(authMode==='register'){
+if(password.length<4){toast('Parol kamida 4 ta belgi');return;}
+let snap=await database.ref('users/'+username).once('value');
+if(snap.exists()){toast('Bu username band');return;}
+let hash=await sha256(password);
+let nu={username:username,passHash:hash,avatar:'',stars:0,isAdmin:username===ADMIN_LOGIN,createdAt:Date.now()};
+await database.ref('users/'+username).set(nu);
+db.currentUser=nu;
+localStorage.setItem('ss_currentUser',username);
+toast('Xush kelibsiz, '+username+'!');
+enterApp();
+}else{
+let snap=await database.ref('users/'+username).once('value');
+if(!snap.exists()){toast('Bunday foydalanuvchi topilmadi');return;}
+let u=snap.val();
+let hash=await sha256(password);
+if(hash!==u.passHash){toast('Parol noto\'g\'ri');return;}
+db.currentUser=u;
+localStorage.setItem('ss_currentUser',username);
+enterApp();
+}
+}
+function logout(){
+localStorage.removeItem('ss_currentUser');
+Object.values(_msgListeners).forEach(function(fn){});
+db.currentUser=null;
+activeChatId=null;
+view='auth';
+renderAuth();
+}
+
+// ===================== APP SHELL =====================
+function enterApp(){
+view='chats';
+listenUsers();
+listenMyChats();
+listenTemplatesAndPools();
+render();
+}
+function listenTemplatesAndPools(){
+database.ref('templates').on('value',function(snap){
+db.templates=snap.val()||{};
+if(view==='profile')renderProfile();
+if(view==='admin')renderAdmin();
+});
+database.ref('upgradePools').on('value',function(snap){
+db.upgradePools=snap.val()||{};
+});
+}
+function listenUsers(){
+database.ref('users').on('value',function(snap){
+db.users=snap.val()||{};
+if(db.currentUser&&db.users[db.currentUser.username]){
+db.currentUser=db.users[db.currentUser.username];
+}
+if(view==='profile')renderProfile();
+if(view==='admin')renderAdmin();
+if(view==='chats')renderSidebarChatList();
+});
+}
+function listenMyChats(){
+database.ref('userChats/'+db.currentUser.username).on('value',function(snap){
+let chatIds=Object.keys(snap.val()||{});
+chatIds.forEach(function(cid){
+if(!db.chats[cid]){
+database.ref('chats/'+cid).on('value',function(csnap){
+if(csnap.exists()){db.chats[cid]=csnap.val();}else{delete db.chats[cid];}
+if(view==='chats')renderSidebarChatList();
+});
+}
+});
+if(view==='chats')renderSidebarChatList();
+});
+}
+function render(){
+if(view==='auth'){renderAuth();return;}
+let el=document.getElementById('app');
+el.innerHTML=
+'<div class="w-80 shrink-0 border-r border-slate-800 flex flex-col bg-[#0e1119]">'+
+'<div class="p-4 border-b border-slate-800 flex items-center justify-between">'+
+'<div class="flex items-center gap-2"><div class="w-9 h-9 rounded-xl bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center text-sm font-black text-white">67</div><h1 class="text-lg font-black text-white">'+BRAND+'</h1></div>'+
+'<div class="flex items-center gap-1">'+
+(db.currentUser&&db.currentUser.isAdmin?'<button onclick="goAdmin()" title="Admin" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 flex items-center justify-center btn-press"><i class="fas fa-shield-halved text-sm"></i></button>':'')+
+'<button onclick="goProfile()" title="Profil" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press"><i class="fas fa-user text-sm"></i></button>'+
+'</div></div>'+
+'<div class="p-3 flex gap-2">'+
+'<button onclick="openNewChatModal()" class="flex-1 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold py-2 rounded-lg btn-press"><i class="fas fa-comment-dots mr-1"></i> Yangi chat</button>'+
+'<button onclick="openNewGroupModal()" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2 rounded-lg btn-press"><i class="fas fa-users mr-1"></i> Guruh</button>'+
+'</div>'+
+'<div id="sidebarChatList" class="flex-grow overflow-y-auto px-2 pb-2"></div>'+
+'</div>'+
+'<div id="mainArea" class="flex-grow flex flex-col bg-[#0b0e14]"></div>';
+renderSidebarChatList();
+renderMainArea();
+}
+function goProfile(){view='profile';render();renderProfile();}
+function goAdmin(){view='admin';render();renderAdmin();}
+function goChats(){view='chats';render();}
+
+// ===================== SIDEBAR CHAT LIST =====================
+function chatDisplayInfo(cid,chat){
+if(chat.type==='group'){
+return {name:chat.name||'Guruh',avatar:chat.avatar||'','sub':(Object.keys(chat.members||{}).length)+' a\'zo'};
+}else{
+let otherUsername=Object.keys(chat.members||{}).find(function(m){return m!==db.currentUser.username;});
+let otherUser=db.users[otherUsername]||{username:otherUsername};
+return {name:otherUser.username||'?',avatar:otherUser.avatar||'','sub':''};
+}
+}
+function avatarHtml(avatar,name,size){
+size=size||10;
+if(avatar)return '<img src="'+avatar+'" class="w-'+size+' h-'+size+' rounded-full object-cover shrink-0">';
+let letter=(name||'?').charAt(0).toUpperCase();
+return '<div class="w-'+size+' h-'+size+' rounded-full bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center text-white font-bold shrink-0" style="font-size:'+(size*1.4)+'px">'+letter+'</div>';
+}
+function renderSidebarChatList(){
+let el=document.getElementById('sidebarChatList');
+if(!el)return;
+let chatIds=Object.keys(db.chats);
+if(chatIds.length===0){
+el.innerHTML='<div class="text-center text-slate-600 text-xs py-10">Hali chatlar yo\'q.<br>Yangi chat yoki guruh boshlang.</div>';
+return;
+}
+let items=chatIds.map(function(cid){
+let chat=db.chats[cid];
+let info=chatDisplayInfo(cid,chat);
+let lastMsg=chat.lastMessage;
+return {cid:cid,info:info,lastAt:lastMsg?lastMsg.at:(chat.createdAt||0),lastText:lastMsg?(lastMsg.fileType?'📎 Fayl':lastMsg.text):'Xabar yo\'q'};
+});
+items.sort(function(a,b){return b.lastAt-a.lastAt;});
+el.innerHTML=items.map(function(it){
+let active=it.cid===activeChatId;
+return '<div onclick="openChat(\''+it.cid+'\')" class="flex items-center gap-3 p-3 rounded-xl cursor-pointer mb-1 '+(active?'bg-violet-600/20 border border-violet-600/40':'hover:bg-slate-800/60')+'">'+
+avatarHtml(it.info.avatar,it.info.name,10)+
+'<div class="flex-grow min-w-0"><p class="text-sm font-bold text-white truncate">'+escapeHtml(it.info.name)+'</p><p class="text-xs text-slate-500 truncate">'+escapeHtml(it.lastText)+'</p></div>'+
+'</div>';
+}).join('');
+}
+
+// ===================== MAIN AREA (empty state) =====================
+function renderMainArea(){
+let el=document.getElementById('mainArea');
+if(!el)return;
+if(!activeChatId){
+el.innerHTML='<div class="flex-grow flex items-center justify-center h-full"><div class="text-center text-slate-600"><i class="fas fa-comments text-5xl mb-3"></i><p class="text-sm">Suhbatni tanlang yoki yangisini boshlang</p></div></div>';
+}
+}
+
+// ===================== NEW CHAT / GROUP MODALS =====================
+function modalShell(title,bodyHtml){
+return '<div id="genericModal" class="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onclick="if(event.target===this)closeGenericModal()">'+
+'<div class="card-bg rounded-2xl w-full max-w-md p-6 fade-in max-h-[85vh] overflow-y-auto">'+
+'<div class="flex items-center justify-between mb-4"><h3 class="text-lg font-bold text-white">'+title+'</h3><button onclick="closeGenericModal()" class="text-slate-500 hover:text-white"><i class="fas fa-times"></i></button></div>'+
+bodyHtml+
+'</div></div>';
+}
+function closeGenericModal(){let m=document.getElementById('genericModal');if(m)m.remove();}
+function openNewChatModal(){
+document.body.insertAdjacentHTML('beforeend',modalShell('Yangi chat',
+'<input id="newChatUsername" type="text" placeholder="Username kiriting" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-3">'+
+'<button onclick="startDmChat()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl btn-press">Boshlash</button>'
+));
+}
+async function startDmChat(){
+let uname=document.getElementById('newChatUsername').value.trim().toLowerCase();
+if(!uname){toast('Username kiriting');return;}
+if(uname===db.currentUser.username){toast('O\'zingizga yoza olmaysiz');return;}
+let snap=await database.ref('users/'+uname).once('value');
+if(!snap.exists()){toast('Bunday foydalanuvchi topilmadi');return;}
+let cid='dm_'+[db.currentUser.username,uname].sort().join('_');
+let existing=await database.ref('chats/'+cid).once('value');
+if(!existing.exists()){
+await database.ref('chats/'+cid).set({type:'dm',members:{[db.currentUser.username]:true,[uname]:true},createdAt:Date.now()});
+await database.ref('userChats/'+db.currentUser.username+'/'+cid).set(true);
+await database.ref('userChats/'+uname+'/'+cid).set(true);
+}
+closeGenericModal();
+openChat(cid);
+}
+function openNewGroupModal(){
+document.body.insertAdjacentHTML('beforeend',modalShell('Yangi guruh',
+'<input id="newGroupName" type="text" placeholder="Guruh nomi" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-3">'+
+'<input id="newGroupMembers" type="text" placeholder="A\'zolar username (vergul bilan): ali, vali" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white mb-3">'+
+'<button onclick="createGroup()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl btn-press">Yaratish</button>'
+));
+}
+async function createGroup(){
+let name=document.getElementById('newGroupName').value.trim();
+let membersRaw=document.getElementById('newGroupMembers').value.trim();
+if(!name){toast('Guruh nomini kiriting');return;}
+let usernames=membersRaw.split(',').map(function(s){return s.trim().toLowerCase();}).filter(Boolean);
+let members={};
+members[db.currentUser.username]=true;
+for(let uname of usernames){
+if(uname===db.currentUser.username)continue;
+let snap=await database.ref('users/'+uname).once('value');
+if(snap.exists())members[uname]=true;
+}
+let cid='grp_'+uid();
+await database.ref('chats/'+cid).set({type:'group',name:name,avatar:'',members:members,createdAt:Date.now(),createdBy:db.currentUser.username});
+for(let m of Object.keys(members)){
+await database.ref('userChats/'+m+'/'+cid).set(true);
+}
+closeGenericModal();
+openChat(cid);
+toast('Guruh yaratildi!');
+}
+
+// ===================== CHAT WINDOW =====================
+function openChat(cid){
+if(activeChatId&&_msgListeners[activeChatId]){
+database.ref('messages/'+activeChatId).off('value',_msgListeners[activeChatId]);
+delete _msgListeners[activeChatId];
+}
+activeChatId=cid;
+renderSidebarChatList();
+renderChatWindow();
+let listener=function(snap){
+renderMessages(snap.val()||{});
+};
+database.ref('messages/'+cid).on('value',listener);
+_msgListeners[cid]=listener;
+}
+function renderChatWindow(){
+let el=document.getElementById('mainArea');
+let chat=db.chats[activeChatId];
+if(!chat){el.innerHTML='';return;}
+let info=chatDisplayInfo(activeChatId,chat);
+el.innerHTML=
+'<div class="p-4 border-b border-slate-800 flex items-center gap-3">'+
+avatarHtml(info.avatar,info.name,10)+
+'<div class="flex-grow min-w-0"><p class="text-sm font-bold text-white truncate">'+escapeHtml(info.name)+'</p>'+(info.sub?'<p class="text-xs text-slate-500">'+info.sub+'</p>':'')+'</div>'+
+(chat.type==='group'?'<button onclick="openGroupInfo()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press"><i class="fas fa-info text-sm"></i></button>':'')+
+'</div>'+
+'<div id="messagesArea" class="flex-grow overflow-y-auto p-4 space-y-2 flex flex-col"></div>'+
+'<div class="p-3 border-t border-slate-800 flex items-center gap-2">'+
+'<button onclick="document.getElementById(\'hiddenFileInput\').click()" class="w-10 h-10 rounded-xl bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press shrink-0"><i class="fas fa-paperclip"></i></button>'+
+'<input id="msgInput" type="text" placeholder="Xabar yozing..." onkeydown="if(event.key===\'Enter\')sendTextMessage()" class="flex-grow bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white">'+
+'<button onclick="sendTextMessage()" class="w-10 h-10 rounded-xl bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center btn-press shrink-0"><i class="fas fa-paper-plane"></i></button>'+
+'</div>';
+}
+function renderMessages(msgs){
+let el=document.getElementById('messagesArea');
+if(!el)return;
+let list=Object.keys(msgs).map(function(k){let m=msgs[k];m._id=k;return m;});
+list.sort(function(a,b){return a.at-b.at;});
+el.innerHTML=list.map(function(m){
+let mine=m.from===db.currentUser.username;
+let bubble=mine?'msg-bubble-out':'msg-bubble-in';
+let content='';
+if(m.fileType&&m.fileType.startsWith('image/')){
+content='<img src="'+m.fileData+'" class="max-w-[240px] rounded-lg mb-1">';
+}else if(m.fileType){
+content='<a href="'+m.fileData+'" download="'+escapeHtml(m.fileName||'file')+'" class="flex items-center gap-2 text-white underline"><i class="fas fa-file"></i> '+escapeHtml(m.fileName||'Fayl')+'</a>';
+}
+if(m.text)content+='<p class="text-sm text-white break-words">'+escapeHtml(m.text)+'</p>';
+return '<div class="flex '+(mine?'justify-end':'justify-start')+'">'+
+(!mine&&db.chats[activeChatId].type==='group'?'<div class="flex flex-col items-start max-w-[70%]"><p class="text-[10px] text-violet-400 font-bold ml-1 mb-0.5">'+escapeHtml(m.from)+'</p><div class="'+bubble+' rounded-2xl px-3 py-2">'+content+'<p class="text-[9px] text-slate-400 text-right mt-1">'+timeAgo(m.at)+'</p></div></div>'
+:'<div class="'+bubble+' rounded-2xl px-3 py-2 max-w-[70%]">'+content+'<p class="text-[9px] text-slate-300 text-right mt-1">'+timeAgo(m.at)+'</p></div>')+
+'</div>';
+}).join('');
+el.scrollTop=el.scrollHeight;
+let chat=db.chats[activeChatId];
+chat.lastMessage=list.length?{text:list[list.length-1].text||'',fileType:list[list.length-1].fileType||null,at:list[list.length-1].at}:null;
+renderSidebarChatList();
+}
+function sendTextMessage(){
+let input=document.getElementById('msgInput');
+let text=input.value.trim();
+if(!text||!activeChatId)return;
+let msgId=uid();
+database.ref('messages/'+activeChatId+'/'+msgId).set({from:db.currentUser.username,text:text,at:Date.now()});
+database.ref('chats/'+activeChatId+'/lastMessage').set({text:text,fileType:null,at:Date.now()});
+input.value='';
+}
+document.getElementById('hiddenFileInput').addEventListener('change',async function(e){
+let file=e.target.files[0];
+if(!file||!activeChatId)return;
+if(file.size>MAX_FILE_SIZE){toast('Fayl juda katta (max 1.2MB)');e.target.value='';return;}
+let base64=await fileToBase64(file);
+let msgId=uid();
+database.ref('messages/'+activeChatId+'/'+msgId).set({from:db.currentUser.username,fileData:base64,fileType:file.type,fileName:file.name,at:Date.now()});
+database.ref('chats/'+activeChatId+'/lastMessage').set({text:'',fileType:file.type,at:Date.now()});
+e.target.value='';
+});
+function openGroupInfo(){
+let chat=db.chats[activeChatId];
+if(!chat||chat.type!=='group')return;
+let members=Object.keys(chat.members||{});
+document.body.insertAdjacentHTML('beforeend',modalShell('Guruh: '+escapeHtml(chat.name),
+'<p class="text-xs text-slate-400 mb-2 font-bold uppercase">A\'zolar ('+members.length+')</p>'+
+'<div class="space-y-1 mb-4">'+members.map(function(m){return '<div class="flex items-center gap-2 p-2 bg-slate-900 rounded-lg">'+avatarHtml((db.users[m]||{}).avatar,m,8)+'<span class="text-sm text-white">'+escapeHtml(m)+'</span></div>';}).join('')+'</div>'+
+'<input id="addMemberInput" type="text" placeholder="Yangi a\'zo username" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white mb-2">'+
+'<button onclick="addGroupMember()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 rounded-xl btn-press">A\'zo qo\'shish</button>'
+));
+}
+async function addGroupMember(){
+let uname=document.getElementById('addMemberInput').value.trim().toLowerCase();
+if(!uname)return;
+let snap=await database.ref('users/'+uname).once('value');
+if(!snap.exists()){toast('Topilmadi');return;}
+await database.ref('chats/'+activeChatId+'/members/'+uname).set(true);
+await database.ref('userChats/'+uname+'/'+activeChatId).set(true);
+toast('Qo\'shildi!');
+closeGenericModal();
+openGroupInfo();
+}
+
+// ===================== PROFILE =====================
+function renderProfile(){
+let el=document.getElementById('mainArea');
+if(!el)return;
+let u=db.currentUser;
+let items=Object.keys(u.items||{}).map(function(k){let it=u.items[k];it._id=k;return it;});
+el.innerHTML=
+'<div class="p-4 border-b border-slate-800 flex items-center gap-3">'+
+'<button onclick="goChats()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press"><i class="fas fa-arrow-left"></i></button>'+
+'<h2 class="text-lg font-bold text-white">Profil</h2>'+
+'</div>'+
+'<div class="flex-grow overflow-y-auto p-6">'+
+'<div class="flex flex-col items-center mb-6">'+
+'<div onclick="document.getElementById(\'hiddenAvatarInput\').click()" class="cursor-pointer relative">'+avatarHtml(u.avatar,u.username,20)+'<div class="absolute bottom-0 right-0 w-6 h-6 bg-violet-600 rounded-full flex items-center justify-center text-white text-[10px]"><i class="fas fa-pen"></i></div></div>'+
+'<p class="text-lg font-bold text-white mt-3">@'+escapeHtml(u.username)+'</p>'+
+'<div class="flex items-center gap-1 mt-1 bg-amber-500/10 border border-amber-500/30 px-3 py-1 rounded-full"><i class="fas fa-star text-amber-400 text-xs"></i><span class="text-amber-400 font-bold text-sm">'+(u.stars||0)+'</span></div>'+
+'<button onclick="logout()" class="mt-4 text-red-400 text-xs font-bold">Chiqish</button>'+
+'</div>'+
+'<h3 class="text-sm font-bold text-white mb-3 uppercase tracking-wide">Kolleksiya ('+items.length+')</h3>'+
+(items.length===0?'<p class="text-xs text-slate-500">Hali predmetlaringiz yo\'q.</p>':
+'<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">'+items.map(function(it){
+let tpl=db.templates[it.templateId]||{};
+return '<div onclick="openItemModal(\''+it._id+'\')" class="rarity-'+it.rarity+' rounded-2xl p-3 cursor-pointer btn-press relative overflow-hidden">'+
+(tpl.modelImage?'<img src="'+tpl.modelImage+'" class="w-full h-20 object-contain mb-1">':'<div class="w-full h-20 flex items-center justify-center text-3xl">🎁</div>')+
+'<p class="text-xs font-bold text-white truncate">'+escapeHtml(tpl.name||'?')+'</p>'+
+'<p class="text-[9px] uppercase font-bold text-white/70">'+it.rarity+'</p>'+
+'</div>';
+}).join('')+'</div>')+
+'</div>';
+}
+document.getElementById('hiddenAvatarInput').addEventListener('change',async function(e){
+let file=e.target.files[0];
+if(!file)return;
+if(file.size>MAX_FILE_SIZE){toast('Rasm juda katta');e.target.value='';return;}
+let base64=await fileToBase64(file);
+await database.ref('users/'+db.currentUser.username+'/avatar').set(base64);
+toast('Avatar yangilandi');
+e.target.value='';
+});
+function openItemModal(itemId){
+let u=db.currentUser;
+let item=(u.items||{})[itemId];
+if(!item)return;
+let tpl=db.templates[item.templateId]||{};
+let pool=db.upgradePools?db.upgradePools[item.templateId]:null;
+document.body.insertAdjacentHTML('beforeend',modalShell(escapeHtml(tpl.name||'Predmet'),
+'<div class="rarity-'+item.rarity+' rounded-2xl p-6 flex flex-col items-center mb-4">'+
+(tpl.modelImage?'<img id="itemModalImg" src="'+tpl.modelImage+'" class="w-32 h-32 object-contain mb-2">':'<div class="text-6xl mb-2">🎁</div>')+
+'<p id="itemModalRarity" class="text-xs uppercase font-bold text-white/80">'+item.rarity+'</p>'+
+'</div>'+
+(pool&&pool.length>0?
+'<button onclick="upgradeItem(\''+itemId+'\')" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-3 rounded-xl btn-press"><i class="fas fa-star mr-1"></i> Yaxshilash ('+UPGRADE_COST+' ⭐)</button>'
+:'<p class="text-xs text-slate-500 text-center">Bu predmet uchun yaxshilash hali sozlanmagan.</p>')
+));
+}
+async function upgradeItem(itemId){
+let u=db.currentUser;
+let item=(u.items||{})[itemId];
+if(!item)return;
+if((u.stars||0)<UPGRADE_COST){toast('Yulduzlar yetarli emas');return;}
+let pool=(db.upgradePools||{})[item.templateId];
+if(!pool||pool.length===0){toast('Yaxshilash sozlanmagan');return;}
+let totalWeight=pool.reduce(function(s,p){return s+(p.weight||1);},0);
+let roll=Math.random()*totalWeight;
+let acc=0,result=pool[0];
+for(let p of pool){acc+=(p.weight||1);if(roll<=acc){result=p;break;}}
+await database.ref('users/'+u.username+'/stars').set((u.stars||0)-UPGRADE_COST);
+await database.ref('users/'+u.username+'/items/'+itemId+'/rarity').set(result.rarity);
+await database.ref('users/'+u.username+'/items/'+itemId+'/background').set(result.background||'');
+closeGenericModal();
+setTimeout(function(){
+document.body.insertAdjacentHTML('beforeend',modalShell('Natija!',
+'<div class="rarity-'+result.rarity+' spin-reveal rounded-2xl p-8 flex flex-col items-center">'+
+'<div class="text-6xl mb-3">'+(result.rarity==='mythic'?'🌌':result.rarity==='legendary'?'👑':result.rarity==='epic'?'💜':result.rarity==='rare'?'💎':'⭐')+'</div>'+
+'<p class="text-lg font-black text-white uppercase">'+result.rarity+'</p>'+
+'<p class="text-xs text-white/70 mt-1">'+(result.background?escapeHtml(result.background):'')+'</p>'+
+'</div>'
+));
+},200);
+}
+
+// ===================== ADMIN PANEL =====================
+function renderAdmin(){
+let el=document.getElementById('mainArea');
+if(!el)return;
+if(!db.currentUser.isAdmin){el.innerHTML='<div class="p-6 text-slate-500">Ruxsat yo\'q</div>';return;}
+let templates=Object.keys(db.templates||{}).map(function(k){let t=db.templates[k];t._id=k;return t;});
+el.innerHTML=
+'<div class="p-4 border-b border-slate-800 flex items-center gap-3">'+
+'<button onclick="goChats()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press"><i class="fas fa-arrow-left"></i></button>'+
+'<h2 class="text-lg font-bold text-white"><i class="fas fa-shield-halved text-amber-400 mr-1"></i> Admin panel</h2>'+
+'</div>'+
+'<div class="flex-grow overflow-y-auto p-6 space-y-6">'+
+'<div class="card-bg rounded-2xl p-5">'+
+'<h3 class="text-sm font-bold text-white mb-3">⭐ Yulduz berish</h3>'+
+'<div class="flex gap-2">'+
+'<input id="grantStarsUsername" type="text" placeholder="Username" class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">'+
+'<input id="grantStarsAmount" type="number" placeholder="Miqdor" class="w-28 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">'+
+'<button onclick="adminGrantStars()" class="bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold px-4 py-2.5 rounded-xl btn-press">Berish</button>'+
+'</div></div>'+
+'<div class="card-bg rounded-2xl p-5">'+
+'<h3 class="text-sm font-bold text-white mb-3">🎁 Yangi predmet turi yaratish</h3>'+
+'<div class="space-y-2">'+
+'<input id="tplName" type="text" placeholder="Nomi" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">'+
+'<div class="flex items-center gap-2">'+
+'<button onclick="document.getElementById(\'hiddenTemplateImgInput\').click()" class="bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold px-3 py-2.5 rounded-lg btn-press">Rasm tanlash</button>'+
+'<img id="tplImgPreview" class="w-10 h-10 rounded-lg object-contain hidden">'+
+'</div>'+
+'<select id="tplBaseRarity" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-sm text-white">'+
+'<option value="common">Common</option><option value="rare">Rare</option><option value="epic">Epic</option><option value="legendary">Legendary</option><option value="mythic">Mythic</option>'+
+'</select>'+
+'<button onclick="adminCreateTemplate()" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 rounded-xl btn-press">Yaratish</button>'+
+'</div></div>'+
+'<div class="card-bg rounded-2xl p-5">'+
+'<h3 class="text-sm font-bold text-white mb-3">📦 Predmetlar ro\'yxati ('+templates.length+')</h3>'+
+'<div class="space-y-2">'+templates.map(function(t){
+return '<div class="bg-slate-900 rounded-xl p-3">'+
+'<div class="flex items-center gap-2 mb-2">'+(t.modelImage?'<img src="'+t.modelImage+'" class="w-8 h-8 object-contain">':'')+'<span class="text-sm font-bold text-white">'+escapeHtml(t.name)+'</span><span class="text-[10px] text-slate-500 ml-auto">'+t._id+'</span></div>'+
+'<div class="flex gap-2">'+
+'<input id="grantItemUser_'+t._id+'" type="text" placeholder="Username" class="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white">'+
+'<button onclick="adminGrantItem(\''+t._id+'\')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-1.5 rounded-lg btn-press">Berish</button>'+
+'<button onclick="openUpgradePoolModal(\''+t._id+'\')" class="bg-slate-700 hover:bg-slate-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg btn-press">Pool</button>'+
+'</div></div>';
+}).join('')+'</div></div>'+
+'</div>';
+}
+async function adminGrantStars(){
+let uname=document.getElementById('grantStarsUsername').value.trim().toLowerCase();
+let amount=parseInt(document.getElementById('grantStarsAmount').value);
+if(!uname||!amount){toast('Ma\'lumotlarni to\'ldiring');return;}
+let snap=await database.ref('users/'+uname).once('value');
+if(!snap.exists()){toast('Foydalanuvchi topilmadi');return;}
+let cur=snap.val().stars||0;
+await database.ref('users/'+uname+'/stars').set(cur+amount);
+toast(amount+' yulduz berildi @'+uname);
+document.getElementById('grantStarsUsername').value='';
+document.getElementById('grantStarsAmount').value='';
+}
+let _pendingTplImg='';
+document.getElementById('hiddenTemplateImgInput').addEventListener('change',async function(e){
+let file=e.target.files[0];
+if(!file)return;
+_pendingTplImg=await fileToBase64(file);
+let img=document.getElementById('tplImgPreview');
+img.src=_pendingTplImg;img.classList.remove('hidden');
+e.target.value='';
+});
+async function adminCreateTemplate(){
+let name=document.getElementById('tplName').value.trim();
+let rarity=document.getElementById('tplBaseRarity').value;
+if(!name){toast('Nomini kiriting');return;}
+let tid='tpl_'+uid();
+await database.ref('templates/'+tid).set({name:name,modelImage:_pendingTplImg||'',baseRarity:rarity,createdAt:Date.now()});
+_pendingTplImg='';
+toast('Predmet turi yaratildi!');
+document.getElementById('tplName').value='';
+document.getElementById('tplImgPreview').classList.add('hidden');
+}
+async function adminGrantItem(templateId){
+let uname=document.getElementById('grantItemUser_'+templateId).value.trim().toLowerCase();
+if(!uname){toast('Username kiriting');return;}
+let snap=await database.ref('users/'+uname).once('value');
+if(!snap.exists()){toast('Foydalanuvchi topilmadi');return;}
+let tpl=db.templates[templateId];
+let itemId='item_'+uid();
+await database.ref('users/'+uname+'/items/'+itemId).set({templateId:templateId,rarity:tpl.baseRarity||'common',background:'',obtainedAt:Date.now()});
+toast('Predmet berildi @'+uname);
+}
+function openUpgradePoolModal(templateId){
+let pool=(db.upgradePools||{})[templateId]||[];
+document.body.insertAdjacentHTML('beforeend',modalShell('Yaxshilash puli',
+'<div id="poolRows" class="space-y-2 mb-3">'+pool.map(function(p,i){return poolRowHtml(i,p);}).join('')+'</div>'+
+'<button onclick="addPoolRow()" class="w-full bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold py-2 rounded-lg btn-press mb-2">+ Qator qo\'shish</button>'+
+'<button onclick="saveUpgradePool(\''+templateId+'\')" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-2.5 rounded-xl btn-press">Saqlash</button>'
+));
+}
+function poolRowHtml(i,p){
+p=p||{rarity:'common',background:'',weight:1};
+return '<div class="flex gap-1 pool-row">'+
+'<select class="pr-rarity flex-1 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white">'+
+['common','rare','epic','legendary','mythic'].map(function(r){return '<option value="'+r+'" '+(p.rarity===r?'selected':'')+'>'+r+'</option>';}).join('')+
+'</select>'+
+'<input class="pr-bg w-24 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white" placeholder="Fon nomi" value="'+escapeHtml(p.background||'')+'">'+
+'<input class="pr-weight w-14 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white" type="number" placeholder="Vazn" value="'+(p.weight||1)+'">'+
+'</div>';
+}
+function addPoolRow(){
+document.getElementById('poolRows').insertAdjacentHTML('beforeend',poolRowHtml(0,{}));
+}
+async function saveUpgradePool(templateId){
+let rows=document.querySelectorAll('#poolRows .pool-row');
+let pool=Array.from(rows).map(function(r){
+return {rarity:r.querySelector('.pr-rarity').value,background:r.querySelector('.pr-bg').value.trim(),weight:parseFloat(r.querySelector('.pr-weight').value)||1};
+});
+await database.ref('upgradePools/'+templateId).set(pool);
+toast('Pool saqlandi!');
+closeGenericModal();
+}
+
+// ===================== BOOTSTRAP =====================
+window.onload=async function(){
+let saved=localStorage.getItem('ss_currentUser');
+if(saved){
+let snap=await database.ref('users/'+saved).once('value');
+if(snap.exists()){
+db.currentUser=snap.val();
+enterApp();
+return;
+}
+}
+renderAuth();
+};
+
+
+
+
+
+
+
+</script>
+</body>
+</html>
