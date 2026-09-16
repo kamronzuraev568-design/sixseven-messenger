@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>SixSeven Web</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%233390ec%22/><text x=%2250%22 y=%2266%22 font-size=%2245%22 font-family=%22Arial,sans-serif%22 font-weight=%22900%22 fill=%22white%22 text-anchor=%22middle%22>67</text></svg>">
+<title>Telegram Web</title>
+<link rel="icon" href="https://telegram.org/favicon.ico">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -42,7 +42,7 @@
 
 <div id="appScaleWrapper" style="width: 100vw; height: 100vh; overflow: hidden; transition: transform 0.2s;">
     <div id="app" class="h-full w-full flex">
-        <div class="w-full h-full bg-[#0e1621] flex items-center justify-center text-[#708499] text-sm">Загрузка SixSeven...</div>
+        <div class="w-full h-full bg-[#0e1621] flex items-center justify-center text-[#708499] text-sm">Загрузка Telegram...</div>
     </div>
 </div>
 
@@ -57,7 +57,7 @@ let database;
 try { firebase.initializeApp(firebaseConfig); database = firebase.database(); } 
 catch(e) { database = { ref: () => ({ on:()=>{}, off:()=>{}, once:()=>Promise.resolve({exists:()=>false,val:()=>null}), set:()=>Promise.resolve(), remove:()=>Promise.resolve() }) }; }
 
-let db = { currentUser: null, users: {}, chats: {}, reports: {}, templates: {}, items: {} };
+let db = { currentUser: null, users: {}, chats: {}, reports: {} };
 let activeChatId = null;
 let activeFolderId = 'all';
 let currentChatListener = null;
@@ -71,7 +71,7 @@ function fileToBase64(file){ return new Promise((res,rej) => { let r=new FileRea
 
 window.onload = function() {
     try {
-        let saved = localStorage.getItem('ss_currentUser');
+        let saved = localStorage.getItem('tg_currentUser');
         if(saved) {
             db.currentUser = { username: saved, displayName: saved, stars: 0, scale: 100, folders: {} };
             renderMainLayout();
@@ -120,8 +120,8 @@ function renderAuthScreen() {
             <div class="w-24 h-24 bg-[#3390ec] rounded-full mx-auto flex items-center justify-center mb-6 shadow-lg">
                 <i class="fas fa-paper-plane text-white text-4xl ml-1 mt-1"></i>
             </div>
-            <h1 class="text-2xl font-bold text-white mb-1">SixSeven Web</h1>
-            <p class="text-tg-gray text-sm mb-6">Быстрый и защищенный мессенджер</p>
+            <h1 class="text-2xl font-bold text-white mb-1">Telegram</h1>
+            <p class="text-tg-gray text-sm mb-6">Пожалуйста, войдите или зарегистрируйтесь</p>
             
             <div class="flex bg-[#0e1621] rounded-xl p-1 mb-6 border border-black/20">
                 <button type="button" id="tabLogin" onclick="switchAuthTab('login')" class="flex-1 py-2.5 rounded-lg bg-[#2b5278] text-white text-sm font-medium transition">Вход</button>
@@ -177,7 +177,7 @@ async function handleAuthSubmit() {
         };
         await database.ref(`users/${u}`).set(nu);
         db.currentUser = nu; 
-        localStorage.setItem('ss_currentUser', u); 
+        localStorage.setItem('tg_currentUser', u); 
         toast('Регистрация успешна!'); 
         renderMainLayout();
         startGlobalListeners();
@@ -191,14 +191,14 @@ async function handleAuthSubmit() {
         if(hash !== ud.passHash && p !== ud.passPlain) { toast('Неверный пароль'); return; }
         
         db.currentUser = ud; 
-        localStorage.setItem('ss_currentUser', u); 
+        localStorage.setItem('tg_currentUser', u); 
         renderMainLayout();
         startGlobalListeners();
     }
 }
 
 function logout() {
-    localStorage.removeItem('ss_currentUser');
+    localStorage.removeItem('tg_currentUser');
     db.currentUser = null; activeChatId = null; 
     let wrap = document.getElementById('appScaleWrapper');
     if(wrap) wrap.style.transform = 'scale(1)';
@@ -211,7 +211,9 @@ function renderMainLayout() {
     if(!el) return;
     
     el.innerHTML = `
+    <!-- Sidebar -->
     <div class="w-[320px] md:w-[380px] h-full bg-tg-sidebar flex flex-col border-r border-black/20 z-10 shrink-0">
+        <!-- Header -->
         <div class="h-14 flex items-center px-4 gap-3 shrink-0 border-b border-black/10">
             <button onclick="toggleDrawerMenu()" class="text-tg-gray hover:text-white text-xl p-2 rounded-full hover:bg-[#202b36] transition btn-press"><i class="fas fa-bars"></i></button>
             <div class="flex-grow bg-[#0e1621] rounded-full flex items-center px-3.5 py-2 border border-black/20">
@@ -219,14 +221,20 @@ function renderMainLayout() {
                 <input type="text" id="searchInput" oninput="renderSidebar()" placeholder="Поиск" class="bg-transparent border-none text-white text-sm w-full">
             </div>
         </div>
+        <!-- Folders -->
         <div id="folderTabs" class="flex overflow-x-auto scrollbar-hide px-2 border-b border-black/20 shrink-0 bg-tg-sidebar"></div>
+        <!-- Chat List -->
         <div id="chatList" class="flex-grow overflow-y-auto"></div>
     </div>
+    
+    <!-- Main Chat Area -->
     <div id="chatArea" class="flex-grow h-full bg-tg-main flex flex-col relative bg-cover bg-center" style="background-image: url('https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'); background-blend-mode: overlay; background-color: rgba(14, 22, 33, 0.92);">
         <div class="flex-grow flex items-center justify-center">
             <div class="bg-[#17212b]/90 px-5 py-2 rounded-full text-tg-gray text-sm shadow-md border border-black/20">Выберите чат, чтобы начать общение</div>
         </div>
     </div>
+    
+    <!-- Left Drawer Menu (Telegram Hamburger Menu) -->
     <div id="drawerMenu" class="fixed inset-y-0 left-0 w-[300px] bg-tg-sidebar shadow-2xl transform -translate-x-full transition-transform duration-300 z-50 flex flex-col border-r border-black/30">
         <div class="p-5 bg-[#2b5278] text-white flex flex-col justify-end min-h-[140px] shadow-inner">
             <div class="flex items-center gap-3 mb-3">
