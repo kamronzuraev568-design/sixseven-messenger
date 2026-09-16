@@ -56,12 +56,7 @@ input:checked + .slider-toggle:before { transform: translateX(16px); }
 <body class="bg-[#0b0e14]">
 
 <div id="appScaleWrapper" style="transform-origin: top center; transition: transform 0.2s; width: 100vw; height: 100vh; overflow: hidden;">
-    <div id="app" class="h-full w-full flex overflow-hidden">
-        <div class="w-full h-full flex flex-col items-center justify-center text-white fade-in">
-            <div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-800 flex items-center justify-center text-2xl font-black mb-4 animate-pulse">67</div>
-            <p class="text-sm text-slate-400">Загрузка SixSeven...</p>
-        </div>
-    </div>
+    <div id="app" class="h-full w-full flex overflow-hidden"></div>
 </div>
 
 <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-white text-sm px-4 py-2.5 rounded-xl shadow-xl z-[999]"></div>
@@ -69,16 +64,15 @@ input:checked + .slider-toggle:before { transform: translateX(16px); }
 <input type="file" id="hiddenAvatarInput" class="hidden" accept="image/*">
 
 <script>
-// Безопасная инициализация (чтобы белый/черный экран не появлялся из-за блокировщиков рекламы)
 const firebaseConfig={apiKey:"AIzaSyCm5Ikh0OV1bP2fbep-7Kg7rcuNN4PujRY",authDomain:"sixseven-67001.firebaseapp.com",databaseURL:"https://sixseven-67001-default-rtdb.firebaseio.com",projectId:"sixseven-67001",storageBucket:"sixseven-67001.firebasestorage.app",messagingSenderId:"652602968843",appId:"1:652602968843:web:17dadd54f0f5bd6255b00e"};
 let database;
-const mockRef = { on: ()=>{}, off: ()=>{}, once: ()=>Promise.resolve({exists:()=>false, val:()=>null}), set: ()=>Promise.resolve(), remove: ()=>Promise.resolve() };
 try {
     firebase.initializeApp(firebaseConfig);
     database = firebase.database();
 } catch(e) {
-    console.warn("Firebase SDK Blocked or Error:", e);
-    database = { ref: () => mockRef };
+    console.error("Firebase Init Error:", e);
+    // Фолбэк для оффлайна/блокировщиков
+    database = { ref: () => ({ on:()=>{}, off:()=>{}, once:()=>Promise.resolve({exists:()=>false, val:()=>null}), set:()=>Promise.resolve(), remove:()=>Promise.resolve(), push:()=>({key:'local'}) }) };
 }
 
 const BRAND='SixSeven';
@@ -169,7 +163,7 @@ renderAuth();
 function enterApp(){
 view='chats';
 if(db.currentUser && db.currentUser.scale) updateScaleVisuals(db.currentUser.scale);
-render(); // Моментальный рендер UI, чтобы не висел пустой экран
+render(); // Немедленный рендер UI, чтобы убрать пустоту
 listenUsers(); listenMyChats(); listenTemplatesAndPools();
 }
 function listenTemplatesAndPools(){
