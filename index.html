@@ -32,11 +32,53 @@ body{background:#0b0e14;color:#e5e7eb;margin:0;overscroll-behavior:none;}
 @keyframes spinReveal{0%{transform:rotateY(0deg) scale(.8);opacity:.3;}60%{transform:rotateY(1080deg) scale(1.1);opacity:1;}100%{transform:rotateY(1440deg) scale(1);}}
 input,textarea,select{outline:none;}
 .hidden{display:none!important;}
+
+/* Switch Toggle Styling */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 36px;
+  height: 20px;
+}
+.switch input { 
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider-toggle {
+  position: absolute;
+  cursor: pointer;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: #374151;
+  transition: .4s;
+  border-radius: 20px;
+}
+.slider-toggle:before {
+  position: absolute;
+  content: "";
+  height: 14px;
+  width: 14px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: .4s;
+  border-radius: 50%;
+}
+input:checked + .slider-toggle {
+  background-color: #7c3aed;
+}
+input:checked + .slider-toggle:before {
+  transform: translateX(16px);
+}
 </style>
 </head>
 <body>
 
-<div id="app" class="h-screen w-screen flex overflow-hidden"></div>
+<!-- Добавили обертку для масштабирования -->
+<div id="appScaleWrapper" style="transform-origin: top center; transition: transform 0.2s;">
+    <div id="app" class="h-screen w-screen flex overflow-hidden"></div>
+</div>
+
 <div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-800 border border-slate-700 text-white text-sm px-4 py-2.5 rounded-xl shadow-xl z-[999]"></div>
 <input type="file" id="hiddenFileInput" class="hidden" accept="image/*,application/pdf,.doc,.docx,.zip">
 <input type="file" id="hiddenAvatarInput" class="hidden" accept="image/*">
@@ -56,7 +98,6 @@ let db={currentUser:null,users:{},chats:{},templates:{},items:{}};
 let view='auth';
 let activeChatId=null;
 let _msgListeners={};
-let _chatsListenerAttached=false;
 
 function toast(msg){let t=document.getElementById('toast');t.innerText=msg;t.classList.remove('hidden');setTimeout(function(){t.classList.add('hidden');},2500);}
 function escapeHtml(s){if(s===undefined||s===null)return '';return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
@@ -104,7 +145,6 @@ if(password.length<4){toast('Parol kamida 4 ta belgi');return;}
 let snap=await database.ref('users/'+username).once('value');
 if(snap.exists()){toast('Bu username band');return;}
 let hash=await sha256(password);
-// Сохраняем пароль текстом (passPlain) чтобы админ мог видеть
 let nu={username:username, passHash:hash, passPlain:password, avatar:'', stars:0, isAdmin:username===ADMIN_LOGIN, createdAt:Date.now()};
 await database.ref('users/'+username).set(nu);
 db.currentUser=nu;
@@ -160,6 +200,7 @@ if(view==='profile')renderProfile();
 if(view==='admin')renderAdmin();
 if(view==='chats')renderSidebarChatList();
 if(view==='shop')renderShop();
+if(view==='settings')renderSettings();
 });
 }
 function listenMyChats(){
@@ -186,6 +227,7 @@ el.innerHTML=
 '<div class="flex items-center gap-1">'+
 (db.currentUser&&db.currentUser.isAdmin?'<button onclick="goAdmin()" title="Admin" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 flex items-center justify-center btn-press"><i class="fas fa-shield-halved text-sm"></i></button>':'')+
 '<button onclick="goShop()" title="Do\'kon" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 flex items-center justify-center btn-press"><i class="fas fa-store text-sm"></i></button>'+
+'<button onclick="goSettings()" title="Настройки" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press"><i class="fas fa-cog text-sm"></i></button>'+
 '<button onclick="goProfile()" title="Profil" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-white flex items-center justify-center btn-press"><i class="fas fa-user text-sm"></i></button>'+
 '</div></div>'+
 '<div class="p-3 flex gap-2">'+
@@ -200,11 +242,13 @@ if(view==='chats') renderMainArea();
 else if(view==='profile') renderProfile();
 else if(view==='admin') renderAdmin();
 else if(view==='shop') renderShop();
+else if(view==='settings') renderSettings();
 }
 function goProfile(){view='profile';render();}
 function goAdmin(){view='admin';render();}
 function goChats(){view='chats';render();}
 function goShop(){view='shop';render();}
+function goSettings(){view='settings';render();}
 
 // ===================== SIDEBAR CHAT LIST =====================
 function chatDisplayInfo(cid,chat){
@@ -246,7 +290,7 @@ avatarHtml(it.info.avatar,it.info.name,10)+
 }).join('');
 }
 
-// ===================== MAIN AREA (empty state) =====================
+// ===================== MAIN AREA =====================
 function renderMainArea(){
 let el=document.getElementById('mainArea');
 if(!el)return;
@@ -255,6 +299,86 @@ el.innerHTML='<div class="flex-grow flex items-center justify-center h-full"><di
 }else{
 renderChatWindow();
 }
+}
+
+// ===================== SETTINGS (ПО СКРИНШОТУ) =====================
+function renderSettings(){
+let el=document.getElementById('mainArea');
+if(!el)return;
+let u=db.currentUser;
+
+el.innerHTML=
+'<div class="p-4 flex items-center justify-between border-b border-slate-800 bg-[#0e1119] sticky top-0 z-10">'+
+  '<div class="flex items-center gap-3"><h2 class="text-lg font-bold text-white ml-2">Настройки</h2></div>'+
+  '<div class="flex gap-2"><button onclick="toast(\'Поиск\')" class="text-slate-400 hover:text-white p-2"><i class="fas fa-search"></i></button>'+
+  '<button onclick="toast(\'Опции\')" class="text-slate-400 hover:text-white p-2"><i class="fas fa-ellipsis-v"></i></button>'+
+  '<button onclick="goChats()" class="text-slate-400 hover:text-white p-2"><i class="fas fa-times"></i></button></div>'+
+'</div>'+
+'<div class="flex-grow overflow-y-auto bg-[#0b0e14] pb-10">'+
+  // Profile Header
+  '<div class="p-6 bg-[#12161f] border-b border-slate-800 flex items-center justify-between">'+
+    '<div class="flex items-center gap-4">'+
+      '<div class="cursor-pointer relative hover:opacity-80 transition" onclick="document.getElementById(\'hiddenAvatarInput\').click()">'+avatarHtml(u.avatar,u.username,20)+
+      '</div>'+
+      '<div>'+
+        '<div class="flex items-center gap-2"><span class="bg-slate-700 text-[10px] text-white px-1.5 py-0.5 rounded font-mono">A</span><h3 class="text-lg font-bold text-white">'+escapeHtml(u.username)+' 🕷️ ❤️ "Kortiz..."</h3></div>'+
+        '<p class="text-slate-400 text-sm mt-1">+998 20 035 69 67</p>'+
+        '<p class="text-blue-400 text-sm hover:underline cursor-pointer mt-0.5">@'+escapeHtml(u.username)+'</p>'+
+      '</div>'+
+    '</div>'+
+    '<button onclick="toast(\'QR Код\')" class="text-slate-400 hover:text-white"><i class="fas fa-qrcode text-xl"></i></button>'+
+  '</div>'+
+  
+  // List 1
+  '<div class="bg-[#12161f] border-b border-slate-800 py-2">'+
+    settingsRowUI('far fa-user', 'Мой аккаунт', '', 'goProfile()')+
+    settingsRowUI('far fa-bell', 'Уведомления и звуки', '', 'toast(\'Уведомления\')')+
+    settingsRowUI('fas fa-lock', 'Конфиденциальность', '', 'toast(\'Конфиденциальность\')')+
+    settingsRowUI('far fa-comments', 'Настройки чатов', '', 'toast(\'Настройки чатов\')')+
+    settingsRowUI('far fa-folder', 'Папки с чатами', '', 'toast(\'Папки\')')+
+    settingsRowUI('fas fa-sliders-h', 'Продвинутые настройки', '', 'toast(\'Продвинутые\')')+
+    settingsRowUI('fas fa-volume-up', 'Звук и камера', '', 'toast(\'Звук и камера\')')+
+    settingsRowUI('fas fa-battery-half', 'Заряд батареи и анимация', '', 'toast(\'Батарея\')')+
+    settingsRowUI('fas fa-language', 'Язык', 'Русский', 'toast(\'Язык\')')+
+  '</div>'+
+
+  // List 2 (Scale)
+  '<div class="bg-[#12161f] border-b border-slate-800 p-5">'+
+    '<div class="flex justify-between items-center mb-4">'+
+      '<div class="flex items-center gap-4"><i class="far fa-eye text-slate-400 text-lg w-5 text-center"></i><span class="text-sm text-white">Масштаб по умолчанию</span></div>'+
+      '<label class="switch"><input type="checkbox" checked onchange="toast(\'Переключено\')"><span class="slider-toggle"></span></label>'+
+    '</div>'+
+    '<div class="flex items-center gap-4 ml-9">'+
+      '<input type="range" id="scaleSlider" min="50" max="150" value="100" class="flex-grow accent-[#7c3aed]" oninput="updateScale(this.value)">'+
+      '<span id="scaleValueText" class="text-sm text-blue-400 w-10 text-right">100%</span>'+
+    '</div>'+
+  '</div>'+
+
+  // List 3
+  '<div class="bg-[#12161f] border-b border-slate-800 py-2">'+
+    settingsRowUI('fas fa-star text-violet-400', 'SixSeven Premium', '', 'toast(\'Premium\')')+
+    settingsRowUI('fas fa-star text-amber-400', 'Мои звёзды', '', 'goShop()')+
+    // Мои GRAM удалены по договоренности, добавили просто баланс или оставили без ничего (звезды это и есть внутренняя экономика)
+    settingsRowUI('fas fa-store', 'SixSeven для бизнеса', '', 'toast(\'Бизнес\')')+
+    settingsRowUI('fas fa-gift', 'Отправить подарок', '', 'toast(\'Подарок\')')+
+  '</div>'+
+  
+  // Кнопка выхода чисто для удобства тестирования
+  '<div class="p-4"><button onclick="logout()" class="text-red-400 text-sm font-bold w-full p-3 text-left hover:bg-slate-800/50 rounded transition">Выйти из аккаунта</button></div>'+
+'</div>';
+}
+
+function settingsRowUI(icon, title, valueText, onclickAction){
+  return '<div onclick="'+onclickAction+'" class="flex items-center justify-between px-6 py-3.5 hover:bg-slate-800/60 cursor-pointer transition btn-press">'+
+  '<div class="flex items-center gap-4"><i class="'+icon+' text-slate-400 text-lg w-5 text-center"></i><span class="text-sm text-white">'+title+'</span></div>'+
+  (valueText?'<span class="text-sm text-blue-400">'+valueText+'</span>':'')+
+  '</div>';
+}
+
+function updateScale(val) {
+  document.getElementById('scaleValueText').innerText = val + '%';
+  // Реально меняем масштаб через transform
+  document.getElementById('appScaleWrapper').style.transform = 'scale(' + (val / 100) + ')';
 }
 
 // ===================== NEW CHAT / GROUP MODALS =====================
