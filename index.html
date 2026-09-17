@@ -26,13 +26,11 @@ body.theme-light{
 }
 * { font-family: 'Roboto', -apple-system, 'SF Pro Display', 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 body, html { background: var(--bg-main); color: var(--text); margin:0; padding:0; width:100%; height:100%; overflow:hidden; position:fixed; transition: background .2s; }
-
 ::-webkit-scrollbar { width:5px; height:5px; }
 ::-webkit-scrollbar-thumb { background:#2b3a4a; border-radius:3px; }
 ::-webkit-scrollbar-thumb:hover { background:#3a4d61; }
 .scrollbar-hide::-webkit-scrollbar{display:none}
 .scrollbar-hide{-ms-overflow-style:none;scrollbar-width:none}
-
 .bg-tg-main{background-color:var(--bg-main)}
 .bg-tg-sidebar{background-color:var(--bg-side)}
 .bg-tg-header{background-color:var(--header)}
@@ -40,7 +38,6 @@ body, html { background: var(--bg-main); color: var(--text); margin:0; padding:0
 .bg-tg-active{background-color:var(--bg-active) !important}
 .text-tg-blue{color:var(--blue)}
 .text-tg-gray{color:var(--text-muted)}
-
 .bg-\[\#0e1621\]{background-color:var(--bg-main) !important}
 .bg-\[\#17212b\]{background-color:var(--bg-side) !important}
 .bg-\[\#202b36\]{background-color:var(--bg-hover) !important}
@@ -50,11 +47,8 @@ body.theme-light .text-white\/70,body.theme-light .text-white\/80,body.theme-lig
 body.theme-light .border-black\/20,body.theme-light .border-black\/30,body.theme-light .border-black\/40,body.theme-light .border-black\/10{border-color:rgba(0,0,0,.08) !important}
 body.theme-light .bg-black\/30,body.theme-light .bg-black\/40,body.theme-light .bg-black\/20,body.theme-light .bg-black\/25{background-color:rgba(0,0,0,.06) !important}
 body.theme-light .msg-out .text-white{color:#000 !important}
-body.theme-light img.twemoji{filter: none}
-
+body.theme-light img.twemoji{filter:none}
 img.twemoji{height:1.15em;width:1.15em;vertical-align:-.22em;display:inline-block;margin:0 1px;pointer-events:none}
-
-/* Telegram-style bubbles */
 .msg-bubble{position:relative;padding:6px 10px 7px 10px;max-width:480px;box-shadow:0 1px 2px rgba(0,0,0,.15);word-wrap:break-word;word-break:break-word;line-height:1.35}
 .msg-out{background:var(--bubble-out);border-radius:12px 12px 4px 12px;margin-right:6px;color:#fff}
 .msg-out.with-tail::after{content:'';position:absolute;bottom:0;right:-6px;width:12px;height:15px;background:var(--bubble-out);clip-path:path('M0 0 C0 8 3 15 12 15 L0 15 Z')}
@@ -64,7 +58,6 @@ body.theme-light .msg-in{color:#000}
 body.theme-light .msg-out{color:#000}
 .msg-row{position:relative;cursor:pointer;user-select:none;transition:background .15s}
 .msg-row.msg-selected .msg-bubble{outline:2px solid var(--blue);outline-offset:1px}
-
 .btn-press{transition:transform .1s ease,background-color .15s ease,color .15s ease}
 .btn-press:active{transform:scale(.96)}
 .fade-in{animation:fadeIn .18s ease-out}
@@ -73,18 +66,13 @@ body.theme-light .msg-out{color:#000}
 @keyframes slideIn{from{opacity:0;transform:translateY(20px) scale(.97)}to{opacity:1;transform:none}}
 .pop-in{animation:popIn .18s ease-out}
 @keyframes popIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:none}}
-.slide-up{animation:slideUp .28s cubic-bezier(.2,.7,.3,1)}
-@keyframes slideUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:none}}
-
 input,textarea,select{outline:none;font-family:inherit}
 input::placeholder,textarea::placeholder{color:var(--text-muted)}
 .modal-overlay{background:rgba(0,0,0,.7);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
-
 .chat-item{transition:background-color .12s;position:relative;cursor:pointer}
 .chat-item::after{content:'';position:absolute;left:76px;right:0;bottom:0;height:1px;background:var(--divider)}
 .chat-item:last-child::after{display:none}
 .chat-item.active::after{background:transparent}
-
 .folder-tab{position:relative;transition:color .15s;white-space:nowrap;cursor:pointer}
 .folder-tab.active::after{content:'';position:absolute;left:12px;right:12px;bottom:0;height:3px;background:var(--blue);border-radius:3px 3px 0 0}
 .drawer-item{transition:background-color .12s;cursor:pointer}
@@ -100,12 +88,10 @@ input::placeholder,textarea::placeholder{color:var(--text-muted)}
 .profile-action:hover{background:var(--bg-hover)}
 .profile-action i{color:var(--blue);font-size:18px}
 .profile-action span{font-size:12px}
-
 .reply-quote{background:rgba(0,0,0,.18);border-left:3px solid var(--blue);border-radius:6px;padding:5px 8px;margin-bottom:4px;font-size:13px;cursor:pointer;overflow:hidden}
 body.theme-light .reply-quote{background:rgba(0,0,0,.06)}
 .reply-quote .rq-from{color:var(--blue);font-weight:600;font-size:12px;margin-bottom:1px}
 .reply-quote .rq-text{opacity:.85;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:280px;font-size:12.5px}
-
 .reactions-row{display:flex;gap:3px;margin-top:4px;flex-wrap:wrap}
 .reaction-pill{display:inline-flex;align-items:center;gap:4px;background:rgba(0,0,0,.25);border-radius:11px;padding:2px 7px;font-size:12px;cursor:pointer;transition:background .15s;border:1px solid transparent}
 .reaction-pill:hover{background:rgba(0,0,0,.4)}
@@ -113,45 +99,32 @@ body.theme-light .reply-quote{background:rgba(0,0,0,.06)}
 body.theme-light .reaction-pill{background:rgba(0,0,0,.06)}
 body.theme-light .reaction-pill.mine{background:rgba(51,144,236,.15);border-color:rgba(51,144,236,.4)}
 .reaction-pill .rc{font-size:14px;line-height:1}
-
 .reaction-picker{background:var(--bg-side);border:1px solid var(--divider);border-radius:22px;padding:5px 8px;display:flex;gap:2px;box-shadow:0 6px 22px rgba(0,0,0,.4);z-index:150;align-items:center}
 .reaction-picker button{font-size:22px;padding:4px 6px;border-radius:50%;transition:transform .1s,background .15s;line-height:1;background:transparent;border:none;cursor:pointer}
 .reaction-picker button:hover{transform:scale(1.25);background:var(--bg-hover)}
-
 .ctx-menu{background:var(--bg-side);border:1px solid var(--divider);border-radius:12px;padding:6px 0;min-width:200px;box-shadow:0 10px 40px rgba(0,0,0,.5);z-index:200}
 .ctx-item{display:flex;align-items:center;gap:12px;padding:9px 16px;font-size:14px;color:var(--text);cursor:pointer;transition:background .12s}
 .ctx-item:hover{background:var(--bg-hover)}
 .ctx-item i{width:18px;text-align:center;opacity:.8;font-size:13px}
 .ctx-item.danger{color:#ef4444}
 .ctx-item.danger i{color:#ef4444}
-
 .pinned-bar{background:var(--bg-side);border-bottom:1px solid var(--divider);padding:6px 12px;display:flex;align-items:center;gap:10px;cursor:pointer;position:relative;z-index:5}
 .pinned-bar::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
-
 .typing-anim span{display:inline-block;width:4px;height:4px;background:var(--blue);border-radius:50%;margin:0 1px;animation:tp 1.2s infinite}
 .typing-anim span:nth-child(2){animation-delay:.15s}
 .typing-anim span:nth-child(3){animation-delay:.3s}
 @keyframes tp{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-3px);opacity:1}}
-
-.msg-row.search-hit .msg-bubble{box-shadow:0 0 0 2px #fbbf24 inset}
-
 .voice-bubble{display:flex;align-items:center;gap:10px;min-width:180px}
 .voice-play{width:38px;height:38px;border-radius:50%;background:var(--blue);color:#fff;display:flex;align-items:center;justify-content:center;flex-shrink:0;cursor:pointer}
 .voice-wave{flex:1;height:24px;display:flex;align-items:center;gap:2px}
 .voice-wave i{display:block;width:2px;background:currentColor;opacity:.6;border-radius:2px}
 .voice-time{font-size:11px;opacity:.8;min-width:32px;text-align:right}
-
 .rec-dot{width:10px;height:10px;background:#ef4444;border-radius:50%;animation:recPulse 1s infinite}
 @keyframes recPulse{0%,100%{opacity:1}50%{opacity:.3}}
-
-/* Sidebar context menu (right-click on chat) */
 .side-ctx{background:var(--bg-side);border:1px solid var(--divider);border-radius:10px;padding:5px 0;min-width:180px;box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:200;font-size:13.5px}
-
-/* Scroll to bottom btn */
 .scroll-bottom{position:absolute;right:16px;bottom:16px;width:44px;height:44px;border-radius:50%;background:var(--bg-side);color:var(--text-muted);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.4);cursor:pointer;z-index:8;transition:transform .15s}
 .scroll-bottom:hover{transform:scale(1.05)}
 .scroll-bottom .badge{position:absolute;top:-2px;right:-2px;background:var(--blue);color:#fff;font-size:10px;padding:1px 5px;border-radius:10px;font-weight:600;min-width:16px;text-align:center}
-
 @media (max-width:768px){
   .mobile-hidden{display:none !important}
   .mobile-full{width:100% !important;position:absolute !important;inset:0 !important;z-index:30 !important}
@@ -181,23 +154,106 @@ body.theme-light .reaction-pill.mine{background:rgba(51,144,236,.15);border-colo
 
 <script>
 /* ============================================================
-   FIREBASE CONFIG
+   FIREBASE
 ============================================================ */
 const firebaseConfig = { apiKey:"AIzaSyCm5Ikh0OV1bP2fbep-7Kg7rcuNN4PujRY", authDomain:"sixseven-67001.firebaseapp.com", databaseURL:"https://sixseven-67001-default-rtdb.firebaseio.com", projectId:"sixseven-67001", storageBucket:"sixseven-67001.firebasestorage.app", messagingSenderId:"652602968843", appId:"1:652602968843:web:17dadd54f0f5bd6255b00e" };
 let database;
 try { firebase.initializeApp(firebaseConfig); database = firebase.database(); }
 catch(e){ console.error('FB init error', e); database={ref:()=>({on:()=>{},off:()=>{},once:()=>Promise.resolve({exists:()=>false,val:()=>null}),set:()=>Promise.resolve(),remove:()=>Promise.resolve(),update:()=>Promise.resolve()})}; }
 
-const DEFAULT_MARKET = {
-  'g1':{name:'Золотое Сердце',price:15,icon:'❤️',bg:'from-amber-500 to-yellow-600',edition:'1 из 19.2K'},
-  'g2':{name:'Плюшевый Мишка',price:25,icon:'🧸',bg:'from-blue-500 to-indigo-600',edition:'1 из 10.5K'},
-  'g3':{name:'Кот Дракула',price:50,icon:'🐱',bg:'from-purple-900 to-black',edition:'1 из 5.0K'}
+/* ============================================================
+   ПОЛНЫЙ КАТАЛОГ ПОДАРКОВ (из Telegram)
+============================================================ */
+const GIFT_CATALOG = {
+  'heart':        {name:'Heart',            price:15,   icon:'❤️', bg:'from-red-500 to-pink-600',   edition:'∞', category:'regular', canUpgrade:true,  collection:'Hearts'},
+  'thumbsup':     {name:'Thumbs Up',        price:15,   icon:'👍', bg:'from-blue-500 to-indigo-600', edition:'∞', category:'regular', canUpgrade:true,  collection:'Reactions'},
+  'cake':         {name:'Homemade Cake',    price:25,   icon:'🍰', bg:'from-amber-500 to-orange-600',edition:'∞', category:'regular', canUpgrade:true,  collection:'Homemade'},
+  'flowers':      {name:'Bouquet',          price:25,   icon:'💐', bg:'from-pink-500 to-rose-600',   edition:'∞', category:'regular', canUpgrade:true,  collection:'Flowers'},
+  'jellybunny':   {name:'Jelly Bunny',      price:35,   icon:'🐰', bg:'from-emerald-400 to-teal-600',edition:'∞', category:'regular', canUpgrade:true,  collection:'Jelly'},
+  'spicedwine':   {name:'Spiced Wine',      price:35,   icon:'🍷', bg:'from-red-700 to-rose-900',    edition:'∞', category:'regular', canUpgrade:true,  collection:'Spiced'},
+  'santahat':     {name:'Santa Hat',        price:50,   icon:'🎅', bg:'from-red-600 to-red-800',     edition:'∞', category:'regular', canUpgrade:true,  collection:'Santa'},
+  'star':         {name:'Star',             price:50,   icon:'⭐', bg:'from-amber-400 to-yellow-600',edition:'∞', category:'regular', canUpgrade:true,  collection:'Stars'},
+  'rocket':       {name:'Rocket',           price:75,   icon:'🚀', bg:'from-slate-600 to-blue-900',  edition:'∞', category:'regular', canUpgrade:true,  collection:'Space'},
+  'trophy':       {name:'Trophy',           price:100,  icon:'🏆', bg:'from-yellow-500 to-amber-700',edition:'∞', category:'regular', canUpgrade:true,  collection:'Sports'},
+  'diamond':      {name:'Diamond',          price:150,  icon:'💎', bg:'from-cyan-400 to-blue-600',   edition:'∞', category:'regular', canUpgrade:true,  collection:'Gems'},
+  'crown':        {name:'Crown',            price:200,  icon:'👑', bg:'from-amber-400 to-yellow-600',edition:'∞', category:'regular', canUpgrade:true,  collection:'Royal'},
+  'ring':         {name:'Ring',             price:250,  icon:'💍', bg:'from-slate-300 to-slate-500', edition:'∞', category:'regular', canUpgrade:true,  collection:'Jewelry'},
+  'watch':        {name:'Watch',            price:300,  icon:'⌚', bg:'from-zinc-600 to-zinc-900',   edition:'∞', category:'regular', canUpgrade:true,  collection:'Luxury'},
+  'perfume':      {name:'Perfume',          price:350,  icon:'🧴', bg:'from-fuchsia-400 to-purple-600',edition:'∞', category:'regular', canUpgrade:true, collection:'Luxury'},
+  'champagne':    {name:'Champagne',        price:400,  icon:'🍾', bg:'from-yellow-300 to-amber-500',edition:'∞', category:'regular', canUpgrade:true,  collection:'Party'},
+  'bear':         {name:'Plush Bear',       price:500,  icon:'🧸', bg:'from-amber-600 to-orange-800',edition:'∞', category:'regular', canUpgrade:true,  collection:'Plush'},
+  'frog':         {name:'Frog',             price:600,  icon:'🐸', bg:'from-green-500 to-emerald-700',edition:'∞', category:'regular', canUpgrade:true, collection:'Animals'},
+  'plushpepe':    {name:'Plush Pepe',       price:1000, icon:'🐸', bg:'from-green-600 to-emerald-800',edition:'1 из 10.0K', category:'collectible', canUpgrade:false, collection:'Plush Pepe',     floorUsd:35},
+  'durovcap':     {name:"Durov's Cap",      price:2500, icon:'🧢', bg:'from-slate-700 to-black',      edition:'1 из 5.0K',  category:'collectible', canUpgrade:false, collection:"Durov's Cap",    floorUsd:80},
+  'toncrystal':   {name:'TON Crystal',      price:800,  icon:'🔷', bg:'from-sky-500 to-blue-700',     edition:'1 из 20.0K', category:'collectible', canUpgrade:false, collection:'TON Crystal',    floorUsd:15},
+  'starbadge':    {name:'Telegram Star Badge',price:400,icon:'⭐', bg:'from-amber-400 to-orange-600', edition:'1 из 50.0K', category:'collectible', canUpgrade:false, collection:'Star Badge',     floorUsd:5},
+  'neonheart':    {name:'Neon Heart',       price:200,  icon:'💖', bg:'from-pink-500 to-fuchsia-700', edition:'1 из 100K',  category:'collectible', canUpgrade:false, collection:'Neon Heart',     floorUsd:2},
+  'diamonddog':   {name:'Diamond Dog',      price:2000, icon:'🐕', bg:'from-cyan-500 to-blue-800',    edition:'1 из 7.5K',  category:'collectible', canUpgrade:false, collection:'Diamond Dog',    floorUsd:55},
+  'cyberowl':     {name:'Cyber Owl',        price:1200, icon:'🦉', bg:'from-violet-600 to-indigo-900',edition:'1 из 15.0K', category:'collectible', canUpgrade:false, collection:'Cyber Owl',      floorUsd:20},
+  'goldenkey':    {name:'Golden Key',       price:3000, icon:'🔑', bg:'from-yellow-400 to-amber-600', edition:'1 из 3.0K',  category:'collectible', canUpgrade:false, collection:'Golden Key',     floorUsd:120},
+  'artisanbrick': {name:'Artisan Brick',    price:600,  icon:'🧱', bg:'from-orange-600 to-red-800',   edition:'1 из 7.0K',  category:'collectible', canUpgrade:false, collection:'Artisan Brick',  floorUsd:10},
+  'freshsocks':   {name:'Fresh Socks',      price:150,  icon:'🧦', bg:'from-slate-400 to-zinc-600',   edition:'1 из 30.0K', category:'collectible', canUpgrade:false, collection:'Fresh Socks',    floorUsd:3},
+  'jinglebells':  {name:'Jingle Bells',     price:300,  icon:'🔔', bg:'from-amber-500 to-yellow-700', edition:'1 из 25.0K', category:'collectible', canUpgrade:false, collection:'Jingle Bells',   floorUsd:6},
+  'deskcalendar': {name:'Desk Calendar',    price:180,  icon:'📅', bg:'from-blue-400 to-indigo-600',  edition:'1 из 40.0K', category:'collectible', canUpgrade:false, collection:'Desk Calendar',  floorUsd:4},
+  'snoopdogg':    {name:'Snoop Dogg Drop',  price:5000, icon:'🎤', bg:'from-purple-700 to-black',     edition:'1 из 1.0K',  category:'collectible', canUpgrade:false, collection:'Snoop Dogg',     floorUsd:200}
 };
+const DEFAULT_MARKET = GIFT_CATALOG;
 const QUICK_REACTIONS = ['👍','❤️','🔥','😂','😮','😢','👏','🎉'];
 const THEMES_BG = {
-  default: 'https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9',
-  dark: 'https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'
+  default: 'https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'
 };
+
+/* ============================================================
+   СИСТЕМА РЕДКОСТИ / АПГРЕЙД / КРАФТ
+============================================================ */
+const RARITY_TIERS = {
+  common:    {name:'Common',    weight:70, color:'#708499', stars:0},
+  uncommon:  {name:'Uncommon',  weight:20, color:'#3b82f6', stars:500},
+  rare:      {name:'Rare',      weight:7,  color:'#a855f7', stars:2000},
+  epic:      {name:'Epic',      weight:2.5,color:'#ec4899', stars:8000},
+  legendary: {name:'Legendary', weight:0.5,color:'#f59e0b', stars:30000}
+};
+const GIFT_MODELS = {
+  common:    ['Classic','Standard','Basic','Simple'],
+  uncommon:  ['Crystal','Silver','Azure','Emerald'],
+  rare:      ['Golden','Ruby','Sapphire','Obsidian'],
+  epic:      ['Platinum','Cosmic','Holographic','Mythic'],
+  legendary: ['Eternal','Divine','Celestial','Primordial']
+};
+const GIFT_BACKDROPS = {
+  common:    ['from-slate-600 to-slate-800','from-zinc-600 to-zinc-900'],
+  uncommon:  ['from-blue-500 to-indigo-700','from-emerald-500 to-teal-700'],
+  rare:      ['from-purple-500 to-fuchsia-800','from-red-500 to-rose-800'],
+  epic:      ['from-pink-500 to-purple-800','from-cyan-400 to-blue-800'],
+  legendary: ['from-amber-400 via-yellow-500 to-orange-600','from-fuchsia-500 via-pink-500 to-rose-600']
+};
+const GIFT_SYMBOLS = ['✦','✧','★','☆','❖','✿','❀','♛','♚','⚜','⌘','∞'];
+const UPGRADE_LADDER = [20000,15000,10000,7000,5000,3500,2500,1800,1200,800,500,300,150,75,25];
+function randomRarity(){
+  const r = Math.random()*100;
+  if(r < 0.5) return 'legendary';
+  if(r < 3)   return 'epic';
+  if(r < 10)  return 'rare';
+  if(r < 30)  return 'uncommon';
+  return 'common';
+}
+function pickRandom(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function genTrait(rarity){
+  return {
+    model: pickRandom(GIFT_MODELS[rarity] || GIFT_MODELS.common),
+    backdrop: pickRandom(GIFT_BACKDROPS[rarity] || GIFT_BACKDROPS.common),
+    symbol: pickRandom(GIFT_SYMBOLS),
+    rarity
+  };
+}
+function genSerial(){ return String(Math.floor(Math.random()*900000)+100000); }
+function getUpgradeCost(giftKey){
+  const g = GIFT_CATALOG[giftKey];
+  if(!g) return 25;
+  const baseIdx = g.price >= 500 ? 0 : (g.price >= 200 ? 3 : (g.price >= 50 ? 6 : 9));
+  const idx = Math.min(UPGRADE_LADDER.length-1, baseIdx + Math.floor(Math.random()*3));
+  return UPGRADE_LADDER[idx];
+}
 
 /* ============================================================
    STATE
@@ -206,7 +262,7 @@ let db = { currentUser:null, users:{}, chats:{}, reports:{}, market:{} };
 let activeChatId = null;
 let activeFolderId = 'all';
 let activeAuthMode = 'login';
-let giftsTab = 'market';
+let giftsTab = 'regular';
 let currentChatListener = null;
 let globalListenersStarted = false;
 let currentMessages = [];
@@ -218,6 +274,7 @@ let selectedMsgId = null;
 let replyTo = null;
 let editingId = null;
 let newMessagesCount = 0;
+let craftSelection = [];
 
 /* ============================================================
    UTILS
@@ -685,22 +742,17 @@ function showChatCtxMenu(cid, x, y){
     document.addEventListener('click',h);
   },10);
 }
-
 document.addEventListener('click', e=>{
   if(!e.target.closest('.ctx-menu') && !e.target.closest('.reaction-picker') && !e.target.closest('.msg-row') && !e.target.closest('.side-ctx'))
     document.querySelectorAll('.ctx-menu, .reaction-picker, .side-ctx').forEach(el=>el.remove());
 });
+
 /* ============================================================
    CHAT OPEN
 ============================================================ */
 function openChat(cid){
-  if(currentChatListener && activeChatId){
-    database.ref('messages/'+activeChatId).off('value', currentChatListener);
-  }
-  if(typingListenerRef && activeChatId){
-    database.ref('typing/'+activeChatId).off('value', typingListenerRef);
-    typingListenerRef = null;
-  }
+  if(currentChatListener && activeChatId) database.ref('messages/'+activeChatId).off('value', currentChatListener);
+  if(typingListenerRef && activeChatId){ database.ref('typing/'+activeChatId).off('value', typingListenerRef); typingListenerRef = null; }
   activeChatId = cid;
   replyTo = null; editingId = null; selectedMsgId = null; newMessagesCount = 0;
   renderSidebar();
@@ -715,9 +767,7 @@ function openChat(cid){
     sub = `${cnt} ${plural(cnt,'участник','участника','участников')}`;
     av = chat.avatar;
   } else if(isSaved){
-    name = 'Избранное';
-    sub = 'сохранённые сообщения';
-    av = '';
+    name = 'Избранное'; sub = 'сохранённые сообщения'; av = '';
   } else {
     const ou = Object.keys(chat.members||{}).find(m=>m!==db.currentUser.username);
     targetUser = db.users[ou]||{};
@@ -746,9 +796,7 @@ function openChat(cid){
       <button onclick="openChatMenu()" class="hover:text-white cursor-pointer transition p-1" title="Ещё"><i class="fas fa-ellipsis-v"></i></button>
     </div>
   </div>
-
   <div id="pinnedBarWrap"></div>
-
   <div id="msgContainerWrap" class="flex-grow overflow-hidden relative">
     <div id="msgContainer" class="absolute inset-0 overflow-y-auto px-3 py-4 flex flex-col"></div>
     <div id="scrollBottomBtn" class="scroll-bottom hidden" onclick="scrollToBottom(true)">
@@ -756,9 +804,7 @@ function openChat(cid){
       <span class="badge hidden" id="newMsgBadge">0</span>
     </div>
   </div>
-
   <div id="replyBarWrap"></div>
-
   <div class="bg-tg-sidebar px-3 py-2.5 shrink-0 flex items-end gap-1.5 z-10 border-t border-black/30 relative">
     <div id="emojiPanel" class="hidden absolute bottom-full left-3 mb-2 bg-[#17212b] border border-black/40 rounded-2xl p-3 shadow-2xl w-[340px] max-w-[92vw] pop-in">
       <div class="text-[11px] text-tg-gray uppercase tracking-wider mb-2 px-1">Недавние</div>
@@ -824,11 +870,9 @@ function openChat(cid){
     const prevCount = currentMessages.length;
     currentMessages = Object.keys(msgs).map(k=>({_id:k, ...msgs[k]})).sort((a,b)=>a.at-b.at);
     const newCount = currentMessages.length - prevCount;
-
     mc.innerHTML = renderMessages(currentMessages, isGroup);
-    if(nearBottom) {
-      mc.scrollTop = mc.scrollHeight;
-    } else if(prevCount > 0 && newCount > 0){
+    if(nearBottom) mc.scrollTop = mc.scrollHeight;
+    else if(prevCount > 0 && newCount > 0){
       newMessagesCount += newCount;
       const btn = document.getElementById('scrollBottomBtn');
       const b = document.getElementById('newMsgBadge');
@@ -842,7 +886,6 @@ function openChat(cid){
   };
   database.ref('messages/'+cid).on('value', currentChatListener);
 }
-
 function applyFontScaleToBubbles(){
   const px = (db.currentUser?.fontScale||15);
   document.querySelectorAll('#msgContainer [data-msg-text]').forEach(el=>el.style.fontSize=px+'px');
@@ -952,7 +995,6 @@ function renderMessages(list, isGroup){
 function bindMsgEvents(container){
   container.querySelectorAll('.msg-row').forEach(el=>{
     let pressTimer=null, moved=false, startX=0, startY=0;
-
     const start = (e)=>{
       const pt = e.touches?e.touches[0]:e;
       startX = pt.clientX; startY = pt.clientY; moved=false;
@@ -964,12 +1006,10 @@ function bindMsgEvents(container){
       if(moved) clearTimeout(pressTimer);
     };
     const end = ()=>{ clearTimeout(pressTimer); };
-
     el.addEventListener('touchstart', start, {passive:true});
     el.addEventListener('touchmove', move, {passive:true});
     el.addEventListener('touchend', end);
     el.addEventListener('touchcancel', end);
-
     el.addEventListener('mousedown', start);
     el.addEventListener('mousemove', move);
     el.addEventListener('mouseup', end);
@@ -978,13 +1018,11 @@ function bindMsgEvents(container){
     el.addEventListener('dblclick', e=>{ e.preventDefault(); if(el.dataset.mine==='0') replyToMsg(el.dataset.mid); });
   });
 }
-
 function scrollToMsg(mid){
   document.querySelectorAll('.ctx-menu, .reaction-picker, .side-ctx').forEach(el=>el.remove());
   const el = document.querySelector(`[data-mid="${mid}"]`);
   if(el){ el.scrollIntoView({behavior:'smooth', block:'center'}); el.classList.add('msg-selected'); setTimeout(()=>el.classList.remove('msg-selected'),1500); }
 }
-
 async function showMsgContextMenu(mid, isMine, x, y){
   document.querySelectorAll('.ctx-menu, .reaction-picker, .side-ctx').forEach(el=>el.remove());
   const msg = currentMessages.find(m=>m._id===mid); if(!msg) return;
@@ -1081,8 +1119,7 @@ function replyToMsg(mid){
 }
 function startEdit(mid){
   const m = currentMessages.find(x=>x._id===mid); if(!m || m.from!==db.currentUser.username) return;
-  editingId = mid;
-  replyTo = null;
+  editingId = mid; replyTo = null;
   const inp = document.getElementById('msgInput');
   if(inp){ inp.value = m.text||''; autoGrow(inp); inp.focus(); }
   updateInputUI();
@@ -1124,7 +1161,6 @@ function updateMicSendButtonsForce(){
   else { mic.classList.add('hidden'); send.classList.remove('hidden'); }
 }
 function recording(){ return !!mediaRecorder && mediaRecorder.state==='recording'; }
-
 async function deleteMsg(mid, forAll=true){
   if(!activeChatId) return;
   const m = currentMessages.find(x=>x._id===mid); if(!m) return;
@@ -1137,7 +1173,6 @@ async function deleteMsg(mid, forAll=true){
   }
   toast('Удалено');
 }
-
 function openForwardModal(mid){
   const m = currentMessages.find(x=>x._id===mid); if(!m) return;
   const chatIds = Object.keys(db.chats);
@@ -1166,7 +1201,6 @@ async function doForward(mid, cid){
   await database.ref(`chats/${cid}/lastMessage`).set({ text: payload.text||(m.fileType?.startsWith('audio/')?'🎤 Голосовое':(m.fileType?.startsWith('image/')?'📷 Фото':'📎 Вложение')), from: db.currentUser.username, at: Date.now() });
   toast('Переслано');
 }
-
 async function saveToSaved(mid){
   const m = currentMessages.find(x=>x._id===mid); if(!m) return;
   const savedCid = 'saved_'+db.currentUser.username;
@@ -1236,7 +1270,6 @@ function openChatMenu(){
   openModal('Действия', `<div class="space-y-1">${items.map((it,i)=>`<div onclick="closeModal(); window._chatMenuAction[${i}]();" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition ${it.danger?'text-red-400':''}">
     <i class="fas ${it.icon} w-5 text-center ${it.danger?'text-red-400':'text-tg-gray'}"></i><span class="text-sm">${it.label}</span></div>`).join('')}</div>`);
 }
-
 function openSearchInChat(){
   openModal('Поиск в чате', `
     <input id="csQuery" type="text" placeholder="Введите текст..." oninput="runChatSearch(this.value)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-3 transition">
@@ -1281,19 +1314,16 @@ function insertEmoji(e){
   const inp = document.getElementById('msgInput'); if(!inp) return;
   inp.value += e; inp.focus(); autoGrow(inp); updateMicSendButtonsForce();
 }
-
 async function sendMsg(){
   const inp = document.getElementById('msgInput'); if(!inp || !activeChatId) return;
   const txt = inp.value.trim();
   if(!txt) return;
   const now = Date.now();
-
   if(editingId){
     await database.ref(`messages/${activeChatId}/${editingId}`).update({ text: txt, edited: true, editedAt: now });
     editingId = null; inp.value=''; autoGrow(inp); updateInputUI(); toast('Изменено');
     return;
   }
-
   const mid = uid();
   const payload = { from: db.currentUser.username, text: txt, at: now };
   if(replyTo) payload.replyTo = replyTo._id;
@@ -1304,12 +1334,8 @@ async function sendMsg(){
   if(db.currentUser) database.ref(`typing/${activeChatId}/${db.currentUser.username}`).remove().catch(()=>{});
   setTimeout(()=>scrollToBottom(false), 50);
 }
-
 async function toggleRecording(){
-  if(recording()){
-    mediaRecorder.stop();
-    return;
-  }
+  if(recording()){ mediaRecorder.stop(); return; }
   if(!navigator.mediaDevices || !window.MediaRecorder){ toast('Запись не поддерживается'); return; }
   try {
     const stream = await navigator.mediaDevices.getUserMedia({audio:true});
@@ -1359,10 +1385,6 @@ function micBtnReset(){
   const inp = document.getElementById('msgInput'); if(inp){ inp.disabled = false; inp.placeholder='Написать сообщение...'; }
   updateMicSendButtonsForce();
 }
-
-/* ============================================================
-   VOICE PLAYBACK
-============================================================ */
 function toggleAudio(id){
   const aud = document.getElementById('aud_'+id); if(!aud) return;
   const icon = document.getElementById('vp_'+id);
@@ -1381,6 +1403,7 @@ function voiceTime(aud){
   const el = document.getElementById('vt_'+id);
   if(el) el.textContent = fmtDuration(aud.currentTime);
 }
+
 /* ============================================================
    SAVED MESSAGES
 ============================================================ */
@@ -1413,7 +1436,6 @@ document.getElementById('hiddenFileInput').addEventListener('change', async e=>{
     setTimeout(()=>scrollToBottom(false), 50);
   } catch(err){ console.error(err); toast('Не удалось загрузить'); }
 });
-
 document.getElementById('hiddenAvatarInput').addEventListener('change', async e=>{
   const f = e.target.files[0]; e.target.value='';
   if(!f) return;
@@ -1422,7 +1444,6 @@ document.getElementById('hiddenAvatarInput').addEventListener('change', async e=
   await database.ref('users/'+db.currentUser.username+'/avatar').set(b);
   toast('Аватар обновлён'); openSettingsModal();
 });
-
 document.getElementById('hiddenGiftIconInput').addEventListener('change', async e=>{
   const f = e.target.files[0]; e.target.value='';
   if(!f) return;
@@ -1430,15 +1451,13 @@ document.getElementById('hiddenGiftIconInput').addEventListener('change', async 
   const b = await fileToBase64(f);
   setGiftIcon(b);
 });
-
 document.getElementById('hiddenChatBgInput').addEventListener('change', async e=>{
   const f = e.target.files[0]; e.target.value='';
   if(!f) return;
   if(f.size>1500000){ toast('Картинка слишком большая'); return; }
   const b = await fileToBase64(f);
   await database.ref('users/'+db.currentUser.username+'/chatBg').set(b);
-  toast('Фон чата обновлён');
-  applyChatBg();
+  toast('Фон чата обновлён'); applyChatBg();
 });
 
 /* ============================================================
@@ -1463,20 +1482,57 @@ function closeModal(){ document.getElementById('ssModal')?.remove(); }
 /* ============================================================
    PROFILE
 ============================================================ */
+function renderProfileGiftsSection(u, isMe){
+  const gifts = u.gifts||{};
+  const entries = Object.entries(gifts);
+  const cards = entries.map(([gid,g])=>{
+    const canUpg = g.canUpgrade !== false && !g.traits;
+    const rarity = g.traits?.rarity;
+    const rarityInfo = rarity ? RARITY_TIERS[rarity] : null;
+    const badge = rarityInfo
+      ? `<div class="absolute top-1.5 left-1.5 bg-black/60 backdrop-blur px-1.5 py-0.5 rounded text-[9px] font-bold z-10" style="color:${rarityInfo.color}">${rarityInfo.name.toUpperCase()}</div>`
+      : '';
+    const serialBadge = g.traits?.serial
+      ? `<div class="absolute bottom-1.5 right-1.5 bg-black/60 backdrop-blur px-1.5 py-0.5 rounded text-[9px] font-mono z-10">#${g.traits.serial}</div>`
+      : '';
+    const symbol = g.traits?.symbol ? `<div class="text-lg opacity-70">${g.traits.symbol}</div>` : '';
+    const upgBtn = (isMe && canUpg)
+      ? `<button onclick="event.stopPropagation();openUpgradeModal('${gid}')" class="absolute inset-0 bg-black/70 opacity-0 hover:opacity-100 transition flex flex-col items-center justify-center gap-1 z-20 rounded-2xl">
+           <i class="fas fa-arrow-up text-amber-400"></i>
+           <span class="text-[10px] text-amber-400 font-semibold">Улучшить</span>
+         </button>`
+      : '';
+    const craftBtn = (isMe && g.traits)
+      ? `<button onclick="event.stopPropagation();openCraftModal('${gid}')" class="absolute bottom-1.5 left-1.5 bg-black/60 backdrop-blur px-2 py-0.5 rounded text-[9px] font-semibold text-cyan-400 z-20 hover:bg-black/80">
+           <i class="fas fa-flask mr-0.5"></i>Крафт
+         </button>`
+      : '';
+    return `<div onclick="showGiftDetail('${gid}','${u.username}')" class="relative bg-gradient-to-tr ${g.traits?.backdrop || g.bg} rounded-2xl shadow-lg overflow-hidden text-white aspect-square flex flex-col justify-between p-2.5 cursor-pointer">
+      ${badge}${serialBadge}${upgBtn}${craftBtn}
+      <div class="flex-1 flex items-center justify-center">${renderGiftIcon(g.icon,'text-3xl')}</div>
+      <div>
+        ${symbol}
+        <div class="text-[11px] font-semibold truncate leading-tight">${escapeHtml(g.name)}</div>
+        <div class="text-[9px] opacity-70">${escapeHtml(g.traits?.model || g.edition)}</div>
+      </div>
+    </div>`;
+  }).join('');
+  const empty = `<div class="col-span-3 flex flex-col items-center justify-center text-tg-gray text-sm py-6">
+    <i class="fas fa-gift text-3xl mb-2 text-tg-gray/30"></i>Нет подарков
+  </div>`;
+  return `
+  <div class="mb-2">
+    <div class="flex items-center justify-between mb-3">
+      <h4 class="text-white font-medium text-sm flex items-center gap-2">
+        <i class="fas fa-gift text-pink-400"></i>Подарки · ${entries.length}
+      </h4>
+    </div>
+    <div class="grid grid-cols-3 gap-2">${cards || empty}</div>
+  </div>`;
+}
 function openProfileModal(username){
   const u = db.users[username]; if(!u) return;
   const isMe = username === db.currentUser.username;
-  const gifts = u.gifts||{}; const gKeys = Object.keys(gifts); const gCount = gKeys.length;
-
-  const giftsGrid = gCount>0
-    ? Object.values(gifts).map(g=>`
-      <div class="bg-gradient-to-tr ${g.bg} rounded-2xl shadow-lg relative overflow-hidden text-white aspect-square flex flex-col justify-between p-2.5">
-        <div class="absolute top-1.5 right-1.5 bg-black/40 backdrop-blur px-1.5 py-0.5 rounded text-[9px] font-semibold z-10">${escapeHtml(g.edition)}</div>
-        <div class="flex-1 flex items-center justify-center">${renderGiftIcon(g.icon,'text-3xl')}</div>
-        <div class="text-[11px] font-semibold truncate leading-tight">${escapeHtml(g.name)}</div>
-      </div>`).join('')
-    : `<div class="col-span-3 flex flex-col items-center justify-center text-tg-gray text-sm py-6"><i class="fas fa-gift text-3xl mb-2 text-tg-gray/30"></i>Нет подарков</div>`;
-
   openModal('Профиль', `
     <div class="text-center mb-5">
       <div class="mb-3 flex justify-center">${getAvatarHtml(u.avatar, u.displayName||u.username, 24)}</div>
@@ -1494,17 +1550,12 @@ function openProfileModal(username){
       <div><span class="text-tg-gray text-xs block mb-0.5">О себе</span><span class="text-white font-medium">${escapeHtml(u.bio||'Добро пожаловать в 67gramm!')}</span></div>
       <div><span class="text-tg-gray text-xs block mb-0.5">Звёзды</span><span class="text-amber-400 font-bold">${u.stars||0} ⭐</span></div>
     </div>
-    <div class="mb-2">
-      <div class="flex items-center justify-between mb-3"><h4 class="text-white font-medium text-sm flex items-center gap-2"><i class="fas fa-gift text-pink-400"></i>Подарки · ${gCount}</h4></div>
-      <div class="grid grid-cols-3 gap-2">${giftsGrid}</div>
-    </div>
+    ${renderProfileGiftsSection(u, isMe)}
   `);
 }
 function openMyProfile(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full')) toggleDrawerMenu();
-  const me = db.currentUser.username;
-  // Показываем публичную карточку себя, но без кнопок написать/позвонить
-  const u = db.users[me] || db.currentUser;
+  const u = db.users[db.currentUser.username] || db.currentUser;
   openModal('Мой профиль', `
     <div class="text-center mb-5">
       <div class="mb-3 flex justify-center">${getAvatarHtml(u.avatar, u.displayName||u.username, 24)}</div>
@@ -1517,7 +1568,8 @@ function openMyProfile(){
       <div><span class="text-tg-gray text-xs block mb-0.5">О себе</span><span class="text-white font-medium">${escapeHtml(u.bio||'Добро пожаловать в 67gramm!')}</span></div>
       <div><span class="text-tg-gray text-xs block mb-0.5">Звёзды</span><span class="text-amber-400 font-bold">${u.stars||0} ⭐</span></div>
     </div>
-    <button onclick="closeModal(); openSetAccountModal()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">Редактировать профиль</button>
+    ${renderProfileGiftsSection(u, true)}
+    <button onclick="closeModal(); openSetAccountModal()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm transition mt-3">Редактировать профиль</button>
   `);
 }
 async function startDialogWith(username){
@@ -1535,37 +1587,54 @@ async function startDialogWith(username){
 }
 
 /* ============================================================
-   GIFTS
+   GIFTS — магазин с 3 табами (Обычные / Коллекционные / Мои)
 ============================================================ */
 function openGiftsModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full')) toggleDrawerMenu();
-  const market = db.market||{}; const myGifts = db.currentUser.gifts||{};
-  const marketHtml = Object.keys(market).map(gid=>{
+  const market = db.market||{};
+  const myGifts = db.currentUser.gifts||{};
+  const regular = Object.keys(market).filter(k=>market[k].category!=='collectible');
+  const collectible = Object.keys(market).filter(k=>market[k].category==='collectible');
+
+  const card = (gid, isColl)=>{
     const g = market[gid];
-    return `<div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 flex flex-col items-center text-center">
+    return `<div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 flex flex-col items-center text-center relative">
+      ${isColl?`<div class="absolute top-2 right-2 bg-amber-500/20 text-amber-400 text-[9px] font-bold px-1.5 py-0.5 rounded">LIMITED</div>`:''}
       <div class="w-16 h-16 rounded-2xl bg-gradient-to-tr ${g.bg} flex items-center justify-center mb-3 shadow-lg">${renderGiftIcon(g.icon,'text-3xl')}</div>
       <div class="text-white font-medium text-sm mb-0.5">${escapeHtml(g.name)}</div>
       <div class="text-[10px] text-tg-gray mb-2">${escapeHtml(g.edition)}</div>
+      ${g.floorUsd?`<div class="text-[10px] text-emerald-400 mb-1">~$${g.floorUsd} floor</div>`:''}
       <div class="text-amber-400 font-bold text-xs mb-3">${g.price} ⭐</div>
       <button onclick="buyGift('${gid}')" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white py-2 rounded-xl text-xs font-medium btn-press transition">Купить</button>
     </div>`;
-  }).join('') || '<p class="text-tg-gray text-xs text-center py-6 col-span-2">Магазин пуст</p>';
+  };
+
   const myHtml = Object.keys(myGifts).map(mgid=>{
     const mg = myGifts[mgid];
-    return `<div class="bg-gradient-to-tr ${mg.bg} p-4 rounded-2xl shadow-xl flex flex-col justify-between relative overflow-hidden text-white min-h-[140px]">
-      <div class="absolute top-2 right-2 bg-black/30 backdrop-blur px-2 py-0.5 rounded-md text-[10px] font-semibold">${escapeHtml(mg.edition)}</div>
+    const rarityInfo = mg.traits?RARITY_TIERS[mg.traits.rarity]:null;
+    return `<div onclick="showGiftDetail('${mgid}','${db.currentUser.username}')" class="relative bg-gradient-to-tr ${mg.traits?.backdrop || mg.bg} p-4 rounded-2xl shadow-xl flex flex-col justify-between overflow-hidden text-white min-h-[140px] cursor-pointer">
+      ${rarityInfo?`<div class="absolute top-2 left-2 bg-black/60 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold" style="color:${rarityInfo.color}">${rarityInfo.name}</div>`:`<div class="absolute top-2 right-2 bg-black/30 backdrop-blur px-2 py-0.5 rounded-md text-[10px] font-semibold">${escapeHtml(mg.edition)}</div>`}
       <div class="my-auto text-center">${renderGiftIcon(mg.icon,'text-4xl')}</div>
-      <div><div class="font-bold text-sm truncate">${escapeHtml(mg.name)}</div><div class="text-[10px] text-white/70">NFT / Коллекционный</div></div>
+      <div><div class="font-bold text-sm truncate">${escapeHtml(mg.name)}</div><div class="text-[10px] text-white/70">${mg.traits?.model||'NFT / Коллекционный'}</div></div>
     </div>`;
   }).join('') || '<p class="text-tg-gray text-xs text-center py-6 col-span-2">У вас пока нет подарков</p>';
-  const mCls = giftsTab==='market'?'bg-[#2b5278] text-white':'text-tg-gray';
-  const myCls = giftsTab==='my'?'bg-[#2b5278] text-white':'text-tg-gray';
+
+  const tabs = [
+    {id:'regular', label:'Обычные'},
+    {id:'collectible', label:'Коллекционные'},
+    {id:'my', label:'Мои'}
+  ];
+  const tabsHtml = tabs.map(t=>{
+    const active = giftsTab===t.id;
+    return `<button onclick="switchGiftsTab('${t.id}')" class="flex-1 py-2 rounded-lg text-xs font-medium transition ${active?'bg-[#2b5278] text-white':'text-tg-gray hover:text-white'}">${t.label}</button>`;
+  }).join('');
+
   openModal('Подарки и NFT', `
-    <div class="flex gap-2 mb-4 bg-[#0e1621] p-1 rounded-xl border border-black/30">
-      <button onclick="switchGiftsTab('market')" class="flex-1 py-2 rounded-lg text-xs font-medium transition ${mCls}">Магазин</button>
-      <button onclick="switchGiftsTab('my')" class="flex-1 py-2 rounded-lg text-xs font-medium transition ${myCls}">Мои подарки</button>
+    <div class="flex gap-1 mb-4 bg-[#0e1621] p-1 rounded-xl border border-black/30">
+      ${tabsHtml}
     </div>
-    <div class="${giftsTab==='market'?'':'hidden'} grid grid-cols-2 gap-3">${marketHtml}</div>
+    <div class="${giftsTab==='regular'?'':'hidden'} grid grid-cols-2 gap-3">${regular.map(g=>card(g,false)).join('')}</div>
+    <div class="${giftsTab==='collectible'?'':'hidden'} grid grid-cols-2 gap-3">${collectible.map(g=>card(g,true)).join('')}</div>
     <div class="${giftsTab==='my'?'':'hidden'} grid grid-cols-2 gap-3">${myHtml}</div>
   `);
 }
@@ -1576,9 +1645,228 @@ async function buyGift(gid){
   if(stars<g.price){ toast('Недостаточно звёзд'); return; }
   const newStars = stars - g.price;
   const giftId = 'gift_'+Date.now();
+  const giftWithKey = { ...g, giftKey: gid };
   await database.ref('users/'+db.currentUser.username+'/stars').set(newStars);
-  await database.ref('users/'+db.currentUser.username+'/gifts/'+giftId).set(g);
-  toast('🎁 Подарок куплен!'); giftsTab='my'; openGiftsModal();
+  await database.ref('users/'+db.currentUser.username+'/gifts/'+giftId).set(giftWithKey);
+  toast('🎁 Подарок куплен!');
+  giftsTab='my';
+  openGiftsModal();
+}
+
+/* ============================================================
+   UPGRADE MODAL
+============================================================ */
+function openUpgradeModal(giftId){
+  const g = db.currentUser.gifts?.[giftId];
+  if(!g){ toast('Подарок не найден'); return; }
+  if(g.traits){ toast('Уже улучшен'); return; }
+  const cost = getUpgradeCost(g.giftKey || 'default');
+  const stars = db.currentUser.stars || 0;
+  const canAfford = stars >= cost;
+  openModal('Улучшить подарок', `
+    <div class="text-center mb-5">
+      <div class="w-24 h-24 rounded-3xl bg-gradient-to-tr ${g.bg} flex items-center justify-center text-5xl mx-auto mb-3 shadow-xl">
+        ${renderGiftIcon(g.icon,'text-5xl')}
+      </div>
+      <h3 class="text-white text-lg font-bold mb-1">${escapeHtml(g.name)}</h3>
+      <p class="text-tg-gray text-xs">Превратите в уникальный коллекционный</p>
+    </div>
+    <div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 mb-4">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-tg-gray text-sm">Стоимость улучшения</span>
+        <span class="text-amber-400 font-bold flex items-center gap-1">${cost} <i class="fas fa-star text-xs"></i></span>
+      </div>
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-tg-gray text-sm">Ваш баланс</span>
+        <span class="${canAfford?'text-emerald-400':'text-red-400'} font-bold flex items-center gap-1">${stars} <i class="fas fa-star text-xs"></i></span>
+      </div>
+      <div class="border-t border-black/20 pt-2 mt-2">
+        <p class="text-[11px] text-tg-gray leading-relaxed">
+          Вы получите <b class="text-white">случайный</b> модельный вид, фон, символ и серийный номер.
+        </p>
+      </div>
+    </div>
+    <div class="grid grid-cols-5 gap-1.5 mb-4">
+      ${Object.entries(RARITY_TIERS).map(([k,v])=>`
+        <div class="text-center p-1.5 rounded-lg bg-[#0e1621] border border-black/20">
+          <div class="text-[9px] font-bold mb-0.5" style="color:${v.color}">${v.name}</div>
+          <div class="text-[8px] text-tg-gray">${v.weight}%</div>
+        </div>
+      `).join('')}
+    </div>
+    <button onclick="doUpgradeGift('${giftId}')" ${!canAfford?'disabled':''}
+      class="w-full ${canAfford?'bg-[#3390ec] hover:bg-[#2b78c5]':'bg-[#2b3a4a] cursor-not-allowed'} text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">
+      ${canAfford ? '⭐ Улучшить за ' + cost + ' звёзд' : 'Недостаточно звёзд'}
+    </button>
+  `);
+}
+async function doUpgradeGift(giftId){
+  const g = db.currentUser.gifts?.[giftId];
+  if(!g) return;
+  const cost = getUpgradeCost(g.giftKey || 'default');
+  const stars = db.currentUser.stars || 0;
+  if(stars < cost){ toast('Недостаточно звёзд'); return; }
+  closeModal();
+  toast('Улучшение...');
+  setTimeout(async()=>{
+    const rarity = randomRarity();
+    const traits = genTrait(rarity);
+    traits.serial = genSerial();
+    const upgraded = { ...g, bg: traits.backdrop, traits, upgradedAt: Date.now(), canUpgrade: false };
+    await database.ref('users/'+db.currentUser.username+'/stars').set(stars - cost);
+    await database.ref('users/'+db.currentUser.username+'/gifts/'+giftId).set(upgraded);
+    const rInfo = RARITY_TIERS[rarity];
+    toast(`✨ ${rInfo.name}! ${traits.model} · ${traits.symbol} · #${traits.serial}`, 4000);
+  }, 900);
+}
+
+/* ============================================================
+   CRAFT MODAL
+============================================================ */
+function openCraftModal(preselectId){
+  craftSelection = [];
+  if(preselectId) craftSelection = [preselectId];
+  renderCraftModal();
+}
+function renderCraftModal(){
+  const allGifts = Object.entries(db.currentUser.gifts||{}).filter(([gid,g])=> g.traits);
+  if(allGifts.length < 2){
+    openModal('Крафтинг', `
+      <div class="text-center py-6">
+        <i class="fas fa-flask text-4xl text-tg-gray/40 mb-3"></i>
+        <p class="text-white font-medium mb-1">Нужно минимум 2 улучшенных подарка</p>
+        <p class="text-tg-gray text-sm">Улучшите обычные подарки, чтобы объединять их в более редкие.</p>
+      </div>
+    `);
+    return;
+  }
+  const chance = craftSelection.length === 0 ? 0
+    : craftSelection.length === 1 ? 22
+    : craftSelection.length === 2 ? 45
+    : craftSelection.length === 3 ? 69
+    : 92;
+  const grid = allGifts.map(([gid,g])=>{
+    const isSel = craftSelection.includes(gid);
+    const rColor = RARITY_TIERS[g.traits?.rarity]?.color || '#708499';
+    return `<div onclick="toggleCraftSelect('${gid}')" class="relative aspect-square rounded-xl overflow-hidden cursor-pointer transition ${isSel?'ring-2 ring-cyan-400 scale-[0.97]':'ring-1 ring-black/30 hover:ring-cyan-400/50'}">
+      <div class="absolute inset-0 bg-gradient-to-tr ${g.traits?.backdrop || g.bg}"></div>
+      <div class="relative h-full flex flex-col items-center justify-center p-1.5">
+        <div class="text-2xl">${g.icon}</div>
+        <div class="text-[8px] font-bold mt-0.5" style="color:${rColor}">${g.traits?.rarity?.toUpperCase()}</div>
+      </div>
+      ${isSel?'<div class="absolute top-1 right-1 w-5 h-5 bg-cyan-400 rounded-full flex items-center justify-center text-black text-[10px] font-bold">✓</div>':''}
+    </div>`;
+  }).join('');
+  openModal('Крафтинг подарков', `
+    <div class="text-center mb-4">
+      <div class="text-3xl mb-1">🧪</div>
+      <p class="text-white text-sm font-medium">Объедините подарки для шанса на более редкий</p>
+      <p class="text-tg-gray text-[11px] mt-1">При неудаче все выбранные подарки сгорают</p>
+    </div>
+    <div class="bg-[#0e1621] p-3 rounded-xl border border-black/30 mb-4">
+      <div class="flex justify-between items-center mb-2">
+        <span class="text-tg-gray text-xs">Выбрано</span>
+        <span class="text-white text-sm font-bold">${craftSelection.length} / 4</span>
+      </div>
+      <div class="w-full h-2 bg-black/40 rounded-full overflow-hidden mb-2">
+        <div class="h-full bg-gradient-to-r from-cyan-400 to-blue-500 transition-all" style="width:${(craftSelection.length/4)*100}%"></div>
+      </div>
+      <div class="flex justify-between text-[11px]">
+        <span class="text-tg-gray">Шанс успеха</span>
+        <span class="${chance>=69?'text-emerald-400':chance>=45?'text-amber-400':'text-red-400'} font-bold">${chance}%</span>
+      </div>
+    </div>
+    <div class="text-[11px] text-tg-gray mb-2 px-1">Ваши улучшенные подарки:</div>
+    <div class="max-h-52 overflow-y-auto mb-4"><div class="grid grid-cols-4 gap-2">${grid}</div></div>
+    <button onclick="doCraft()" ${craftSelection.length<2?'disabled':''}
+      class="w-full ${craftSelection.length>=2?'bg-gradient-to-r from-cyan-500 to-blue-600 hover:opacity-90':'bg-[#2b3a4a] cursor-not-allowed'} text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">
+      ${craftSelection.length<2 ? 'Выберите минимум 2 подарка' : '🧪 Крафтить ('+chance+'% успеха)'}
+    </button>
+  `);
+}
+function toggleCraftSelect(gid){
+  const idx = craftSelection.indexOf(gid);
+  if(idx >= 0) craftSelection.splice(idx,1);
+  else {
+    if(craftSelection.length >= 4){ toast('Максимум 4 подарка'); return; }
+    craftSelection.push(gid);
+  }
+  renderCraftModal();
+}
+async function doCraft(){
+  if(craftSelection.length < 2) return;
+  const count = craftSelection.length;
+  const chance = count===2?45:count===3?69:92;
+  const roll = Math.random()*100;
+  closeModal();
+  toast('Крафтинг...');
+  setTimeout(async()=>{
+    const ids = [...craftSelection];
+    craftSelection = [];
+    if(roll < chance){
+      const rarities = ['uncommon','rare','epic','legendary'];
+      const maxIdx = Math.min(rarities.length-1, count-1);
+      const rarity = rarities[Math.floor(Math.random()*maxIdx)+1] || 'rare';
+      const traits = genTrait(rarity);
+      traits.serial = genSerial();
+      const template = db.currentUser.gifts[ids[0]];
+      const newGift = {
+        name: `Crafted ${template.name}`,
+        icon: template.icon,
+        bg: traits.backdrop,
+        edition: '1 из ' + (Math.floor(Math.random()*9000)+1000),
+        traits,
+        craftedAt: Date.now(),
+        canUpgrade: false
+      };
+      for(const gid of ids) await database.ref('users/'+db.currentUser.username+'/gifts/'+gid).remove();
+      await database.ref('users/'+db.currentUser.username+'/gifts/crafted_'+Date.now()).set(newGift);
+      toast(`✨ Успех! ${RARITY_TIERS[rarity].name} · ${traits.model}`, 4000);
+    } else {
+      for(const gid of ids) await database.ref('users/'+db.currentUser.username+'/gifts/'+gid).remove();
+      toast('💀 Крафт провалился — подарки сгорели', 4000);
+    }
+  }, 1200);
+}
+
+/* ============================================================
+   GIFT DETAIL
+============================================================ */
+function showGiftDetail(giftId, ownerUsername){
+  const owner = db.users[ownerUsername] || db.currentUser;
+  const g = (owner.gifts||{})[giftId];
+  if(!g) return;
+  const rarity = g.traits?.rarity;
+  const rInfo = rarity ? RARITY_TIERS[rarity] : null;
+  openModal('Подарок', `
+    <div class="text-center mb-4">
+      <div class="w-32 h-32 rounded-3xl bg-gradient-to-tr ${g.traits?.backdrop || g.bg} flex items-center justify-center text-6xl mx-auto mb-4 shadow-2xl relative">
+        ${renderGiftIcon(g.icon,'text-6xl')}
+        ${g.traits?.symbol ? `<div class="absolute top-2 right-2 text-2xl opacity-70">${g.traits.symbol}</div>` : ''}
+      </div>
+      <h3 class="text-white text-xl font-bold mb-1">${escapeHtml(g.name)}</h3>
+      ${rInfo ? `<span class="inline-block px-3 py-1 rounded-full text-xs font-bold mb-2" style="background:${rInfo.color}22;color:${rInfo.color}">${rInfo.name}</span>` : ''}
+    </div>
+    ${g.traits ? `
+    <div class="space-y-2 bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-sm mb-4">
+      <div class="flex justify-between"><span class="text-tg-gray">Модель</span><span class="text-white font-medium">${escapeHtml(g.traits.model)}</span></div>
+      <div class="flex justify-between"><span class="text-tg-gray">Редкость</span><span class="text-white font-medium">${escapeHtml(g.traits.rarity)}</span></div>
+      <div class="flex justify-between"><span class="text-tg-gray">Символ</span><span class="text-white font-medium">${g.traits.symbol}</span></div>
+      <div class="flex justify-between"><span class="text-tg-gray">Номер</span><span class="text-white font-mono">#${g.traits.serial}</span></div>
+      <div class="flex justify-between"><span class="text-tg-gray">Тираж</span><span class="text-white font-medium">${escapeHtml(g.edition||'—')}</span></div>
+    </div>` : `
+    <div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-sm mb-4 text-center">
+      <p class="text-tg-gray mb-2">Обычный подарок — можно улучшить до коллекционного</p>
+    </div>`}
+    ${ownerUsername===db.currentUser.username && !g.traits ? `
+      <button onclick="closeModal();openUpgradeModal('${giftId}')" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">
+        <i class="fas fa-arrow-up mr-2"></i>Улучшить подарок
+      </button>` : ''}
+    ${ownerUsername===db.currentUser.username && g.traits ? `
+      <button onclick="closeModal();openCraftModal('${giftId}')" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">
+        <i class="fas fa-flask mr-2"></i>Использовать в крафте
+      </button>` : ''}
+  `);
 }
 
 /* ============================================================
@@ -1643,14 +1931,12 @@ function openSettingsModal(){
         <div class="text-sm text-tg-blue truncate">@${escapeHtml(u.username)}</div>
       </div>
     </div>
-
     <div class="space-y-1 bg-[#0e1621] rounded-2xl p-2 mb-4 border border-black/30">
       <div onclick="openSetAccountModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="far fa-user w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Мой профиль</span></div>
       <div onclick="openSetPrivacyModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-lock w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Конфиденциальность и пароль</span></div>
       <div onclick="openSetFoldersModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="far fa-folder w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Папки с чатами</span></div>
       <div onclick="openSetChatBgModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-image w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Фон чата</span></div>
     </div>
-
     <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30">
       <div class="text-white text-sm mb-3 flex items-center gap-4"><i class="fas fa-palette text-tg-gray text-lg w-6 text-center"></i>Тема оформления</div>
       <div class="flex gap-2">
@@ -1659,7 +1945,6 @@ function openSettingsModal(){
         <button onclick="setTheme('system')" class="flex-1 py-2 rounded-lg text-xs font-medium border ${theme==='system'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">Системная</button>
       </div>
     </div>
-
     <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30">
       <div class="flex justify-between items-center mb-3 text-white text-sm">
         <div class="flex items-center gap-4"><i class="fas fa-font text-tg-gray text-lg w-6 text-center"></i>Размер текста в чате</div>
@@ -1667,7 +1952,6 @@ function openSettingsModal(){
       </div>
       <input type="range" min="12" max="22" value="${fs}" oninput="document.getElementById('fsTxt').innerText=this.value+'px'; applyFontScale(this.value);" onchange="database.ref('users/'+db.currentUser.username+'/fontScale').set(parseInt(this.value))" class="w-full accent-[#3390ec]">
     </div>
-
     <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30">
       <div class="flex justify-between items-center mb-3 text-white text-sm">
         <div class="flex items-center gap-4"><i class="far fa-eye text-tg-gray text-lg w-6 text-center"></i>Масштаб интерфейса</div>
@@ -1675,7 +1959,6 @@ function openSettingsModal(){
       </div>
       <input type="range" min="70" max="140" value="${scale}" oninput="document.getElementById('scTxt').innerText=this.value+'%'; applyScale(this.value);" onchange="database.ref('users/'+db.currentUser.username+'/scale').set(parseInt(this.value))" class="w-full accent-[#3390ec]">
     </div>
-
     <div class="bg-[#0e1621] rounded-2xl p-2 border border-black/30">
       <div onclick="openShopModal()" class="flex items-center justify-between p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition">
         <div class="flex items-center gap-4"><i class="fas fa-star w-6 text-center text-amber-400 text-lg"></i><span class="text-white text-sm">Мои звёзды</span></div>
@@ -1805,7 +2088,7 @@ function openShopModal(){
     </div>
     <h4 class="text-white font-medium mb-3 text-sm">Пополнение баланса</h4>
     <div class="space-y-2.5">
-      ${[[1000,'2 000 UZS'],[5000,'10 000 UZS'],[10000,'20 000 UZS']].map(([amt, price])=>`
+      ${[[1000,'2 000 UZS'],[5000,'10 000 UZS'],[10000,'20 000 UZS'],[50000,'100 000 UZS']].map(([amt, price])=>`
         <div onclick="fakePay(${amt}, '${price}')" class="bg-[#0e1621] p-4 rounded-xl text-white flex justify-between items-center cursor-pointer hover:bg-[#202b36] transition border border-black/30 btn-press">
           <span class="font-medium">${amt} звёзд</span><span class="text-amber-400 font-bold">${price}</span>
         </div>
@@ -1892,14 +2175,14 @@ function openAdminModal(){
       <div class="bg-[#0e1621] p-3 rounded-xl border border-black/30 space-y-2.5 mb-3">
         <input id="admGiftName" type="text" placeholder="Название" class="w-full bg-[#17212b] text-white px-3 py-2 rounded-lg text-xs border border-black/20 focus:border-[#3390ec] transition">
         <div class="bg-[#17212b] rounded-lg p-2.5 border border-black/20">
-          <label class="text-[10px] text-tg-gray uppercase tracking-wider block mb-1.5">Иконка подарка</label>
+          <label class="text-[10px] text-tg-gray uppercase tracking-wider block mb-1.5">Иконка</label>
           <div class="flex items-center gap-2.5 mb-2">
             <div id="admGiftIconPreview" class="w-12 h-12 rounded-xl bg-black/30 flex items-center justify-center text-2xl shrink-0 border border-black/30">🎁</div>
-            <input id="admGiftIcon" type="text" placeholder="https://.../cat.png или 🎁" oninput="updateGiftIconPreview()" class="flex-grow bg-[#0e1621] text-white px-3 py-2 rounded-lg text-xs border border-black/20 focus:border-[#3390ec] transition">
+            <input id="admGiftIcon" type="text" placeholder="URL или 🎁" oninput="updateGiftIconPreview()" class="flex-grow bg-[#0e1621] text-white px-3 py-2 rounded-lg text-xs border border-black/20 focus:border-[#3390ec] transition">
           </div>
           <div class="flex items-center justify-between mb-1.5">
             <span class="text-[10px] text-tg-gray">Быстрый выбор:</span>
-            <button type="button" onclick="document.getElementById('hiddenGiftIconInput').click()" class="text-[10px] text-[#3390ec] hover:text-[#5eb5f7] font-medium transition"><i class="fas fa-upload mr-1"></i>Загрузить файл</button>
+            <button type="button" onclick="document.getElementById('hiddenGiftIconInput').click()" class="text-[10px] text-[#3390ec] font-medium"><i class="fas fa-upload mr-1"></i>Загрузить</button>
           </div>
           <div class="grid grid-cols-8 gap-1">${['🎁','❤️','🧸','🐱','🐈‍⬛','🐶','🦊','🐼','🦄','👑','💎','🌸','🍀','⚽','🎮','🚀'].map(e=>`<button type="button" onclick="setGiftIcon('${e}')" class="text-lg hover:bg-[#202b36] rounded-md p-1 transition">${e}</button>`).join('')}</div>
         </div>
@@ -1935,7 +2218,7 @@ async function adminCreateNftGift(){
   const edition = document.getElementById('admGiftEdition').value.trim()||'1 из 10.0K';
   if(!name){ toast('Введите название'); return; }
   const gid = 'nft_'+Date.now();
-  await database.ref('giftsMarket/'+gid).set({ name, icon, price, edition, bg:'from-purple-900 to-indigo-900' });
+  await database.ref('giftsMarket/'+gid).set({ name, icon, price, edition, bg:'from-purple-900 to-indigo-900', category:'collectible', canUpgrade:false });
   toast('NFT создан'); openAdminModal();
 }
 async function adminDeleteGift(gid){ if(!confirm('Удалить?'))return; await database.ref('giftsMarket/'+gid).remove(); toast('Удалено'); openAdminModal(); }
@@ -1972,7 +2255,8 @@ function adminOpenGiftModal(targetUser){
 }
 async function adminGiveGiftToUser(targetUser, gid){
   const g = db.market[gid]; if(!g) return;
-  await database.ref('users/'+targetUser+'/gifts/gift_'+Date.now()).set(g);
+  const giftWithKey = { ...g, giftKey: gid };
+  await database.ref('users/'+targetUser+'/gifts/gift_'+Date.now()).set(giftWithKey);
   toast(`Подарок выдан @${targetUser}`); openAdminModal();
 }
 
