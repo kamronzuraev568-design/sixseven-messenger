@@ -320,7 +320,7 @@ function floorPrice(giftKey){const c=getGiftConfig(giftKey);return Math.max(1,Ma
 
 /* ===== BOOT ===== */
 window.onload = async function(){
-  if(localStorage.getItem('g67_pin_enabled') === '1'){
+  if(localStorage.getItem('g67_pin_enabled') === '1' && !sessionStorage.getItem('g67_unlocked')){
     const savedUser = localStorage.getItem('g67_currentUser');
     if(savedUser){ showPinLock(); return; }
   }
@@ -654,11 +654,11 @@ function showPinLock(){
     <div id="pinLockScreen" class="fixed inset-0 z-[99999] bg-tg-main flex flex-col items-center justify-center p-6">
       <div class="w-20 h-20 rounded-full bg-gradient-to-br from-[#3390ec] to-[#2b78c5] flex items-center justify-center mb-6 shadow-2xl"><i class="fas fa-lock text-white text-3xl"></i></div>
       <h1 class="text-white text-2xl font-bold mb-2">67gramm</h1>
-      <p class="text-tg-gray text-sm mb-8">Введите PIN-код</p>
+      <p id="pinMsg" class="text-tg-gray text-sm mb-8">Введите PIN-код</p>
       <div class="flex gap-3 mb-8" id="pinDots"><div class="w-4 h-4 rounded-full bg-[#2b5278]"></div><div class="w-4 h-4 rounded-full bg-[#2b5278]"></div><div class="w-4 h-4 rounded-full bg-[#2b5278]"></div><div class="w-4 h-4 rounded-full bg-[#2b5278]"></div></div>
       <div class="grid grid-cols-3 gap-4 max-w-[280px] w-full">
         ${[1,2,3,4,5,6,7,8,9,'bio',0,'del'].map(k => {
-          if(k === 'bio') return `<button onclick="tryBiometric()" class="w-16 h-16 rounded-full bg-[#17212b] text-cyan-400 flex items-center justify-center text-2xl btn-press"><i class="fas fa-fingerprint"></i></button>`;
+          if(k === 'bio') return `<div class="w-16 h-16"></div>`;
           if(k === 'del') return `<button onclick="pinDelete()" class="w-16 h-16 rounded-full bg-[#17212b] text-tg-gray flex items-center justify-center text-xl btn-press"><i class="fas fa-backspace"></i></button>`;
           return `<button onclick="pinPress('${k}')" class="w-16 h-16 rounded-full bg-[#17212b] hover:bg-[#202b36] text-white flex items-center justify-center text-2xl font-medium btn-press">${k}</button>`;
         }).join('')}
@@ -677,21 +677,24 @@ function pinPress(digit){
       const saved = localStorage.getItem('g67_pin');
       if(saved === window._pinEntered){
         if(navigator.vibrate) navigator.vibrate(30);
-        document.getElementById('pinLockScreen')?.remove();
+        sessionStorage.setItem('g67_unlocked','1');
         location.reload();
       } else {
         if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
-        toast('❌ Неверный PIN');
+        const msg=document.getElementById('pinMsg');
+        if(msg){msg.textContent='Неверный PIN, попробуйте ещё раз';msg.style.color='#ef4444';}
+        const dots=document.getElementById('pinDots');
+        if(dots){dots.querySelectorAll('div').forEach(d=>d.className='w-4 h-4 rounded-full bg-red-500 transition');}
         window._pinEntered = '';
-        updatePinDots();
+        setTimeout(updatePinDots,500);
       }
     }, 150);
   }
 }
 function pinDelete(){ window._pinEntered = window._pinEntered.slice(0, -1); updatePinDots(); }
 function updatePinDots(){const dots=document.querySelectorAll('#pinDots div');dots.forEach((d,i)=>{if(i<window._pinEntered.length)d.className='w-4 h-4 rounded-full bg-[#3390ec] transition';else d.className='w-4 h-4 rounded-full bg-[#2b5278] transition';});}
-function pinLogout(){localStorage.removeItem('g67_pin');localStorage.removeItem('g67_pin_enabled');localStorage.removeItem('g67_currentUser');location.reload();}
-async function tryBiometric(){if(!window.PublicKeyCredential){toast('Не поддерживается');return;}try{const avail=await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();if(!avail){toast('Нет отпечатка/Face ID');return;}toast('Проверьте отпечаток...');setTimeout(()=>{document.getElementById('pinLockScreen')?.remove();location.reload();},1000);}catch(e){toast('Ошибка');}}
+function pinLogout(){sessionStorage.removeItem('g67_unlocked');localStorage.removeItem('g67_pin');localStorage.removeItem('g67_pin_enabled');localStorage.removeItem('g67_currentUser');location.reload();}
+function tryBiometric(){toast('Отпечаток пока недоступен');}
 function openPinSettings(){
   const enabled = localStorage.getItem('g67_pin_enabled') === '1';
   if(enabled){
@@ -701,7 +704,7 @@ function openPinSettings(){
   openModal('Включить PIN-код', `<p class="text-white text-sm mb-3">Придумайте 4-значный PIN</p><input id="newPin" type="tel" maxlength="4" placeholder="••••" inputmode="numeric" class="w-full bg-[#0e1621] text-white px-4 py-4 rounded-xl border border-black/30 focus:border-[#3390ec] text-2xl text-center tracking-[1rem] mb-3"><input id="newPin2" type="tel" maxlength="4" placeholder="Повторите" inputmode="numeric" class="w-full bg-[#0e1621] text-white px-4 py-4 rounded-xl border border-black/30 focus:border-[#3390ec] text-2xl text-center tracking-[1rem] mb-5"><button onclick="enablePIN()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Включить</button>`);
   setTimeout(() => document.getElementById('newPin')?.focus(), 100);
 }
-function enablePIN(){const p1=document.getElementById('newPin').value;const p2=document.getElementById('newPin2').value;if(p1.length!==4){toast('4 цифры');return;}if(p1!==p2){toast('PIN не совпадают');return;}localStorage.setItem('g67_pin',p1);localStorage.setItem('g67_pin_enabled','1');toast('✅ PIN включён');closeModal();}
+function enablePIN(){const p1=document.getElementById('newPin').value;const p2=document.getElementById('newPin2').value;if(p1.length!==4){toast('4 цифры');return;}if(p1!==p2){toast('PIN не совпадают');return;}localStorage.setItem('g67_pin',p1);localStorage.setItem('g67_pin_enabled','1');sessionStorage.setItem('g67_unlocked','1');toast('✅ PIN включён');closeModal();}
 function changePIN(){localStorage.removeItem('g67_pin_enabled');openPinSettings();}
 function disablePIN(){if(!confirm('Отключить PIN?'))return;localStorage.removeItem('g67_pin');localStorage.removeItem('g67_pin_enabled');toast('PIN отключён');closeModal();}
 
