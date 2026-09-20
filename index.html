@@ -104,9 +104,7 @@ input,textarea,select{outline:none;font-family:inherit}input::placeholder,textar
 <input type="file" id="hiddenStoryInput" class="hidden" accept="image/*,video/*">
 
 <script>
-/* ============================================================
-   FIREBASE
-============================================================ */
+/* ===== FIREBASE ===== */
 const firebaseConfig = {
   apiKey:"AIzaSyCm5Ikh0OV1bP2fbep-7Kg7rcuNN4PujRY",
   authDomain:"sixseven-67001.firebaseapp.com",
@@ -116,8 +114,7 @@ const firebaseConfig = {
   messagingSenderId:"652602968843",
   appId:"1:652602968843:web:17dadd54f0f5bd6255b00e"
 };
-/* VAPID ключ для push — вставь свой из Firebase Console → Cloud Messaging → Web Push certificates */
-const VAPID_PUBLIC_KEY = "ВСТАВЬ_СЮДА_СВОЙ_VAPID_КЛЮЧ";
+const VAPID_PUBLIC_KEY = "BEJFj6JyJpxihAhBgY5nbQut9V4BfsFtvMLqIUTrBkS5zbZSnD_tQzv3I64qvAsdUTHdxhXoKLa0UYHATs_FcQk";
 
 let database, messaging;
 try {
@@ -129,11 +126,8 @@ try {
   database = { ref: () => ({ on:()=>{}, off:()=>{}, once:()=>Promise.resolve({exists:()=>false,val:()=>null}), set:()=>Promise.resolve(), remove:()=>Promise.resolve(), update:()=>Promise.resolve(), transaction:cb=>Promise.resolve({committed:true,snapshot:{val:()=>cb(0)}}), push:()=>({set:()=>Promise.resolve()}) }) };
 }
 
-/* ============================================================
-   КАТАЛОГ ПОДАРКОВ
-============================================================ */
+/* ===== КАТАЛОГ ПОДАРКОВ ===== */
 const GIFT_CATALOG = {
-/* ОБЫЧНЫЕ (Regular) */
 'basicheart':     {name:'Heart',        price:15,  icon:'💝', emoji:'💝', bg:'from-pink-500 to-rose-600',   category:'regular', totalSupply:1000000},
 'basicteddybear': {name:'Plush Bear',   price:15,  icon:'🧸', emoji:'🧸', bg:'from-amber-600 to-orange-800', category:'regular', totalSupply:1000000},
 'basicgiftbox':   {name:'Gift Box',     price:25,  icon:'🎁', emoji:'🎁', bg:'from-red-500 to-yellow-600',   category:'regular', totalSupply:1000000},
@@ -145,25 +139,23 @@ const GIFT_CATALOG = {
 'basicring':      {name:'Ring',         price:100, icon:'💍', emoji:'💍', bg:'from-slate-300 to-slate-500',  category:'regular', totalSupply:1000000},
 'basicdiamond':   {name:'Diamond',      price:100, icon:'💎', emoji:'💎', bg:'from-cyan-400 to-blue-600',    category:'regular', totalSupply:1000000},
 'basicchampagne': {name:'Champagne',    price:50,  icon:'🍾', emoji:'🍾', bg:'from-yellow-300 to-amber-500', category:'regular', totalSupply:1000000},
-
-/* NFT (Collectible) — бывшие обычные + реальные коллекции */
-'heart':       {name:'Heart',           price:300,  icon:'https://nft.fragment.com/gift/heart-1.large.jpg',           bg:'from-red-500 to-pink-600',    category:'collectible', totalSupply:20000},
+'heart':       {name:'Heart NFT',       price:300,  icon:'https://nft.fragment.com/gift/heart-1.large.jpg',           bg:'from-red-500 to-pink-600',    category:'collectible', totalSupply:20000},
 'thumbsup':    {name:'Thumbs Up',       price:300,  icon:'https://nft.fragment.com/gift/thumbsup-1.large.jpg',        bg:'from-blue-500 to-indigo-600', category:'collectible', totalSupply:20000},
 'cake':        {name:'Homemade Cake',   price:500,  icon:'https://nft.fragment.com/gift/cake-1.large.jpg',            bg:'from-amber-500 to-orange-600',category:'collectible', totalSupply:20000},
-'flowers':     {name:'Bouquet',         price:500,  icon:'https://nft.fragment.com/gift/flowers-1.large.jpg',         bg:'from-pink-500 to-rose-600',   category:'collectible', totalSupply:20000},
+'flowers':     {name:'Bouquet NFT',     price:500,  icon:'https://nft.fragment.com/gift/flowers-1.large.jpg',         bg:'from-pink-500 to-rose-600',   category:'collectible', totalSupply:20000},
 'jellybunny':  {name:'Jelly Bunny',     price:700,  icon:'https://nft.fragment.com/gift/jellybunny-1.large.jpg',      bg:'from-emerald-400 to-teal-600',category:'collectible', totalSupply:15000},
 'spicedwine':  {name:'Spiced Wine',     price:700,  icon:'https://nft.fragment.com/gift/spicedwine-1.large.jpg',      bg:'from-red-700 to-rose-900',    category:'collectible', totalSupply:15000},
 'santahat':    {name:'Santa Hat',       price:1000, icon:'https://nft.fragment.com/gift/santahat-1.large.jpg',        bg:'from-red-600 to-red-800',     category:'collectible', totalSupply:10000},
-'star':        {name:'Star',            price:1000, icon:'https://nft.fragment.com/gift/star-1.large.jpg',            bg:'from-amber-400 to-yellow-600',category:'collectible', totalSupply:10000},
-'rocket':      {name:'Rocket',          price:1500, icon:'https://nft.fragment.com/gift/rocket-1.large.jpg',          bg:'from-slate-600 to-blue-900',  category:'collectible', totalSupply:8000},
-'trophy':      {name:'Trophy',          price:2000, icon:'https://nft.fragment.com/gift/trophy-1.large.jpg',          bg:'from-yellow-500 to-amber-700',category:'collectible', totalSupply:7000},
-'diamond':     {name:'Diamond',         price:3000, icon:'https://nft.fragment.com/gift/diamond-1.large.jpg',         bg:'from-cyan-400 to-blue-600',   category:'collectible', totalSupply:5000},
+'star':        {name:'Star NFT',        price:1000, icon:'https://nft.fragment.com/gift/star-1.large.jpg',            bg:'from-amber-400 to-yellow-600',category:'collectible', totalSupply:10000},
+'rocket':      {name:'Rocket NFT',      price:1500, icon:'https://nft.fragment.com/gift/rocket-1.large.jpg',          bg:'from-slate-600 to-blue-900',  category:'collectible', totalSupply:8000},
+'trophy':      {name:'Trophy NFT',      price:2000, icon:'https://nft.fragment.com/gift/trophy-1.large.jpg',          bg:'from-yellow-500 to-amber-700',category:'collectible', totalSupply:7000},
+'diamond':     {name:'Diamond NFT',     price:3000, icon:'https://nft.fragment.com/gift/diamond-1.large.jpg',         bg:'from-cyan-400 to-blue-600',   category:'collectible', totalSupply:5000},
 'crown':       {name:'Crown',           price:4000, icon:'https://nft.fragment.com/gift/crown-1.large.jpg',           bg:'from-amber-400 to-yellow-600',category:'collectible', totalSupply:3000},
-'ring':        {name:'Ring',            price:5000, icon:'https://nft.fragment.com/gift/ring-1.large.jpg',            bg:'from-slate-300 to-slate-500', category:'collectible', totalSupply:2000},
+'ring':        {name:'Ring NFT',        price:5000, icon:'https://nft.fragment.com/gift/ring-1.large.jpg',            bg:'from-slate-300 to-slate-500', category:'collectible', totalSupply:2000},
 'watch':       {name:'Watch',           price:6000, icon:'https://nft.fragment.com/gift/watch-1.large.jpg',           bg:'from-zinc-600 to-zinc-900',   category:'collectible', totalSupply:1500},
 'perfume':     {name:'Perfume',         price:7000, icon:'https://nft.fragment.com/gift/perfume-1.large.jpg',         bg:'from-fuchsia-400 to-purple-600', category:'collectible', totalSupply:1200},
-'champagne':   {name:'Champagne',       price:8000, icon:'https://nft.fragment.com/gift/champagne-1.large.jpg',       bg:'from-yellow-300 to-amber-500',category:'collectible', totalSupply:1000},
-'bear':        {name:'Plush Bear',      price:10000,icon:'https://nft.fragment.com/gift/bear-1.large.jpg',            bg:'from-amber-600 to-orange-800',category:'collectible', totalSupply:800},
+'champagne':   {name:'Champagne NFT',   price:8000, icon:'https://nft.fragment.com/gift/champagne-1.large.jpg',       bg:'from-yellow-300 to-amber-500',category:'collectible', totalSupply:1000},
+'bear':        {name:'Plush Bear NFT',  price:10000,icon:'https://nft.fragment.com/gift/bear-1.large.jpg',            bg:'from-amber-600 to-orange-800',category:'collectible', totalSupply:800},
 'frog':        {name:'Frog',            price:12000,icon:'https://nft.fragment.com/gift/frog-1.large.jpg',            bg:'from-green-500 to-emerald-700', category:'collectible', totalSupply:600},
 'plushpepe':   {name:'Plush Pepe',      price:1000, icon:'https://nft.fragment.com/gift/plushpepe-1.large.jpg',       bg:'from-green-600 to-emerald-800', category:'collectible', floorUsd:35, totalSupply:2861},
 'durovscap':   {name:"Durov's Cap",     price:2500, icon:'https://nft.fragment.com/gift/durovscap-1.large.jpg',       bg:'from-slate-700 to-black',      category:'collectible', floorUsd:80, totalSupply:4774},
@@ -196,9 +188,7 @@ const DEFAULT_MARKET = GIFT_CATALOG;
 const QUICK_REACTIONS = ['👍','❤️','🔥','😂','😮','😢','👏','🎉'];
 const THEMES_BG = {default:'https://telegram.org/file/464001012/1/w2v4I2mB6Cg.306020/ea00e6cd164e297ab9'};
 
-/* ============================================================
-   КУРС ВАЛЮТ
-============================================================ */
+/* ===== КУРС ВАЛЮТ ===== */
 const TON_TO_STARS = 15;
 const STARS_TO_TON = 1/15;
 const TON_USD = 2.5;
@@ -207,9 +197,7 @@ const USERNAME_PRICE = 500;
 const USERNAME_MAX = 40;
 const USERNAME_MIN = 5;
 
-/* ============================================================
-   ЧЕРТЫ NFT
-============================================================ */
+/* ===== ЧЕРТЫ NFT ===== */
 const GIFT_MODELS={
   common:[{name:'Marble',pct:2,bg:'from-slate-300 to-slate-500'},{name:'Plush',pct:8,bg:'from-amber-500 to-orange-700'},{name:'Coral',pct:15,bg:'from-rose-400 to-pink-600'},{name:'Steel',pct:25,bg:'from-zinc-500 to-slate-700'},{name:'Classic',pct:50,bg:'from-slate-600 to-slate-800'}],
   uncommon:[{name:'Silver',pct:5,bg:'from-zinc-200 to-slate-400'},{name:'Azure',pct:12,bg:'from-sky-400 to-blue-600'},{name:'Emerald',pct:18,bg:'from-emerald-400 to-green-600'},{name:'Amber',pct:25,bg:'from-amber-400 to-orange-600'},{name:'Ivory',pct:40,bg:'from-yellow-100 to-yellow-300'}],
@@ -245,14 +233,11 @@ function genTrait(rarity){const model=pickWeighted(GIFT_MODELS[rarity]||GIFT_MOD
 function genSerial(){return String(Math.floor(Math.random()*900000)+100000);}
 function getUpgradeCost(giftKey){const g=GIFT_CATALOG[giftKey];if(!g)return 25;const baseIdx=g.price>=2500?0:g.price>=1000?2:g.price>=400?4:g.price>=150?6:8;const idx=Math.min(UPGRADE_LADDER.length-1,baseIdx+Math.floor(Math.random()*3));return UPGRADE_LADDER[idx];}
 
-/* ============================================================
-   STATE
-============================================================ */
+/* ===== STATE ===== */
 let db={currentUser:null,users:{},chats:{},reports:{},market:{},listings:{},giftConfig:{},calls:{},stories:{},polls:{}};
 let activeChatId=null,activeFolderId='all',activeAuthMode='login',giftsTab='regular',walletTab='balance';
 let currentChatListener=null,globalListenersStarted=false,currentMessages=[];
 const chatRefs={};
-const lastMessageAt={};
 let typingTimer=null,typingListenerRef=null;
 let mediaRecorder=null,recordedChunks=[],recStartAt=0,recTimerInt=null;
 let circleRecorder=null,circleChunks=[],circleRecStartAt=0;
@@ -263,9 +248,7 @@ let currentStoryIndex=0,currentStoryUser=null;
 let mentionQuery='',mentionStart=0;
 let notificationPermission='default';
 
-/* ============================================================
-   UTILS
-============================================================ */
+/* ===== UTILS ===== */
 function toast(m,ms=2500){const t=document.getElementById('toast');if(!t)return;t.innerText=m;t.classList.remove('hidden','fade-in');void t.offsetWidth;t.classList.add('fade-in');clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.add('hidden'),ms);}
 function escapeHtml(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function uid(){return 'id_'+Date.now()+'_'+Math.random().toString(36).slice(2,8);}
@@ -287,9 +270,7 @@ function fmtTon(n){return (n||0).toFixed(2);}
 function starsToTon(s){return s*STARS_TO_TON;}
 function tonToStars(t){return Math.floor(t*TON_TO_STARS);}
 
-/* ============================================================
-   APPLE-ЭМОДЗИ (универсальные, как в Telegram)
-============================================================ */
+/* ===== APPLE-ЭМОДЗИ ===== */
 const _emojiCache = new Map();
 const EMOJI_REGEX = /(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*|\p{Regional_Indicator}{2})/gu;
 function _emojiToCodepoint(str){
@@ -355,9 +336,7 @@ function updateEmojiPreview(text){
   box.innerHTML = escapeHtml(text).replace(EMOJI_REGEX, m => _getEmojiHtml(m));
 }
 
-/* ============================================================
-   АВАТАРЫ
-============================================================ */
+/* ===== АВАТАРЫ ===== */
 const AVATAR_TEXT={8:'text-xs',10:'text-sm',12:'text-base',14:'text-lg',16:'text-xl',20:'text-2xl',24:'text-4xl',28:'text-5xl',32:'text-5xl'};
 const AVATAR_COLORS=['from-red-500 to-pink-600','from-orange-500 to-red-500','from-amber-500 to-orange-600','from-emerald-500 to-teal-600','from-cyan-500 to-blue-500','from-blue-500 to-indigo-600','from-violet-500 to-purple-600','from-fuchsia-500 to-pink-600'];
 function pickColor(n){let h=0;for(let i=0;i<(n||'').length;i++)h=(h*31+n.charCodeAt(i))|0;return AVATAR_COLORS[Math.abs(h)%AVATAR_COLORS.length];}
@@ -371,9 +350,7 @@ function renderGiftIcon(icon,size='text-4xl',extra='',emojiFallback){
   return `<span class="${size} ${extra} inline-block align-middle">${s}</span>`;
 }
 
-/* ============================================================
-   КОНФИГ ПОДАРКОВ
-============================================================ */
+/* ===== КОНФИГ ПОДАРКОВ ===== */
 function getGiftConfig(giftKey){
   const cfg=db.giftConfig?.[giftKey]||{};
   const cat=GIFT_CATALOG[giftKey]||{};
@@ -381,16 +358,11 @@ function getGiftConfig(giftKey){
 }
 function floorPrice(giftKey){const c=getGiftConfig(giftKey);return Math.max(1,Math.ceil(c.price*0.8));}
 
-/* ============================================================
-   BOOT
-============================================================ */
+/* ===== BOOT ===== */
 window.onload = async function(){
   try {
-    // Регистрируем service worker для push
     await registerServiceWorker();
-    // Проверяем разрешение на уведомления
     if('Notification' in window) notificationPermission = Notification.permission;
-
     const saved = localStorage.getItem('g67_currentUser');
     if(saved){
       db.currentUser = {username:saved,displayName:saved,stars:0,ton:0,scale:100,folders:{},gifts:{},theme:'dark',fontScale:15};
@@ -433,9 +405,7 @@ async function checkDailyBonus(){
   setTimeout(()=>toast(`🎁 Ежедневный бонус: +${bonus} ⭐`,5000), 1500);
 }
 
-/* ============================================================
-   PUSH-УВЕДОМЛЕНИЯ + SERVICE WORKER
-============================================================ */
+/* ===== SERVICE WORKER + PUSH ===== */
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try {
@@ -472,7 +442,6 @@ async function requestNotifPermissionIfNeeded(){
   if(!('Notification' in window)) return;
   if(Notification.permission === 'granted') { notificationPermission='granted'; return; }
   if(Notification.permission === 'denied') { notificationPermission='denied'; return; }
-  // Не спрашиваем автоматически — покажем баннер
   showNotifBanner();
 }
 function showNotifBanner(){
@@ -492,19 +461,15 @@ async function requestNotifPermission(fromBanner){
   notificationPermission = p;
   if(p === 'granted'){
     toast('✅ Уведомления включены');
-    // Регистрируем FCM если доступен ключ
     if(VAPID_PUBLIC_KEY && VAPID_PUBLIC_KEY.length > 20 && messaging){
       try {
         const token = await messaging.getToken({vapidKey: VAPID_PUBLIC_KEY});
         if(token && db.currentUser){
           await database.ref('users/'+db.currentUser.username+'/fcmToken').set(token);
-          console.log('FCM token saved');
         }
       } catch(e){ console.warn('FCM token fail:', e); }
     }
-  } else {
-    toast('Уведомления отключены');
-  }
+  } else { toast('Уведомления отключены'); }
 }
 function notifyNewMessage(chatName, text, fromUser){
   if(notificationPermission !== 'granted' && Notification.permission !== 'granted') return;
@@ -514,14 +479,11 @@ function notifyNewMessage(chatName, text, fromUser){
       body: text,
       icon: 'https://cdn-icons-png.flaticon.com/512/2111/2111646.png',
       badge: 'https://cdn-icons-png.flaticon.com/512/2111/2111646.png',
-      tag: 'msg-' + Date.now(),
-      silent: false
+      tag: 'msg-' + Date.now()
     });
-    n.onclick = () => { window.focus(); n.close(); if(activeChatId) openChat(activeChatId); };
+    n.onclick = () => { window.focus(); n.close(); };
   } catch(e){ console.warn('Notify fail:', e); }
-  // Вибрация
   if(navigator.vibrate) navigator.vibrate([200,100,200]);
-  // Звук
   playNotifySound();
 }
 function playNotifySound(){
@@ -536,9 +498,7 @@ function playNotifySound(){
   } catch(e){}
 }
 
-/* ============================================================
-   GLOBAL LISTENERS
-============================================================ */
+/* ===== GLOBAL LISTENERS ===== */
 function startGlobalListeners(){
   if(globalListenersStarted||!db.currentUser)return;
   globalListenersStarted=true;
@@ -569,11 +529,9 @@ function startGlobalListeners(){
           const newChat = cs.val();
           const oldChat = db.chats[cid]||{};
           db.chats[cid] = newChat;
-          // Проверка нового сообщения
           const oldLM = oldChat.lastMessage;
           const newLM = newChat.lastMessage;
           if(newLM && (!oldLM || newLM.at > (oldLM.at||0)) && newLM.from !== me){
-            // Название чата
             let chatName = 'Чат';
             if(newChat.type === 'group'){ chatName = newChat.name || 'Группа'; }
             else if(newChat.type === 'saved'){ chatName = 'Избранное'; }
@@ -602,9 +560,35 @@ function startGlobalListeners(){
   database.ref('giftConfig').on('value',snap=>{db.giftConfig=snap.val()||{};});
   database.ref('listings').on('value',snap=>{db.listings=snap.val()||{};});
 
-  // Слушаем входящие звонки
+  // Уведомления об оплате через Telegram Stars
+  database.ref('users/'+me+'/payment_notifications').on('child_added', snap => {
+    const n = snap.val();
+    if(!n || !n.at) return;
+    if(Date.now() - n.at < 180000){
+      toast(n.text, 6000);
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const o = ctx.createOscillator(), g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
+        o.frequency.value = 880;
+        g.gain.setValueAtTime(.15, ctx.currentTime);
+        g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .3);
+        o.start(); o.stop(ctx.currentTime + .3);
+        setTimeout(() => {
+          const o2 = ctx.createOscillator(), g2 = ctx.createGain();
+          o2.connect(g2); g2.connect(ctx.destination);
+          o2.frequency.value = 1200;
+          g2.gain.setValueAtTime(.15, ctx.currentTime);
+          g2.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .3);
+          o2.start(); o2.stop(ctx.currentTime + .3);
+        }, 150);
+      } catch(e){}
+      if(navigator.vibrate) navigator.vibrate([100, 50, 100, 50, 200]);
+    }
+    setTimeout(() => snap.remove(), 10000);
+  });
+
   listenIncomingCalls();
-  // Слушаем групповые звонки
   listenIncomingGroupCalls();
 }
 function stopGlobalListeners(){
@@ -614,9 +598,7 @@ function stopGlobalListeners(){
   globalListenersStarted=false;
 }
 
-/* ============================================================
-   THEME
-============================================================ */
+/* ===== THEME ===== */
 function applyTheme(theme){
   const t=theme||'dark';
   document.body.classList.remove('theme-light','theme-amoled');
@@ -629,9 +611,7 @@ function applyFontScale(px){document.querySelectorAll('#msgContainer [data-msg-t
 function applyChatBg(){const url=db.currentUser?.chatBg||THEMES_BG.default;const ca=document.getElementById('chatArea');if(ca)ca.style.backgroundImage=`url('${url}')`;}
 function applyScale(val){const s=Math.max(0.5,Math.min(2,val/100));const wrap=document.getElementById('appScaleWrapper');if(!wrap)return;wrap.style.transform=`scale(${s})`;wrap.style.transformOrigin='top left';wrap.style.width=(100/s)+'vw';wrap.style.height=(100/s)+'vh';}
 
-/* ============================================================
-   AUTH
-============================================================ */
+/* ===== AUTH ===== */
 function renderAuthScreen(){
   const el=document.getElementById('app');if(!el)return;
   el.innerHTML=`
@@ -670,14 +650,7 @@ async function handleAuthSubmit(){
     const snap=await database.ref('users/'+u).once('value');
     if(snap.exists()){toast('Логин занят');return;}
     const hash=await hashPass(p);
-    const nu={
-      username:u,displayName:u,phone:ph,passHash:hash,avatar:'',
-      stars:10000,ton:5,isPremium:false,premiumUntil:0,scale:100,isAdmin:false,
-      createdAt:Date.now(),folders:{},gifts:{},lastSeen:Date.now(),theme:'dark',fontScale:15,bio:'',
-      lastBonus:0,transactions:[],walletAddress:'',
-      usernames:{[u]:{at:Date.now(),isPrimary:true,isAdminGranted:false}},
-      avatarHistory:[]
-    };
+    const nu={username:u,displayName:u,phone:ph,passHash:hash,avatar:'',stars:10000,ton:5,isPremium:false,premiumUntil:0,scale:100,isAdmin:false,createdAt:Date.now(),folders:{},gifts:{},lastSeen:Date.now(),theme:'dark',fontScale:15,bio:'',lastBonus:0,transactions:[],walletAddress:'',usernames:{[u]:{at:Date.now(),isPrimary:true,isAdminGranted:false}},avatarHistory:[]};
     await database.ref('users/'+u).set(nu);
     await database.ref('usernames/'+u).set({owner:u,createdAt:Date.now()});
     db.currentUser=nu;
@@ -708,9 +681,7 @@ function logout(){
   renderAuthScreen();
 }
 
-/* ============================================================
-   MAIN LAYOUT
-============================================================ */
+/* ===== MAIN LAYOUT ===== */
 function renderMainLayout(){
   if(!db.currentUser){renderAuthScreen();return;}
   const el=document.getElementById('app');if(!el)return;
@@ -773,9 +744,7 @@ function renderMainLayout(){
 function toggleDrawerMenu(){const d=document.getElementById('drawerMenu'),o=document.getElementById('drawerOverlay');if(!d||!o)return;d.classList.toggle('-translate-x-full');o.classList.toggle('hidden');updateDrawerInfo();}
 function updateDrawerInfo(){const u=db.currentUser;if(!u)return;const n=document.getElementById('drawerName'),p=document.getElementById('drawerPhone'),a=document.getElementById('drawerAvatar');if(n)n.innerHTML=escapeHtml(u.displayName||u.username)+(isPrem(u)?' <i class="fas fa-crown text-amber-300 text-xs"></i>':'');if(p)p.innerText=u.phone||('@'+u.username);if(a)a.innerHTML=getAvatarHtml(u.avatar,u.displayName||u.username,12,'ring-2 ring-white/20');refreshEmojis(document.getElementById('drawerMenu'));}
 
-/* ============================================================
-   STORIES
-============================================================ */
+/* ===== STORIES ===== */
 function renderStories(){
   const bar = document.getElementById('storiesBar'); if(!bar) return;
   const all = Object.entries(db.stories||{}).filter(([un,s])=>{
@@ -834,9 +803,7 @@ function nextStory(){ const c=window._storyCtx; if(!c) return; c.idx++; if(c.idx
 function prevStory(){ const c=window._storyCtx; if(!c) return; c.idx = Math.max(0, c.idx-1); c.render(); }
 function closeStory(){ document.getElementById('storyOverlay')?.remove(); window._storyCtx = null; }
 
-/* ============================================================
-   SIDEBAR
-============================================================ */
+/* ===== SIDEBAR ===== */
 function renderSidebar(){
   if(!db.currentUser)return;
   const fTabs=document.getElementById('folderTabs');
@@ -906,9 +873,8 @@ function showChatCtxMenu(cid,x,y){
   setTimeout(()=>{const h=ev=>{if(!menu.contains(ev.target)){menu.remove();document.removeEventListener('click',h);}};document.addEventListener('click',h);},10);
 }
 document.addEventListener('click',e=>{if(!e.target.closest('.ctx-menu')&&!e.target.closest('.reaction-picker')&&!e.target.closest('.msg-row')&&!e.target.closest('.side-ctx')&&!e.target.closest('.mention-dropdown'))document.querySelectorAll('.ctx-menu, .reaction-picker, .side-ctx, .mention-dropdown').forEach(el=>el.remove());});
-/* ============================================================
-   CHAT
-============================================================ */
+
+/* ===== CHAT ===== */
 function openChat(cid){
   if(currentChatListener&&activeChatId)database.ref('messages/'+activeChatId).off('value',currentChatListener);
   if(typingListenerRef&&activeChatId){database.ref('typing/'+activeChatId).off('value',typingListenerRef);typingListenerRef=null;}
@@ -1017,10 +983,7 @@ function openChat(cid){
 }
 function applyFontScaleToBubbles(){const px=(db.currentUser?.fontScale||15);document.querySelectorAll('#msgContainer [data-msg-text]').forEach(el=>el.style.fontSize=px+'px');}
 function scrollToBottom(smooth=true){const mc=document.getElementById('msgContainer');if(!mc)return;if(smooth)mc.scrollTo({top:mc.scrollHeight,behavior:'smooth'});else mc.scrollTop=mc.scrollHeight;newMessagesCount=0;const b=document.getElementById('newMsgBadge');if(b){b.classList.add('hidden');b.textContent='0';}const btn=document.getElementById('scrollBottomBtn');if(btn)btn.classList.add('hidden');}
-
-/* ============================================================
-   RENDER MESSAGES
-============================================================ */
+/* ===== RENDER MESSAGES ===== */
 function parseFormatted(text){
   if(!text) return '';
   let html = escapeHtml(text);
@@ -1098,9 +1061,7 @@ async function votePoll(pollId, optIdx){
 }
 database.ref('polls').on('value', snap => { db.polls = snap.val()||{}; if(activeChatId){ const mc=document.getElementById('msgContainer'); if(mc) mc.innerHTML = renderMessages(currentMessages, db.chats[activeChatId]?.type==='group'); } });
 
-/* ============================================================
-   MSG EVENTS
-============================================================ */
+/* ===== MSG EVENTS ===== */
 function bindMsgEvents(container){
   container.querySelectorAll('.msg-row').forEach(el=>{
     let pressTimer=null,moved=false,startX=0,startY=0;
@@ -1349,9 +1310,7 @@ async function sendMsg(){
   setTimeout(()=>scrollToBottom(false),50);
 }
 
-/* ============================================================
-   ГОЛОСОВЫЕ / КРУЖКИ
-============================================================ */
+/* ===== ГОЛОСОВЫЕ / КРУЖКИ ===== */
 async function toggleRecording(){
   if(recording()){mediaRecorder.stop();return;}
   if(!navigator.mediaDevices||!window.MediaRecorder){toast('Не поддерживается');return;}
@@ -1475,9 +1434,7 @@ async function openSavedMessages(){
   openChat(cid);
 }
 
-/* ============================================================
-   EMOJI / STICKERS / GIF TABS
-============================================================ */
+/* ===== EMOJI / STICKERS / GIF ===== */
 function setEmojiTab(tab){
   document.querySelectorAll('.emoji-tab').forEach(b=>{const on=b.dataset.tab===tab;b.className='emoji-tab flex-1 py-2 '+(on?'text-[#3390ec] font-medium':'text-tg-gray');});
   document.getElementById('emojiTabContent').classList.toggle('hidden',tab!=='emoji');
@@ -1515,9 +1472,7 @@ async function sendGif(url){
   toggleEmoji();
 }
 
-/* ============================================================
-   ATTACH MENU / POLLS
-============================================================ */
+/* ===== ATTACH / POLLS ===== */
 function openAttachMenu(){
   const items=[
     {icon:'fa-image',label:'Фото/Видео',fn:()=>document.getElementById('hiddenFileInput').click()},
@@ -1560,9 +1515,7 @@ async function doCreatePoll(){
   closeModal();
 }
 
-/* ============================================================
-   FILE INPUTS
-============================================================ */
+/* ===== FILE INPUTS ===== */
 document.getElementById('hiddenFileInput').addEventListener('change',async e=>{
   const file=e.target.files[0];e.target.value='';
   if(!file||!activeChatId)return;
@@ -1601,9 +1554,7 @@ document.getElementById('hiddenChatBgInput').addEventListener('change',async e=>
   toast('Фон обновлён');applyChatBg();
 });
 
-/* ============================================================
-   MODAL
-============================================================ */
+/* ===== MODAL ===== */
 function openModal(title,content){
   document.getElementById('ssModal')?.remove();
   document.body.insertAdjacentHTML('beforeend',`<div id="ssModal" class="fixed inset-0 modal-overlay z-[100] flex items-center justify-center p-4 fade-in" onclick="if(event.target===this)this.remove()"><div class="bg-tg-sidebar w-full max-w-md rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] border border-black/40 slide-in"><div class="px-5 py-4 flex justify-between items-center border-b border-black/30 bg-[#1e2c3a] shrink-0"><h3 class="text-white font-medium text-[17px] truncate">${title}</h3><button onclick="document.getElementById('ssModal').remove()" class="text-tg-gray hover:text-white text-lg shrink-0 ml-3 w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/5 transition"><i class="fas fa-times"></i></button></div><div class="p-5 overflow-y-auto flex-grow">${content}</div></div></div>`);
@@ -1617,9 +1568,7 @@ async function logTransaction(amount,currency,desc,type){
   await database.ref(`users/${db.currentUser.username}/transactions/${id}`).set(t);
 }
 
-/* ============================================================
-   ПРОФИЛЬ
-============================================================ */
+/* ===== ПРОФИЛЬ ===== */
 function renderProfileGiftsSection(u,isMe){
   const gifts=u.gifts||{};
   const entries=Object.entries(gifts);
@@ -1703,9 +1652,7 @@ async function startDialogWith(username){
   openChat(cid);
 }
 
-/* ============================================================
-   ЮЗЕРНЕЙМЫ
-============================================================ */
+/* ===== ЮЗЕРНЕЙМЫ ===== */
 function openBuyUsernameModal(){
   const u=db.currentUser;
   const myUsernames=Object.keys(u.usernames||{});
@@ -1774,9 +1721,7 @@ async function removeUsername(un){
   closeModal();openBuyUsernameModal();
 }
 
-/* ============================================================
-   МАГАЗИН ПОДАРКОВ
-============================================================ */
+/* ===== МАГАЗИН ПОДАРКОВ ===== */
 function openGiftsModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
   const market=db.market||GIFT_CATALOG;
@@ -1822,13 +1767,11 @@ async function buyGift(gid){
   await database.ref('users/'+db.currentUser.username+'/stars').set(newStars);
   await database.ref('users/'+db.currentUser.username+'/gifts/'+giftId).set(giftWithKey);
   await logTransaction(-cfg.price,'stars','Покупка '+g.name,'out');
-  toast('🎁 Куплено! №'+serial+' — черты при улучшении');
+  toast('🎁 Куплено! №'+serial);
   giftsTab='my';openGiftsModal();
 }
 
-/* ============================================================
-   УЛУЧШЕНИЕ / ДЕТАЛИ
-============================================================ */
+/* ===== УЛУЧШЕНИЕ / ДЕТАЛИ ===== */
 function openUpgradeModal(giftId){
   const g=db.currentUser.gifts?.[giftId];if(!g){toast('Не найден');return;}
   if(!isNft(g.giftKey)){toast('Только NFT');return;}
@@ -1897,9 +1840,9 @@ function showGiftDetail(giftId,ownerUsername){
   `);
 }
 
-/* ============================================================
-   КОШЕЛОК
-============================================================ */
+/* ===== КОШЕЛОК С TELEGRAM STARS ===== */
+const BOT_USERNAME = 'sixsevengram_bot';
+
 function openWalletModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
   const u=db.currentUser;
@@ -1910,6 +1853,7 @@ function openWalletModal(){
   openModal('💎 Кошелёк',`
     <div class="flex gap-1 mb-4 bg-[#0e1621] p-1 rounded-xl border border-black/30">
       <button onclick="walletTab='balance';openWalletModal();" class="flex-1 py-2 rounded-lg text-xs font-medium ${tabCls('balance')}">Баланс</button>
+      <button onclick="walletTab='buy';openWalletModal();" class="flex-1 py-2 rounded-lg text-xs font-medium ${tabCls('buy')}">Купить</button>
       <button onclick="walletTab='ton';openWalletModal();" class="flex-1 py-2 rounded-lg text-xs font-medium ${tabCls('ton')}">TON</button>
       <button onclick="walletTab='history';openWalletModal();" class="flex-1 py-2 rounded-lg text-xs font-medium ${tabCls('history')}">История</button>
     </div>
@@ -1919,8 +1863,30 @@ function openWalletModal(){
         <div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-center"><i class="fas fa-star text-amber-400 text-xl mb-2"></i><div class="text-white text-xs mb-1">Звёзды</div><div class="text-amber-400 font-bold text-lg">${fmtStars(stars)}</div></div>
         <div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-center"><i class="fas fa-gem text-cyan-400 text-xl mb-2"></i><div class="text-white text-xs mb-1">TON</div><div class="text-cyan-400 font-bold text-lg">${fmtTon(ton)}</div></div>
       </div>
-      <button onclick="openShopModal()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-semibold py-3.5 rounded-xl btn-press text-sm mb-2"><i class="fas fa-plus mr-2"></i>Пополнить</button>
-      <button onclick="walletTab='ton';openWalletModal();" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-3.5 rounded-xl btn-press text-sm"><i class="fas fa-exchange-alt mr-2"></i>Обменять</button>
+      <button onclick="walletTab='buy';openWalletModal();" class="w-full bg-gradient-to-r from-[#3390ec] to-[#2b78c5] hover:opacity-90 text-white font-semibold py-3.5 rounded-xl btn-press text-sm mb-2 shadow-lg"><i class="fab fa-telegram mr-2"></i>Купить звёзды</button>
+      <button onclick="walletTab='ton';openWalletModal();" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-3.5 rounded-xl btn-press text-sm"><i class="fas fa-exchange-alt mr-2"></i>Обменять TON</button>
+    `:walletTab==='buy'?`
+      <div class="bg-gradient-to-br from-[#3390ec] to-[#2b78c5] rounded-2xl p-5 mb-4 text-white shadow-xl text-center">
+        <i class="fab fa-telegram text-4xl mb-2"></i>
+        <h3 class="text-lg font-bold mb-1">Оплата через Telegram Stars</h3>
+        <p class="text-xs opacity-90">1 ⭐ TG = 100 ⭐ 67gramm</p>
+      </div>
+      <div class="space-y-2.5 mb-4">
+        <button onclick="payWithTelegramStars()" class="w-full bg-gradient-to-r from-[#3390ec] to-[#2b78c5] hover:opacity-90 text-white font-medium py-4 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-[#3390ec]/30">
+          <i class="fab fa-telegram text-lg"></i>
+          <span>Открыть магазин в Telegram</span>
+          <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">рекомендуем</span>
+        </button>
+      </div>
+      <p class="text-center text-tg-gray text-[11px] mb-4">После оплаты звёзды зачислятся автоматически в течение 5 секунд</p>
+      <div class="bg-[#0e1621] p-4 rounded-xl border border-black/30 text-xs space-y-2">
+        <div class="flex justify-between"><span class="text-tg-gray">1 ⭐ TG</span><span class="text-amber-400 font-bold">100 ⭐</span></div>
+        <div class="flex justify-between"><span class="text-tg-gray">5 ⭐ TG</span><span class="text-amber-400 font-bold">550 ⭐ (+10%)</span></div>
+        <div class="flex justify-between"><span class="text-tg-gray">10 ⭐ TG</span><span class="text-amber-400 font-bold">1200 ⭐ (+20%)</span></div>
+        <div class="flex justify-between"><span class="text-tg-gray">25 ⭐ TG</span><span class="text-amber-400 font-bold">3200 ⭐ (+28%)</span></div>
+        <div class="flex justify-between"><span class="text-tg-gray">50 ⭐ TG</span><span class="text-amber-400 font-bold">7000 ⭐ (+40%)</span></div>
+        <div class="flex justify-between"><span class="text-tg-gray">100 ⭐ TG</span><span class="text-amber-400 font-bold">15000 ⭐ (+50%)</span></div>
+      </div>
     `:walletTab==='ton'?`
       <div class="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-6 mb-4 text-white shadow-xl"><p class="text-xs uppercase tracking-wider opacity-80 mb-1">TON</p><div class="text-4xl font-black mb-1">${fmtTon(ton)} 💎</div><p class="text-xs opacity-80">≈ $${(ton*TON_USD).toFixed(2)}</p></div>
       <div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 mb-4">
@@ -1941,10 +1907,17 @@ function openWalletModal(){
       </div>
     `:`
       <div class="space-y-2 max-h-[60vh] overflow-y-auto">
-        ${txs.length?txs.map(t=>`<div class="flex items-center gap-3 p-3 bg-[#0e1621] rounded-xl border border-black/30"><div class="w-10 h-10 rounded-full flex items-center justify-center ${t.type==='in'?'bg-emerald-500/20 text-emerald-400':'bg-red-500/20 text-red-400'}"><i class="fas fa-${t.type==='in'?'arrow-down':'arrow-up'}"></i></div><div class="flex-grow min-w-0"><div class="text-white text-sm truncate">${escapeHtml(t.desc)}</div><div class="text-tg-gray text-xs">${new Date(t.at).toLocaleString('ru-RU')}</div></div><div class="font-bold text-sm ${t.type==='in'?'text-emerald-400':'text-red-400'}">${t.type==='in'?'+':''}${t.amount} ${t.currency==='stars'?'⭐':'💎'}</div></div>`).join(''):'<p class="text-tg-gray text-center py-8 text-sm">Пока нет</p>'}
+        ${txs.length?txs.map(t=>`<div class="flex items-center gap-3 p-3 bg-[#0e1621] rounded-xl border border-black/30"><div class="w-10 h-10 rounded-full flex items-center justify-center ${t.type==='in'?'bg-emerald-500/20 text-emerald-400':'bg-red-500/20 text-red-400'}"><i class="fas fa-${t.type==='in'?'arrow-down':'arrow-up'}"></i></div><div class="flex-grow min-w-0"><div class="text-white text-sm truncate">${escapeHtml(t.desc)}</div><div class="text-tg-gray text-xs">${new Date(t.at).toLocaleString('ru-RU')}</div></div><div class="font-bold text-sm ${t.type==='in'?'text-emerald-400':'text-red-400'}">${t.type==='in'?'+':''}${t.amount} ${t.currency==='stars'?'⭐':(t.currency==='ton'?'💎':'')}</div></div>`).join(''):'<p class="text-tg-gray text-center py-8 text-sm">Пока нет</p>'}
       </div>
     `}
   `);
+}
+function payWithTelegramStars(){
+  if(!db.currentUser){ toast('Сначала войдите'); return; }
+  const url = `https://t.me/${BOT_USERNAME}?start=${encodeURIComponent(db.currentUser.username)}`;
+  closeModal();
+  toast('🌐 Открываем Telegram бота...');
+  window.open(url, '_blank');
 }
 function updateBuyTonEst(){const amt=parseFloat(document.getElementById('buyTonAmount')?.value)||0;const el=document.getElementById('buyTonPrice');if(el)el.textContent=(amt*TON_TO_STARS).toFixed(0);}
 function changeWalletAddress(){const addr=prompt('TON адрес:',db.currentUser.walletAddress||'');if(!addr||addr===db.currentUser.walletAddress)return;database.ref('users/'+db.currentUser.username+'/walletAddress').set(addr.trim());toast('Адрес сохранён');}
@@ -1973,9 +1946,7 @@ async function sellTon(){
   toast('✅ +'+stars+' ⭐');openWalletModal();
 }
 
-/* ============================================================
-   ПРОДАЖА ПОДАРКА
-============================================================ */
+/* ===== ПРОДАЖА / МАРКЕТПЛЕЙС ===== */
 function openSellGiftModal(giftId){
   const g=db.currentUser.gifts?.[giftId];if(!g){toast('Не найден');return;}
   const existingListing=Object.entries(db.listings||{}).find(([lid,l])=>l.seller===db.currentUser.username&&l.giftId===giftId);
@@ -2050,24 +2021,12 @@ async function cancelListing(listingId){
   await database.ref('listings/'+listingId).remove();
   toast('Снято');
 }
-
-/* ============================================================
-   МАРКЕТПЛЕЙС — ПОЧИНЕНО
-============================================================ */
 function openMarketplaceModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
-  // Fallback если listings пустые
   const allListings = db.listings||{};
   const listings = Object.entries(allListings).filter(([lid,l]) => l.seller !== db.currentUser.username);
   if(!listings.length){
-    openModal('Маркетплейс',`
-      <div class="text-center py-8">
-        <i class="fas fa-store text-5xl text-tg-gray/30 mb-3"></i>
-        <p class="text-white font-medium mb-1">Пока нет активных лотов</p>
-        <p class="text-tg-gray text-xs mb-4">Выставьте свой подарок на продажу</p>
-        <button onclick="closeModal();openMyProfile()" class="bg-[#3390ec] text-white text-sm font-medium px-4 py-2.5 rounded-xl btn-press">Перейти в профиль</button>
-      </div>
-    `);
+    openModal('Маркетплейс',`<div class="text-center py-8"><i class="fas fa-store text-5xl text-tg-gray/30 mb-3"></i><p class="text-white font-medium mb-1">Пока нет активных лотов</p><p class="text-tg-gray text-xs mb-4">Выставьте свой подарок</p><button onclick="closeModal();openMyProfile()" class="bg-[#3390ec] text-white text-sm font-medium px-4 py-2.5 rounded-xl btn-press">Перейти в профиль</button></div>`);
     return;
   }
   listings.sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
@@ -2081,29 +2040,9 @@ function openMarketplaceModal(){
     const canAfford = currency==='ton' ? myTon >= starsToTon(l.price) : myStars >= l.price;
     const priceText = currency==='ton' ? fmtTon(starsToTon(l.price))+' 💎' : l.price+' ⭐';
     const bgClass = g.traits?.backdropBg || g.bg || 'from-slate-700 to-zinc-900';
-    return `<div class="bg-[#0e1621] rounded-2xl border border-black/30 p-3 flex items-start gap-3 mb-3">
-      <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr ${bgClass} flex items-center justify-center shrink-0 overflow-hidden relative">
-        ${renderGiftIcon(g.icon||'🎁','text-4xl','',g.emoji)}
-        ${rarityInfo?`<div class="absolute top-1 left-1 bg-black/70 px-1 py-0.5 rounded text-[8px] font-bold" style="color:${rarityInfo.color}">${rarityInfo.name}</div>`:''}
-      </div>
-      <div class="flex-grow min-w-0">
-        <div class="text-white font-medium text-sm mb-0.5 truncate">${escapeHtml(g.name||'Подарок')}</div>
-        <div class="text-[11px] text-tg-gray mb-1">${g.traits ? escapeHtml(g.traits.model) : 'Обычный'}</div>
-        <div class="flex items-center gap-2 mb-2">${getAvatarHtml(seller.avatar, seller.displayName||l.seller, 5)}<span class="text-[11px] text-tg-blue truncate">@${escapeHtml(l.seller)}</span></div>
-        <div class="flex items-center justify-between">
-          <div class="text-amber-400 font-bold text-base">${priceText}</div>
-          <button onclick="buyListing('${lid}')" ${!canAfford?'disabled':''} class="px-4 py-1.5 rounded-lg text-xs font-semibold ${canAfford?'bg-[#3390ec] hover:bg-[#2b78c5] text-white btn-press':'bg-[#2b3a4a] text-tg-gray cursor-not-allowed'} transition">${canAfford?'Купить':'Мало'}</button>
-        </div>
-      </div>
-    </div>`;
+    return `<div class="bg-[#0e1621] rounded-2xl border border-black/30 p-3 flex items-start gap-3 mb-3"><div class="w-20 h-20 rounded-2xl bg-gradient-to-tr ${bgClass} flex items-center justify-center shrink-0 overflow-hidden relative">${renderGiftIcon(g.icon||'🎁','text-4xl','',g.emoji)}${rarityInfo?`<div class="absolute top-1 left-1 bg-black/70 px-1 py-0.5 rounded text-[8px] font-bold" style="color:${rarityInfo.color}">${rarityInfo.name}</div>`:''}</div><div class="flex-grow min-w-0"><div class="text-white font-medium text-sm mb-0.5 truncate">${escapeHtml(g.name||'Подарок')}</div><div class="text-[11px] text-tg-gray mb-1">${g.traits ? escapeHtml(g.traits.model) : 'Обычный'}</div><div class="flex items-center gap-2 mb-2">${getAvatarHtml(seller.avatar, seller.displayName||l.seller, 5)}<span class="text-[11px] text-tg-blue truncate">@${escapeHtml(l.seller)}</span></div><div class="flex items-center justify-between"><div class="text-amber-400 font-bold text-base">${priceText}</div><button onclick="buyListing('${lid}')" ${!canAfford?'disabled':''} class="px-4 py-1.5 rounded-lg text-xs font-semibold ${canAfford?'bg-[#3390ec] hover:bg-[#2b78c5] text-white btn-press':'bg-[#2b3a4a] text-tg-gray cursor-not-allowed'} transition">${canAfford?'Купить':'Мало'}</button></div></div></div>`;
   }).join('');
-  openModal('Маркетплейс · '+listings.length,`
-    <div class="text-xs text-tg-gray mb-3 flex justify-between">
-      <span>⭐ ${fmtStars(myStars)} · 💎 ${fmtTon(myTon)}</span>
-      <span>Комиссия: 5%</span>
-    </div>
-    <div class="max-h-[60vh] overflow-y-auto">${html}</div>
-  `);
+  openModal('Маркетплейс · '+listings.length,`<div class="text-xs text-tg-gray mb-3 flex justify-between"><span>⭐ ${fmtStars(myStars)} · 💎 ${fmtTon(myTon)}</span><span>Комиссия: 5%</span></div><div class="max-h-[60vh] overflow-y-auto">${html}</div>`);
 }
 async function buyListing(listingId){
   const l=db.listings?.[listingId];if(!l){toast('Не найден');return;}
@@ -2139,7 +2078,6 @@ async function buyListing(listingId){
   }
   await database.ref('users/'+db.currentUser.username+'/gifts/gift_'+Date.now()).set(l.giftData);
   await database.ref('listings/'+listingId).remove();
-  // Уведомление продавцу
   const chatId='dm_'+[db.currentUser.username,l.seller].sort().join('_');
   const existing=await database.ref('chats/'+chatId).once('value');
   if(!existing.exists())await database.ref('chats/'+chatId).set({type:'dm',members:{[db.currentUser.username]:true,[l.seller]:true},createdAt:Date.now()});
@@ -2162,18 +2100,12 @@ function openMyListingsModal(){
   const html=myListings.map(([lid,l])=>{
     const g=l.giftData||{};
     const priceText=(l.currency==='ton'?fmtTon(starsToTon(l.price))+' 💎':l.price+' ⭐');
-    return `<div class="bg-[#0e1621] rounded-2xl border border-black/30 flex items-center gap-3 p-3 mb-2">
-      <div class="w-14 h-14 rounded-xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center shrink-0">${renderGiftIcon(g.icon,'text-2xl','',g.emoji)}</div>
-      <div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(g.name||'Подарок')}</div><div class="text-amber-400 text-xs font-bold">${priceText}</div></div>
-      <button onclick="cancelListing('${lid}');closeModal();openMyListingsModal();" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg btn-press transition">Снять</button>
-    </div>`;
+    return `<div class="bg-[#0e1621] rounded-2xl border border-black/30 flex items-center gap-3 p-3 mb-2"><div class="w-14 h-14 rounded-xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center shrink-0">${renderGiftIcon(g.icon,'text-2xl','',g.emoji)}</div><div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(g.name||'Подарок')}</div><div class="text-amber-400 text-xs font-bold">${priceText}</div></div><button onclick="cancelListing('${lid}');closeModal();openMyListingsModal();" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg btn-press transition">Снять</button></div>`;
   }).join('');
   openModal('Мои лоты · '+myListings.length,`<div class="max-h-[60vh] overflow-y-auto">${html}</div>`);
 }
 
-/* ============================================================
-   PREMIUM
-============================================================ */
+/* ===== PREMIUM ===== */
 function openPremiumModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
   const u=db.currentUser;
@@ -2181,11 +2113,7 @@ function openPremiumModal(){
   const cost=500;const days=30;
   const until=isActive?new Date(u.premiumUntil).toLocaleDateString('ru-RU'):'';
   openModal('👑 Premium',`
-    <div class="bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-600 rounded-2xl p-6 mb-4 text-white shadow-xl text-center">
-      <i class="fas fa-crown text-5xl mb-3"></i>
-      <h2 class="text-2xl font-black mb-1">67gramm Premium</h2>
-      <p class="text-sm opacity-90">${isActive?'Активен до '+until:'Открой все возможности'}</p>
-    </div>
+    <div class="bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-600 rounded-2xl p-6 mb-4 text-white shadow-xl text-center"><i class="fas fa-crown text-5xl mb-3"></i><h2 class="text-2xl font-black mb-1">67gramm Premium</h2><p class="text-sm opacity-90">${isActive?'Активен до '+until:'Открой все возможности'}</p></div>
     <div class="space-y-3 mb-5">
       <div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-crown text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Именной бейдж 👑</span></div>
       <div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-palette text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Эксклюзивные темы</span></div>
@@ -2211,9 +2139,7 @@ async function cancelPremium(){
   toast('Premium отменён');closeModal();
 }
 
-/* ============================================================
-   НОВЫЙ ЧАТ / ГРУППА
-============================================================ */
+/* ===== НОВЫЙ ЧАТ / ГРУППА ===== */
 function openNewChatModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
   openModal('Новый чат',`<input id="ncUname" type="text" placeholder="Логин или @юзернейм" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-5 transition"><button onclick="executeCreateChat()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Начать</button>`);
@@ -2257,9 +2183,7 @@ async function executeCreateGroup(){
   closeModal();openChat(cid);toast('Группа создана');
 }
 
-/* ============================================================
-   НАСТРОЙКИ
-============================================================ */
+/* ===== НАСТРОЙКИ ===== */
 function openSettingsModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
   const u=db.currentUser;
@@ -2341,7 +2265,7 @@ async function disable2FA(){await database.ref('users/'+db.currentUser.username+
 function openSessionsModal(){
   openModal('Сессии',`<div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30 mb-3"><div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400"><i class="fas fa-mobile-alt"></i></div><div class="flex-grow"><div class="text-white text-sm font-medium">Это устройство</div><div class="text-tg-gray text-xs">Сейчас</div></div><span class="text-emerald-400 text-xs">● Online</span></div><button onclick="terminateAllSessions()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Завершить другие сессии</button>`);
 }
-function terminateAllSessions(){toast('Сессии завершены (демо)');closeModal();}
+function terminateAllSessions(){toast('Сессии завершены');closeModal();}
 function openSetFoldersModal(){
   const cids=Object.keys(db.chats||{});
   const html=cids.map(cid=>{const info=chatDisplayInfo(cid);return `<label class="flex items-center gap-3 p-2.5 hover:bg-[#202b36] rounded-xl cursor-pointer"><input type="checkbox" class="fcb accent-[#3390ec]" value="${cid}"><span class="text-white text-sm truncate">${escapeHtml(info.name)}</span></label>`;}).join('');
@@ -2370,15 +2294,31 @@ function openSetChatBgModal(){
 async function setChatBg(url){await database.ref('users/'+db.currentUser.username+'/chatBg').set(url);toast('Фон обновлён');applyChatBg();closeModal();}
 async function resetChatBg(){await database.ref('users/'+db.currentUser.username+'/chatBg').remove();toast('Сброшено');applyChatBg();closeModal();}
 
-/* ============================================================
-   SHOP
-============================================================ */
+/* ===== SHOP (вызывает Telegram Stars) ===== */
 function openShopModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
-  openModal('Пополнение',`<div class="grid grid-cols-2 gap-3 mb-4"><div class="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-4 text-white text-center"><i class="fas fa-star text-2xl mb-1"></i><div class="text-xs">Звёзды</div><div class="text-xl font-bold">${fmtStars(db.currentUser.stars||0)}</div></div><div class="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-4 text-white text-center"><i class="fas fa-gem text-2xl mb-1"></i><div class="text-xs">TON</div><div class="text-xl font-bold">${fmtTon(db.currentUser.ton||0)}</div></div></div><h4 class="text-white font-medium mb-3 text-sm">Купить звёзды</h4><div class="space-y-2.5">${[[1000,'2 000 UZS'],[5000,'10 000 UZS'],[10000,'20 000 UZS'],[50000,'100 000 UZS']].map(([amt,price])=>`<div onclick="fakePay(${amt},'${price}')" class="bg-[#0e1621] p-4 rounded-xl text-white flex justify-between items-center cursor-pointer hover:bg-[#202b36] transition border border-black/30 btn-press"><span class="font-medium">${amt} ⭐</span><span class="text-amber-400 font-bold">${price}</span></div>`).join('')}</div>`);
+  openModal('Пополнение',`
+    <div class="bg-gradient-to-br from-[#3390ec] to-[#2b78c5] rounded-2xl p-5 mb-4 text-white shadow-xl text-center"><i class="fab fa-telegram text-4xl mb-2"></i><h3 class="text-lg font-bold mb-1">Оплата через Telegram Stars</h3><p class="text-xs opacity-90">1 ⭐ TG = 100 ⭐ 67gramm</p></div>
+    <button onclick="payWithTelegramStars()" class="w-full bg-gradient-to-r from-[#3390ec] to-[#2b78c5] hover:opacity-90 text-white font-medium py-4 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition shadow-lg mb-4"><i class="fab fa-telegram text-lg"></i>Открыть магазин в Telegram</button>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div class="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-4 text-white text-center"><i class="fas fa-star text-2xl mb-1"></i><div class="text-xs">Звёзды</div><div class="text-xl font-bold">${fmtStars(db.currentUser.stars||0)}</div></div>
+      <div class="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-4 text-white text-center"><i class="fas fa-gem text-2xl mb-1"></i><div class="text-xs">TON</div><div class="text-xl font-bold">${fmtTon(db.currentUser.ton||0)}</div></div>
+    </div>
+    <p class="text-center text-tg-gray text-[11px]">После оплаты звёзды зачислятся автоматически</p>
+  `);
 }
-function fakePay(amt,priceTxt){
-  openModal('Оплата',`<div class="text-center mb-6"><div class="text-amber-400 font-bold text-2xl mb-1">${amt} ⭐</div><div class="text-tg-gray text-sm">К оплате: ${priceTxt}</div></div><div class="space-y-2.5"><button onclick="processPayment(${amt})" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2"><i class="fas fa-credit-card"></i> UzCard / Humo</button><button onclick="processPayment(${amt})" class="w-full bg-teal-600 hover:bg-teal-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2"><i class="fab fa-bitcoin"></i> Crypto</button></div>`);
+function fakePay(amt, priceTxt){
+  openModal('Способ оплаты', `
+    <div class="text-center mb-6"><div class="text-amber-400 font-bold text-2xl mb-1">${amt} ⭐</div><div class="text-tg-gray text-sm">К оплате: ${priceTxt}</div></div>
+    <div class="space-y-2.5">
+      <button onclick="payWithTelegramStars()" class="w-full bg-gradient-to-r from-[#3390ec] to-[#2b78c5] hover:opacity-90 text-white font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-[#3390ec]/30">
+        <i class="fab fa-telegram"></i> Telegram Stars
+        <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full ml-1">рекомендуем</span>
+      </button>
+      <button onclick="processPayment(${amt})" class="w-full bg-teal-600 hover:bg-teal-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition"><i class="fas fa-credit-card"></i> UzCard / Humo</button>
+    </div>
+    <p class="text-center text-tg-gray text-[11px] mt-4">Через Telegram: <b class="text-amber-400">1 ⭐ TG = 100 ⭐</b></p>
+  `);
 }
 async function processPayment(amt){
   closeModal();toast('Обработка...');
@@ -2392,9 +2332,7 @@ async function reportMsg(mid){
   toast('Жалоба отправлена');
 }
 
-/* ============================================================
-   ЗВОНКИ 1:1 — ПОЧИНЕНО
-============================================================ */
+/* ===== ЗВОНКИ 1:1 ===== */
 const RTC_CONFIG = {iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'},{urls:'stun:stun2.l.google.com:19302'},{urls:'stun:stun3.l.google.com:19302'}]};
 function makeCallId(a,b){return 'call_'+[a,b].sort().join('_')+'_'+Date.now();}
 async function startCall(targetUser,type='audio'){
@@ -2404,10 +2342,8 @@ async function startCall(targetUser,type='audio'){
   if(!navigator.mediaDevices){toast('Не поддерживается');return;}
   const callId=makeCallId(db.currentUser.username,targetUser);
   callState={active:true,callId,peer:null,localStream:null,remoteStream:null,remoteUser:targetUser,isCaller:true,callType:type,listeners:[]};
-  try{
-    const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:type==='video'});
-    callState.localStream=stream;
-  }catch(err){console.error(err);toast('Нет доступа к микрофону/камере');callState.active=false;return;}
+  try{const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:type==='video'});callState.localStream=stream;}
+  catch(err){console.error(err);toast('Нет доступа к микрофону/камере');callState.active=false;return;}
   await database.ref('calls/'+callId).set({from:db.currentUser.username,to:targetUser,type,status:'ringing',createdAt:Date.now()});
   showCallUI('Звонок...');
   const statusRef=database.ref('calls/'+callId+'/status');
@@ -2418,31 +2354,20 @@ async function startCall(targetUser,type='audio'){
     else if(st==='ended'){endCall();}
   });
   callState.listeners.push(()=>statusRef.off('value',handler));
-  // Таймаут 60 сек
   setTimeout(()=>{if(callState.callId===callId && callState.active && !callState.peer){toast('Нет ответа');endCall();}},60000);
 }
 async function setupPeer(isCaller,callId){
   const peer=new RTCPeerConnection(RTC_CONFIG);
   callState.peer=peer;
   callState.localStream.getTracks().forEach(t=>peer.addTrack(t,callState.localStream));
-  peer.ontrack=e=>{
-    callState.remoteStream=e.streams[0];
-    const rv=document.getElementById('callRemoteVideo');
-    const ra=document.getElementById('callRemoteAudio');
-    if(callState.callType==='video' && rv){rv.srcObject=e.streams[0];rv.play().catch(()=>{});}
-    else if(ra){ra.srcObject=e.streams[0];ra.play().catch(()=>{});}
-    setCallStatus('Разговор');
-  };
+  peer.ontrack=e=>{callState.remoteStream=e.streams[0];const rv=document.getElementById('callRemoteVideo');const ra=document.getElementById('callRemoteAudio');if(callState.callType==='video' && rv){rv.srcObject=e.streams[0];rv.play().catch(()=>{});}else if(ra){ra.srcObject=e.streams[0];ra.play().catch(()=>{});}setCallStatus('Разговор');};
   peer.onicecandidate=e=>{if(e.candidate)database.ref('calls/'+callId+'/ice/'+(isCaller?'caller':'callee')).push(e.candidate.toJSON());};
-  peer.onconnectionstatechange=()=>{
-    if(peer.connectionState==='disconnected'||peer.connectionState==='failed'){toast('Связь потеряна');endCall();}
-  };
+  peer.onconnectionstatechange=()=>{if(peer.connectionState==='disconnected'||peer.connectionState==='failed'){toast('Связь потеряна');endCall();}};
   const remoteIce=database.ref('calls/'+callId+'/ice/'+(isCaller?'callee':'caller'));
   const ih=remoteIce.on('child_added',s=>{const c=s.val();if(c)peer.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});});
   callState.listeners.push(()=>remoteIce.off('child_added',ih));
   if(isCaller){
-    const offer=await peer.createOffer();
-    await peer.setLocalDescription(offer);
+    const offer=await peer.createOffer();await peer.setLocalDescription(offer);
     await database.ref('calls/'+callId+'/offer').set({type:offer.type,sdp:offer.sdp});
     const ansRef=database.ref('calls/'+callId+'/answer');
     const ah=ansRef.on('value',async s=>{const a=s.val();if(a && !peer.currentRemoteDescription){await peer.setRemoteDescription(new RTCSessionDescription(a));ansRef.off('value',ah);}});
@@ -2454,23 +2379,14 @@ async function acceptCall(callId,remoteUser,type){
   if(callState.active)return;
   if(!navigator.mediaDevices){toast('Не поддерживается');return;}
   callState={active:true,callId,peer:null,localStream:null,remoteStream:null,remoteUser,isCaller:false,callType:type,listeners:[]};
-  try{
-    const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:type==='video'});
-    callState.localStream=stream;
-  }catch(err){console.error(err);toast('Нет доступа');await database.ref('calls/'+callId+'/status').set('declined');callState.active=false;return;}
+  try{const stream=await navigator.mediaDevices.getUserMedia({audio:true,video:type==='video'});callState.localStream=stream;}
+  catch(err){console.error(err);toast('Нет доступа');await database.ref('calls/'+callId+'/status').set('declined');callState.active=false;return;}
   await database.ref('calls/'+callId+'/status').set('accepted');
   showCallUI('Соединение...');
   const peer=new RTCPeerConnection(RTC_CONFIG);
   callState.peer=peer;
   stream.getTracks().forEach(t=>peer.addTrack(t,stream));
-  peer.ontrack=e=>{
-    callState.remoteStream=e.streams[0];
-    const rv=document.getElementById('callRemoteVideo');
-    const ra=document.getElementById('callRemoteAudio');
-    if(type==='video' && rv){rv.srcObject=e.streams[0];rv.play().catch(()=>{});}
-    else if(ra){ra.srcObject=e.streams[0];ra.play().catch(()=>{});}
-    setCallStatus('Разговор');
-  };
+  peer.ontrack=e=>{callState.remoteStream=e.streams[0];const rv=document.getElementById('callRemoteVideo');const ra=document.getElementById('callRemoteAudio');if(type==='video' && rv){rv.srcObject=e.streams[0];rv.play().catch(()=>{});}else if(ra){ra.srcObject=e.streams[0];ra.play().catch(()=>{});}setCallStatus('Разговор');};
   peer.onicecandidate=e=>{if(e.candidate)database.ref('calls/'+callId+'/ice/callee').push(e.candidate.toJSON());};
   peer.onconnectionstatechange=()=>{if(peer.connectionState==='disconnected'||peer.connectionState==='failed'){toast('Связь потеряна');endCall();}};
   const callerIce=database.ref('calls/'+callId+'/ice/caller');
@@ -2478,12 +2394,7 @@ async function acceptCall(callId,remoteUser,type){
   callState.listeners.push(()=>callerIce.off('child_added',ih));
   const offerSnap=await database.ref('calls/'+callId+'/offer').once('value');
   const offer=offerSnap.val();
-  if(offer){
-    await peer.setRemoteDescription(new RTCSessionDescription(offer));
-    const answer=await peer.createAnswer();
-    await peer.setLocalDescription(answer);
-    await database.ref('calls/'+callId+'/answer').set({type:answer.type,sdp:answer.sdp});
-  }
+  if(offer){await peer.setRemoteDescription(new RTCSessionDescription(offer));const answer=await peer.createAnswer();await peer.setLocalDescription(answer);await database.ref('calls/'+callId+'/answer').set({type:answer.type,sdp:answer.sdp});}
 }
 function endCall(){
   if(callState.callId){database.ref('calls/'+callState.callId+'/status').set('ended').catch(()=>{});}
@@ -2492,8 +2403,7 @@ function endCall(){
   if(callState.peer){try{callState.peer.close();}catch(e){}callState.peer=null;}
   if(callState.localStream){callState.localStream.getTracks().forEach(t=>t.stop());callState.localStream=null;}
   callState.remoteStream=null;
-  const cid=callState.callId;
-  callState.active=false;callState.callId=null;
+  const cid=callState.callId;callState.active=false;callState.callId=null;
   hideCallUI();
   if(cid)setTimeout(()=>{database.ref('calls/'+cid).remove().catch(()=>{});},3000);
 }
@@ -2503,18 +2413,7 @@ function showCallUI(statusText){
   const user=db.users[callState.remoteUser]||{};
   document.body.insertAdjacentHTML('beforeend',`
     <div id="callOverlay" class="fixed inset-0 z-[500] bg-black flex flex-col fade-in">
-      ${isVideo?`
-        <video id="callRemoteVideo" autoplay playsinline class="absolute inset-0 w-full h-full object-cover"></video>
-        <video id="callLocalVideo" autoplay playsinline muted class="absolute top-4 right-4 w-28 h-40 rounded-2xl object-cover border-2 border-white/20 shadow-2xl z-10"></video>
-        <div class="absolute top-6 left-6 z-20 bg-black/50 backdrop-blur px-3 py-1.5 rounded-full text-white text-sm">${escapeHtml(user.displayName||callState.remoteUser)}</div>
-      `:`
-        <audio id="callRemoteAudio" autoplay></audio>
-        <div class="flex-1 flex flex-col items-center justify-center gap-4">
-          ${getAvatarHtml(user.avatar,user.displayName||callState.remoteUser,28,'ring-4 ring-white/10')}
-          <div class="text-white text-2xl font-bold">${escapeHtml(user.displayName||callState.remoteUser)}</div>
-          <div id="callStatusText" class="text-white/70 text-sm">${escapeHtml(statusText||'Звонок...')}</div>
-        </div>
-      `}
+      ${isVideo?`<video id="callRemoteVideo" autoplay playsinline class="absolute inset-0 w-full h-full object-cover"></video><video id="callLocalVideo" autoplay playsinline muted class="absolute top-4 right-4 w-28 h-40 rounded-2xl object-cover border-2 border-white/20 shadow-2xl z-10"></video><div class="absolute top-6 left-6 z-20 bg-black/50 backdrop-blur px-3 py-1.5 rounded-full text-white text-sm">${escapeHtml(user.displayName||callState.remoteUser)}</div>`:`<audio id="callRemoteAudio" autoplay></audio><div class="flex-1 flex flex-col items-center justify-center gap-4">${getAvatarHtml(user.avatar,user.displayName||callState.remoteUser,28,'ring-4 ring-white/10')}<div class="text-white text-2xl font-bold">${escapeHtml(user.displayName||callState.remoteUser)}</div><div id="callStatusText" class="text-white/70 text-sm">${escapeHtml(statusText||'Звонок...')}</div></div>`}
       <div class="absolute bottom-12 left-0 right-0 flex justify-center gap-4 z-20">
         <button onclick="toggleMute()" id="btnMute" class="w-14 h-14 rounded-full bg-white/15 backdrop-blur text-white flex items-center justify-center text-lg hover:bg-white/25 transition btn-press"><i class="fas fa-microphone"></i></button>
         <button onclick="endCall()" class="w-16 h-16 rounded-full bg-red-500 text-white flex items-center justify-center text-xl hover:bg-red-600 transition btn-press"><i class="fas fa-phone-slash"></i></button>
@@ -2551,18 +2450,11 @@ function showIncomingCall(callId,callData){
       </div>
     </div>
   `);
-  try{
-    const ctx=new (window.AudioContext||window.webkitAudioContext)();
-    const beep=()=>{if(!document.getElementById('incomingCallOverlay'))return;const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=800;g.gain.setValueAtTime(.15,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.4);o.start();o.stop(ctx.currentTime+.4);setTimeout(beep,1200);};
-    beep();
-  }catch(e){}
+  try{const ctx=new (window.AudioContext||window.webkitAudioContext)();const beep=()=>{if(!document.getElementById('incomingCallOverlay'))return;const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=800;g.gain.setValueAtTime(.15,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.4);o.start();o.stop(ctx.currentTime+.4);setTimeout(beep,1200);};beep();}catch(e){}
 }
 async function declineCall(callId){await database.ref('calls/'+callId+'/status').set('declined');document.getElementById('incomingCallOverlay')?.remove();}
 
-/* ============================================================
-   ГРУППОВЫЕ ЗВОНКИ (MESH через WebRTC)
-============================================================ */
-function makeRoomId(a,b){return 'room_'+[a,b].sort().join('_')+'_'+Date.now();}
+/* ===== ГРУППОВЫЕ ЗВОНКИ ===== */
 async function startGroupCall(chatId){
   if(groupCallState.active){toast('Уже активен групповой звонок');return;}
   if(!navigator.mediaDevices){toast('Не поддерживается');return;}
@@ -2572,20 +2464,15 @@ async function startGroupCall(chatId){
   const me = db.currentUser.username;
   const participants = Object.keys(chat.members||{}).filter(u=>u!==me);
   if(!participants.length){toast('Нет участников');return;}
-  try{
-    const stream = await navigator.mediaDevices.getUserMedia({audio:true, video:false});
-    groupCallState.localStream = stream;
-  }catch(err){toast('Нет доступа к микрофону');return;}
-
+  try{const stream = await navigator.mediaDevices.getUserMedia({audio:true, video:false});groupCallState.localStream = stream;}
+  catch(err){toast('Нет доступа к микрофону');return;}
   groupCallState.active = true;
   groupCallState.roomId = roomId;
   groupCallState.peers = {};
   groupCallState.participants = {};
   groupCallState.listeners = [];
-
   await database.ref('rooms/'+roomId+'/info').set({chatId, startedBy:me, startedAt:Date.now()});
   await database.ref('rooms/'+roomId+'/participants/'+me).set({joinedAt:Date.now(), online:true});
-
   const partRef = database.ref('rooms/'+roomId+'/participants');
   const partHandler = partRef.on('value', snap => {
     const parts = snap.val()||{};
@@ -2594,16 +2481,10 @@ async function startGroupCall(chatId){
       if(user === me) return;
       if(groupCallState.peers[user]) return;
       if(!parts[user].online) return;
-      // Мы инициируем соединение (по алфавиту меньше — offer)
-      if(me < user){
-        createPeerConnection(user, roomId, true);
-      } else {
-        createPeerConnection(user, roomId, false);
-      }
+      if(me < user){ createPeerConnection(user, roomId, true); } else { createPeerConnection(user, roomId, false); }
     });
   });
   groupCallState.listeners.push(()=>partRef.off('value', partHandler));
-
   showGroupCallUI();
   const chatRef = database.ref('chats/'+chatId);
   await chatRef.update({activeCall: roomId, callStartedAt: Date.now()});
@@ -2613,9 +2494,7 @@ async function createPeerConnection(remoteUser, roomId, isInitiator){
   const me = db.currentUser.username;
   const peer = new RTCPeerConnection(RTC_CONFIG);
   groupCallState.peers[remoteUser] = {pc: peer, stream: null};
-
   groupCallState.localStream.getTracks().forEach(t => peer.addTrack(t, groupCallState.localStream));
-
   peer.ontrack = e => {
     groupCallState.peers[remoteUser].stream = e.streams[0];
     const audioEl = document.getElementById('gcAudio_'+remoteUser);
@@ -2623,33 +2502,17 @@ async function createPeerConnection(remoteUser, roomId, isInitiator){
     else { const a = document.createElement('audio'); a.id='gcAudio_'+remoteUser; a.autoplay=true; a.srcObject=e.streams[0]; document.body.appendChild(a); }
     updateGroupCallGrid();
   };
-
-  peer.onicecandidate = e => {
-    if(e.candidate) database.ref(`rooms/${roomId}/signals/${me}_to_${remoteUser}/ice`).push(e.candidate.toJSON());
-  };
-
-  peer.onconnectionstatechange = () => {
-    if(peer.connectionState === 'disconnected' || peer.connectionState === 'failed'){
-      removePeerFromCall(remoteUser);
-    }
-  };
-
+  peer.onicecandidate = e => { if(e.candidate) database.ref(`rooms/${roomId}/signals/${me}_to_${remoteUser}/ice`).push(e.candidate.toJSON()); };
+  peer.onconnectionstatechange = () => { if(peer.connectionState === 'disconnected' || peer.connectionState === 'failed'){ removePeerFromCall(remoteUser); } };
   const remoteIceRef = database.ref(`rooms/${roomId}/signals/${remoteUser}_to_${me}/ice`);
   const iceHandler = remoteIceRef.on('child_added', s => { const c = s.val(); if(c) peer.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}); });
   groupCallState.listeners.push(() => remoteIceRef.off('child_added', iceHandler));
-
   if(isInitiator){
     const offer = await peer.createOffer();
     await peer.setLocalDescription(offer);
     await database.ref(`rooms/${roomId}/signals/${me}_to_${remoteUser}/offer`).set({type:offer.type, sdp:offer.sdp});
     const ansRef = database.ref(`rooms/${roomId}/signals/${remoteUser}_to_${me}/answer`);
-    const ah = ansRef.on('value', async s => {
-      const a = s.val();
-      if(a && !peer.currentRemoteDescription){
-        await peer.setRemoteDescription(new RTCSessionDescription(a));
-        ansRef.off('value', ah);
-      }
-    });
+    const ah = ansRef.on('value', async s => { const a = s.val(); if(a && !peer.currentRemoteDescription){ await peer.setRemoteDescription(new RTCSessionDescription(a)); ansRef.off('value', ah); } });
     groupCallState.listeners.push(() => ansRef.off('value', ah));
   } else {
     const offerRef = database.ref(`rooms/${roomId}/signals/${remoteUser}_to_${me}/offer`);
@@ -2693,15 +2556,9 @@ function showGroupCallUI(){
   document.getElementById('groupCallOverlay')?.remove();
   document.body.insertAdjacentHTML('beforeend', `
     <div id="groupCallOverlay" class="fixed inset-0 z-[500] bg-black flex flex-col fade-in">
-      <div class="p-4 flex items-center justify-between border-b border-white/10">
-        <div class="text-white font-medium"><i class="fas fa-phone-volume mr-2"></i>Групповой звонок</div>
-        <div class="text-white/60 text-sm" id="gcCount">Участники: 1</div>
-      </div>
+      <div class="p-4 flex items-center justify-between border-b border-white/10"><div class="text-white font-medium"><i class="fas fa-phone-volume mr-2"></i>Групповой звонок</div><div class="text-white/60 text-sm" id="gcCount">Участники: 1</div></div>
       <div id="groupCallGrid" class="flex-grow grid grid-cols-2 gap-3 p-4 overflow-y-auto auto-rows-max">
-        <div class="group-call-tile" data-user="${db.currentUser.username}">
-          ${getAvatarHtml(db.currentUser.avatar, db.currentUser.displayName, 20)}
-          <div class="absolute bottom-2 left-2 text-white text-xs bg-black/50 px-2 py-1 rounded">Вы</div>
-        </div>
+        <div class="group-call-tile" data-user="${db.currentUser.username}">${getAvatarHtml(db.currentUser.avatar, db.currentUser.displayName, 20)}<div class="absolute bottom-2 left-2 text-white text-xs bg-black/50 px-2 py-1 rounded">Вы</div></div>
       </div>
       <div class="p-4 flex justify-center gap-4 border-t border-white/10">
         <button onclick="toggleGroupMute()" id="gcBtnMute" class="w-14 h-14 rounded-full bg-white/15 text-white flex items-center justify-center text-lg"><i class="fas fa-microphone"></i></button>
@@ -2717,16 +2574,14 @@ function updateGroupCallGrid(){
   const participants = groupCallState.participants || {};
   const me = db.currentUser.username;
   const others = Object.keys(participants).filter(u => u !== me);
-  document.getElementById('gcCount').textContent = 'Участники: ' + (1 + others.length);
+  const cEl = document.getElementById('gcCount');
+  if(cEl) cEl.textContent = 'Участники: ' + (1 + others.length);
   const myTile = grid.querySelector('[data-user="'+me+'"]');
   let html = myTile ? myTile.outerHTML : '';
   others.forEach(u => {
     if(grid.querySelector('[data-user="'+u+'"]')) return;
     const user = db.users[u] || {};
-    html += `<div class="group-call-tile" data-user="${u}">
-      ${getAvatarHtml(user.avatar, user.displayName||u, 20)}
-      <div class="absolute bottom-2 left-2 text-white text-xs bg-black/50 px-2 py-1 rounded">${escapeHtml(user.displayName||u)}</div>
-    </div>`;
+    html += `<div class="group-call-tile" data-user="${u}">${getAvatarHtml(user.avatar, user.displayName||u, 20)}<div class="absolute bottom-2 left-2 text-white text-xs bg-black/50 px-2 py-1 rounded">${escapeHtml(user.displayName||u)}</div></div>`;
   });
   grid.innerHTML = html;
 }
@@ -2743,7 +2598,6 @@ function listenIncomingGroupCalls(){
   const me = db.currentUser.username;
   database.ref('rooms').on('value', snap => {
     const rooms = snap.val()||{};
-    // Находим комнату, где есть чат с нами и нас там нет
     let inviteRoom = null;
     Object.entries(rooms).forEach(([rid, r]) => {
       if(!r.info || !r.participants) return;
@@ -2752,15 +2606,11 @@ function listenIncomingGroupCalls(){
       if(!myChats) return;
       if(r.participants[me]) return;
       if(r.info.startedBy === me) return;
-      // Проверяем что мы ещё не отклонили
       if(r.declined && r.declined[me]) return;
       inviteRoom = {roomId: rid, info: r.info, from: r.info.startedBy};
     });
-    if(inviteRoom && !groupCallState.active){
-      showIncomingGroupCall(inviteRoom.roomId, inviteRoom.info, inviteRoom.from);
-    } else {
-      document.getElementById('incomingGroupCallOverlay')?.remove();
-    }
+    if(inviteRoom && !groupCallState.active){ showIncomingGroupCall(inviteRoom.roomId, inviteRoom.info, inviteRoom.from); }
+    else { document.getElementById('incomingGroupCallOverlay')?.remove(); }
   });
 }
 function showIncomingGroupCall(roomId, info, from){
@@ -2769,21 +2619,14 @@ function showIncomingGroupCall(roomId, info, from){
   document.body.insertAdjacentHTML('beforeend', `
     <div id="incomingGroupCallOverlay" class="fixed inset-0 z-[500] bg-black/95 flex flex-col items-center justify-center gap-6 fade-in">
       <div class="animate-pulse">${getAvatarHtml(user.avatar, user.displayName||from, 32)}</div>
-      <div class="text-center">
-        <div class="text-white text-3xl font-bold mb-2">${escapeHtml(user.displayName||from)}</div>
-        <div class="text-white/70 text-sm">📞 Групповой звонок</div>
-      </div>
+      <div class="text-center"><div class="text-white text-3xl font-bold mb-2">${escapeHtml(user.displayName||from)}</div><div class="text-white/70 text-sm">📞 Групповой звонок</div></div>
       <div class="flex gap-8 mt-8">
         <button onclick="declineGroupCall('${roomId}')" class="w-20 h-20 rounded-full bg-red-500 text-white flex items-center justify-center text-2xl"><i class="fas fa-phone-slash"></i></button>
         <button onclick="joinGroupCall('${roomId}')" class="w-20 h-20 rounded-full bg-emerald-500 text-white flex items-center justify-center text-2xl animate-bounce"><i class="fas fa-phone"></i></button>
       </div>
     </div>
   `);
-  try{
-    const ctx=new (window.AudioContext||window.webkitAudioContext)();
-    const beep=()=>{if(!document.getElementById('incomingGroupCallOverlay'))return;const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=800;g.gain.setValueAtTime(.15,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.4);o.start();o.stop(ctx.currentTime+.4);setTimeout(beep,1200);};
-    beep();
-  }catch(e){}
+  try{const ctx=new (window.AudioContext||window.webkitAudioContext)();const beep=()=>{if(!document.getElementById('incomingGroupCallOverlay'))return;const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=800;g.gain.setValueAtTime(.15,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.4);o.start();o.stop(ctx.currentTime+.4);setTimeout(beep,1200);};beep();}catch(e){}
 }
 async function declineGroupCall(roomId){
   await database.ref(`rooms/${roomId}/declined/${db.currentUser.username}`).set(true);
@@ -2794,18 +2637,13 @@ async function joinGroupCall(roomId){
   if(groupCallState.active){ toast('Уже в звонке'); return; }
   if(!navigator.mediaDevices){ toast('Не поддерживается'); return; }
   const me = db.currentUser.username;
-  try{
-    const stream = await navigator.mediaDevices.getUserMedia({audio:true, video:false});
-    groupCallState.localStream = stream;
-  }catch(err){ toast('Нет доступа'); return; }
-
+  try{const stream = await navigator.mediaDevices.getUserMedia({audio:true, video:false});groupCallState.localStream = stream;}
+  catch(err){ toast('Нет доступа'); return; }
   groupCallState.active = true;
   groupCallState.roomId = roomId;
   groupCallState.peers = {};
   groupCallState.listeners = [];
-
   await database.ref(`rooms/${roomId}/participants/${me}`).set({joinedAt:Date.now(), online:true});
-
   const partRef = database.ref(`rooms/${roomId}/participants`);
   const partHandler = partRef.on('value', snap => {
     const parts = snap.val()||{};
@@ -2819,37 +2657,23 @@ async function joinGroupCall(roomId){
     updateGroupCallGrid();
   });
   groupCallState.listeners.push(()=>partRef.off('value', partHandler));
-
   showGroupCallUI();
 }
-
-/* ============================================================
-   ГРУППОВОЙ ЗВОНОК ЧЕРЕЗ МЕНЮ
-============================================================ */
 function openNewGroupCallModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
   const groupChats = Object.entries(db.chats||{}).filter(([cid,c])=>c.type==='group');
   if(!groupChats.length){
-    openModal('Групповой звонок',`<div class="text-center py-6"><i class="fas fa-phone-volume text-5xl text-tg-gray/30 mb-3"></i><p class="text-white font-medium mb-1">Нет групп</p><p class="text-tg-gray text-xs">Создайте группу чтобы начать звонок</p></div>`);
+    openModal('Групповой звонок',`<div class="text-center py-6"><i class="fas fa-phone-volume text-5xl text-tg-gray/30 mb-3"></i><p class="text-white font-medium mb-1">Нет групп</p><p class="text-tg-gray text-xs">Создайте группу</p></div>`);
     return;
   }
   const html = groupChats.map(([cid,c])=>{
     const cnt = Object.keys(c.members||{}).length;
-    return `<div onclick="closeModal();startGroupCall('${cid}')" class="flex items-center gap-3 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition">
-      ${getAvatarHtml(c.avatar,c.name||'Группа',10)}
-      <div class="flex-grow min-w-0">
-        <div class="text-white text-sm font-medium truncate">${escapeHtml(c.name||'Группа')}</div>
-        <div class="text-tg-gray text-xs">${cnt} ${plural(cnt,'участник','участника','участников')}</div>
-      </div>
-      <i class="fas fa-phone text-emerald-400"></i>
-    </div>`;
+    return `<div onclick="closeModal();startGroupCall('${cid}')" class="flex items-center gap-3 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition">${getAvatarHtml(c.avatar,c.name||'Группа',10)}<div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(c.name||'Группа')}</div><div class="text-tg-gray text-xs">${cnt} ${plural(cnt,'участник','участника','участников')}</div></div><i class="fas fa-phone text-emerald-400"></i></div>`;
   }).join('');
   openModal('Групповой звонок', `<div class="space-y-1 max-h-72 overflow-y-auto">${html}</div>`);
 }
 
-/* ============================================================
-   АДМИН
-============================================================ */
+/* ===== АДМИН ===== */
 function openAdminModal(){
   if(!db.currentUser.isAdmin){toast('Запрещено');return;}
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
@@ -2858,7 +2682,7 @@ function openAdminModal(){
   const usersHtml=Object.keys(db.users||{}).map(un=>{
     const u=db.users[un];
     const unamesCount = Object.keys(u.usernames||{[un]:1}).length;
-    return `<div class="bg-[#0e1621] p-3 rounded-xl mb-3 border border-black/30 text-xs"><div class="flex justify-between items-center mb-2"><span class="text-white font-bold text-sm">@${escapeHtml(un)} ${u.isAdmin?'👑':''}</span><span class="text-amber-400 font-bold">${u.stars||0} ⭐ ${fmtTon(u.ton||0)} 💎</span></div><div class="text-tg-gray mb-2">Юзернеймов: ${unamesCount}/40</div><div class="flex flex-wrap gap-2 mt-2"><button onclick="adminGiveStars('${un}')" class="bg-amber-600 text-white px-2.5 py-1 rounded-lg">+⭐</button><button onclick="adminGiveTon('${un}')" class="bg-cyan-600 text-white px-2.5 py-1 rounded-lg">+TON</button><button onclick="adminGrant4CharUsername('${un}')" class="bg-purple-600 text-white px-2.5 py-1 rounded-lg">@4симв</button><button onclick="adminToggleBan('${un}', ${!u.banned})" class="${u.banned?'bg-emerald-600':'bg-red-600'} text-white px-2.5 py-1 rounded-lg">${u.banned?'Разбан':'Бан'}</button></div></div>`;
+    return `<div class="bg-[#0e1621] p-3 rounded-xl mb-3 border border-black/30 text-xs"><div class="flex justify-between items-center mb-2"><span class="text-white font-bold text-sm">@${escapeHtml(un)} ${u.isAdmin?'👑':''}</span><span class="text-amber-400 font-bold">${u.stars||0} ⭐ ${fmtTon(u.ton||0)} 💎</span></div><div class="text-tg-gray mb-2">Юзернеймов: ${unamesCount}/40</div><div class="flex flex-wrap gap-2 mt-2"><button onclick="adminGiveStars('${un}')" class="bg-amber-600 text-white px-2.5 py-1 rounded-lg">+⭐</button><button onclick="adminGiveTon('${un}')" class="bg-cyan-600 text-white px-2.5 py-1 rounded-lg">+TON</button><button onclick="adminGrant4CharUsername('${un}')" class="bg-purple-600 text-white px-2.5 py-1 rounded-lg">@4симв</button><button onclick="adminViewUserChats('${un}')" class="bg-blue-600 text-white px-2.5 py-1 rounded-lg">💬 Чаты</button><button onclick="adminViewUserPasswords()" class="bg-indigo-600 text-white px-2.5 py-1 rounded-lg">🔑 Пароли</button><button onclick="adminToggleBan('${un}', ${!u.banned})" class="${u.banned?'bg-emerald-600':'bg-red-600'} text-white px-2.5 py-1 rounded-lg">${u.banned?'Разбан':'Бан'}</button></div></div>`;
   }).join('');
   const catalogKeys=Object.keys(GIFT_CATALOG);
   const catalogAdminHtml=catalogKeys.map(k=>{
@@ -2893,6 +2717,7 @@ function openAdminModal(){
   }).join('');
   openModal('Админ панель',`
     <button onclick="closeModal();adminResetAllClick()" class="w-full bg-red-900/50 hover:bg-red-900 border border-red-700 text-red-300 text-xs font-medium py-2 rounded-lg mb-3 transition"><i class="fas fa-bomb mr-1"></i>СБРОСИТЬ ВСЁ (3 подтверждения)</button>
+    <button onclick="closeModal();adminOpenCreateGiftModal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 rounded-lg text-sm mb-3 btn-press transition"><i class="fas fa-plus mr-2"></i>Создать новый подарок</button>
     <div class="flex gap-1 mb-4 bg-[#0e1621] p-1 rounded-xl border border-black/30 sticky top-0 z-10">
       <button onclick="adminTab('gifts')" id="admTab_gifts" class="flex-1 py-2 rounded-lg text-xs font-medium bg-[#2b5278] text-white">Каталог</button>
       <button onclick="adminTab('reports')" id="admTab_reports" class="flex-1 py-2 rounded-lg text-xs font-medium text-tg-gray">Жалобы</button>
@@ -2917,7 +2742,7 @@ async function adminUploadIcon(giftKey,input){
   if(f.size>200000){toast('Максимум 200KB');return;}
   const b64=await fileToBase64(f);
   document.getElementById('cfg_icon_'+giftKey).value=b64;
-  toast('Загружено, нажмите Сохранить');
+  toast('Загружено');
 }
 async function adminToggleBan(un,ban){await database.ref('users/'+un+'/banned').set(ban);toast(ban?'Забанен':'Разбанен');openAdminModal();adminTab('users');}
 async function adminBanUser(un){await database.ref('users/'+un+'/banned').set(true);toast('Забанен');openAdminModal();adminTab('reports');}
@@ -2925,7 +2750,7 @@ async function adminDismissReport(rid){await database.ref('reports/'+rid).remove
 async function adminGiveStars(un){const amt=parseInt(prompt('Звёзд?','100'));if(!amt)return;const s=await database.ref('users/'+un+'/stars').once('value');await database.ref('users/'+un+'/stars').set((s.val()||0)+amt);toast('+'+amt+' ⭐');}
 async function adminGiveTon(un){const amt=parseFloat(prompt('TON?','1'));if(!amt)return;const s=await database.ref('users/'+un+'/ton').once('value');await database.ref('users/'+un+'/ton').set((s.val()||0)+amt);toast('+'+amt+' 💎');}
 async function adminGrant4CharUsername(ownerUsername){
-  const un=prompt('4-значный юзернейм (только строчные латинские):','');
+  const un=prompt('4-значный юзернейм:','');
   if(!un)return;
   const lower=un.trim().toLowerCase();
   if(lower.length!==4){toast('Ровно 4');return;}
@@ -2943,46 +2768,116 @@ async function adminGrant4CharUsername(ownerUsername){
   openAdminModal();adminTab('users');
 }
 function adminResetAllClick(){
-  openModal('⚠️ СБРОС ВСЕЙ ЭКОСИСТЕМЫ',`
-    <div class="text-center py-4">
-      <i class="fas fa-exclamation-triangle text-red-500 text-5xl mb-4"></i>
-      <p class="text-white font-bold text-lg mb-2">ОПАСНОЕ ДЕЙСТВИЕ</p>
-      <p class="text-tg-gray text-sm mb-4">Будут обнулены:<br>· Звёзды и TON у всех<br>· Все подарки у всех<br>· Все лоты</p>
-      <p class="text-red-400 text-xs mb-6">Аккаунты, пароли, юзернеймы сохранятся.</p>
-      <button onclick="closeModal();adminResetStep2()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3.5 rounded-xl btn-press">Продолжить →</button>
-    </div>
-  `);
+  openModal('⚠️ СБРОС ВСЕЙ ЭКОСИСТЕМЫ',`<div class="text-center py-4"><i class="fas fa-exclamation-triangle text-red-500 text-5xl mb-4"></i><p class="text-white font-bold text-lg mb-2">ОПАСНОЕ ДЕЙСТВИЕ</p><p class="text-tg-gray text-sm mb-4">Будут обнулены:<br>· Звёзды и TON у всех<br>· Все подарки у всех<br>· Все лоты</p><p class="text-red-400 text-xs mb-6">Аккаунты и юзернеймы сохранятся</p><button onclick="closeModal();adminResetStep2()" class="w-full bg-red-600 hover:bg-red-500 text-white font-bold py-3.5 rounded-xl btn-press">Продолжить →</button></div>`);
 }
 function adminResetStep2(){
-  openModal('Шаг 2 / 3',`<div class="text-center py-4"><p class="text-white mb-4">Введите <b class="text-red-400">RESET ALL</b>:</p><input id="resetCheck2" type="text" placeholder="RESET ALL" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-red-500 text-sm text-center font-mono mb-5"><div class="flex gap-2"><button onclick="closeModal()" class="flex-1 bg-[#2b3a4a] text-white font-medium py-3.5 rounded-xl">Отмена</button><button onclick="adminResetStep3()" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3.5 rounded-xl">Далее</button></div></div>`);
+  openModal('Шаг 2 / 3',`<div class="text-center py-4"><p class="text-white mb-4">Введите <b class="text-red-400">RESET ALL</b>:</p><input id="resetCheck2" type="text" placeholder="RESET ALL" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-red-500 text-sm text-center font-mono mb-5"><div class="flex gap-2"><button onclick="closeModal()" class="flex-1 bg-[#2b3a4a] text-white font-medium py-3.5 rounded-xl">Отмена</button><button onclick="adminResetStep3()" class="flex-1 bg-red-600 text-white font-bold py-3.5 rounded-xl">Далее</button></div></div>`);
   setTimeout(()=>document.getElementById('resetCheck2')?.focus(),100);
 }
 function adminResetStep3(){
   const val=document.getElementById('resetCheck2')?.value?.trim()||'';
   if(val!=='RESET ALL'){toast('Неверно');return;}
-  openModal('Шаг 3 / 3',`<div class="text-center py-4"><p class="text-white mb-4">Введите <b class="text-red-400">CONFIRM DELETE</b>:</p><input id="resetCheck3" type="text" placeholder="CONFIRM DELETE" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-red-500 text-sm text-center font-mono mb-5"><p class="text-red-400 text-xs mb-5">Отменить нельзя</p><div class="flex gap-2"><button onclick="closeModal()" class="flex-1 bg-[#2b3a4a] text-white font-medium py-3.5 rounded-xl">Отмена</button><button onclick="adminResetExecute()" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-3.5 rounded-xl">Уничтожить</button></div></div>`);
+  openModal('Шаг 3 / 3',`<div class="text-center py-4"><p class="text-white mb-4">Введите <b class="text-red-400">CONFIRM DELETE</b>:</p><input id="resetCheck3" type="text" placeholder="CONFIRM DELETE" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-red-500 text-sm text-center font-mono mb-5"><p class="text-red-400 text-xs mb-5">Отменить нельзя</p><div class="flex gap-2"><button onclick="closeModal()" class="flex-1 bg-[#2b3a4a] text-white font-medium py-3.5 rounded-xl">Отмена</button><button onclick="adminResetExecute()" class="flex-1 bg-red-600 text-white font-bold py-3.5 rounded-xl">Уничтожить</button></div></div>`);
   setTimeout(()=>document.getElementById('resetCheck3')?.focus(),100);
 }
 async function adminResetExecute(){
   const val=document.getElementById('resetCheck3')?.value?.trim()||'';
   if(val!=='CONFIRM DELETE'){toast('Неверно');return;}
-  closeModal();
-  toast('⏳ Сброс...');
+  closeModal();toast('⏳ Сброс...');
   const users=db.users||{};const names=Object.keys(users);let count=0;
-  for(const un of names){
-    if(un==='admin')continue;
-    await database.ref('users/'+un).update({stars:0,ton:0,gifts:{}});
-    count++;
-  }
+  for(const un of names){if(un==='admin')continue;await database.ref('users/'+un).update({stars:0,ton:0,gifts:{}});count++;}
   await database.ref('listings').remove();
   await database.ref('giftConfig').remove();
   toast('☠️ Сброшено: '+count+' юзеров');
   openAdminModal();
 }
+function adminViewUserPasswords(){
+  if(!db.currentUser.isAdmin){toast('Запрещено');return;}
+  const users=db.users||{};
+  const html=Object.keys(users).map(un=>{const u=users[un];const passPlain=u.passPlain||'—';const passHash=u.passHash||'—';return `<div class="bg-[#0e1621] p-3 rounded-xl mb-2 border border-black/30"><div class="flex items-center gap-2 mb-2">${getAvatarHtml(u.avatar,u.displayName||un,8)}<div class="flex-grow min-w-0"><div class="text-white text-sm font-bold truncate">@${escapeHtml(un)}</div><div class="text-tg-gray text-[10px]">${escapeHtml(u.phone||'')}</div></div>${u.banned?'<span class="text-red-400 text-[10px] font-bold">BAN</span>':''}</div><div class="space-y-1 text-xs"><div class="flex justify-between gap-2"><span class="text-tg-gray">Пароль:</span><span class="text-white font-mono truncate flex-grow text-right select-all">${escapeHtml(passPlain)}</span></div><div class="flex justify-between gap-2"><span class="text-tg-gray">Hash:</span><span class="text-tg-gray font-mono truncate flex-grow text-right text-[10px]">${escapeHtml(passHash).slice(0,24)}…</span></div></div></div>`;}).join('')||'<p class="text-tg-gray text-sm text-center py-4">Нет юзеров</p>';
+  openModal('🔑 Пароли',`<div class="bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs rounded-xl p-3 mb-3"><i class="fas fa-exclamation-triangle mr-1"></i>Видны только вам</div><div class="max-h-[65vh] overflow-y-auto">${html}</div>`);
+}
+async function adminViewUserChats(targetUser){
+  if(!db.currentUser.isAdmin){toast('Запрещено');return;}
+  toast('Загрузка...');
+  const chatIdsSnap=await database.ref('userChats/'+targetUser).once('value');
+  const chatIds=Object.keys(chatIdsSnap.val()||{});
+  if(!chatIds.length){toast('Нет чатов');return;}
+  let html='';
+  for(const cid of chatIds){
+    const chatSnap=await database.ref('chats/'+cid).once('value');
+    const chat=chatSnap.val();if(!chat)continue;
+    let chatName='Чат';
+    if(chat.type==='group')chatName='👥 '+(chat.name||'Группа');
+    else if(chat.type==='saved')chatName='⭐ Избранное';
+    else{const other=Object.keys(chat.members||{}).find(m=>m!==targetUser);const ou=db.users[other]||{};chatName='💬 '+(ou.displayName||other);}
+    const msgsSnap=await database.ref('messages/'+cid).once('value');
+    const msgs=msgsSnap.val()||{};
+    const sorted=Object.values(msgs).sort((a,b)=>(a.at||0)-(b.at||0));
+    const msgList=sorted.map(m=>{let text=m.text||'';if(!text){if(m.fileType?.startsWith('image/'))text='[📷]';else if(m.fileType?.startsWith('video/'))text='[📹]';else if(m.fileType?.startsWith('audio/'))text='[🎤]';else if(m.pollId)text='[📊]';else if(m.gifUrl)text='[GIF]';else if(m.fileType)text='[📎]';}const time=m.at?new Date(m.at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';return `<div class="bg-black/30 rounded-lg p-2 mb-1 text-[11px]"><div class="flex justify-between text-tg-gray mb-0.5"><b class="text-[#3390ec]">${escapeHtml(m.from||'?')}</b><span>${time}</span></div><div class="text-white break-words">${escapeHtml(text)}</div></div>`;}).join('');
+    const count=sorted.length;
+    html+=`<div class="bg-[#0e1621] rounded-xl border border-black/30 mb-3 overflow-hidden"><div class="p-2.5 bg-black/30 flex justify-between"><span class="text-white text-xs font-bold truncate">${escapeHtml(chatName)}</span><span class="text-tg-gray text-[10px]">${count}</span></div><div class="max-h-48 overflow-y-auto p-2">${msgList||'<p class="text-tg-gray text-[11px] text-center py-2">Пусто</p>'}</div></div>`;
+  }
+  openModal('💬 Чаты @'+targetUser,`<div class="max-h-[70vh] overflow-y-auto">${html}</div>`);
+}
+function adminOpenCreateGiftModal(){
+  openModal('Создать подарок',`
+    <label class="text-xs text-tg-gray mb-1.5 block">Ключ (латиница)</label>
+    <input id="newGiftKey" type="text" placeholder="myprecious" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-3">
+    <label class="text-xs text-tg-gray mb-1.5 block">Название</label>
+    <input id="newGiftName" type="text" placeholder="My Precious" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-3">
+    <label class="text-xs text-tg-gray mb-1.5 block">Картинка</label>
+    <div class="flex gap-2 mb-3"><input id="newGiftIcon" type="text" placeholder="https://... или 🎁" class="flex-grow bg-[#0e1621] text-white px-4 py-3 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm"><button onclick="document.getElementById('adminNewGiftFile').click()" class="bg-[#3390ec] text-white px-4 rounded-xl text-sm"><i class="fas fa-upload"></i></button><input type="file" id="adminNewGiftFile" class="hidden" accept="image/*" onchange="adminUploadNewGiftIcon(this)"></div>
+    <div class="grid grid-cols-8 gap-1 mb-3">${['🎁','❤️','🧸','🎂','💐','🚀','🏆','💍','💎','🍾','🌹','👑','⭐','🔥','✨','💝','🐱','🐶','🦊','🐼','🦄','🐸','🐵','🐧'].map(e=>`<button type="button" onclick="document.getElementById('newGiftIcon').value='${e}'" class="text-xl hover:bg-white/10 rounded p-1">${e}</button>`).join('')}</div>
+    <label class="text-xs text-tg-gray mb-1.5 block">Категория</label>
+    <div class="flex gap-2 mb-3">
+      <button id="newGiftCatRegular" onclick="adminSelectNewGiftCat('regular')" class="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#2b5278] text-white">Обычный</button>
+      <button id="newGiftCatNft" onclick="adminSelectNewGiftCat('collectible')" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-tg-gray">NFT</button>
+      <input type="hidden" id="newGiftCategory" value="regular">
+    </div>
+    <label class="text-xs text-tg-gray mb-1.5 block">Цена в звёздах</label>
+    <input id="newGiftPrice" type="number" min="1" value="100" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-3">
+    <label class="text-xs text-tg-gray mb-1.5 block">Тираж (1000000 = ∞)</label>
+    <input id="newGiftSupply" type="number" min="1" value="1000000" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-5">
+    <button onclick="adminCreateNewGift()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Создать подарок</button>
+  `);
+}
+function adminSelectNewGiftCat(cat){
+  document.getElementById('newGiftCategory').value=cat;
+  const r=document.getElementById('newGiftCatRegular');const n=document.getElementById('newGiftCatNft');
+  if(r)r.className='flex-1 py-2.5 rounded-lg text-sm font-medium transition '+(cat==='regular'?'bg-[#2b5278] text-white':'text-tg-gray hover:text-white');
+  if(n)n.className='flex-1 py-2.5 rounded-lg text-sm font-medium transition '+(cat==='collectible'?'bg-[#2b5278] text-white':'text-tg-gray hover:text-white');
+}
+async function adminUploadNewGiftIcon(input){
+  const f=input.files[0];if(!f)return;
+  if(f.size>200000){toast('Максимум 200KB');return;}
+  const b64=await fileToBase64(f);
+  document.getElementById('newGiftIcon').value=b64;
+  toast('Загружено');
+}
+async function adminCreateNewGift(){
+  const key=document.getElementById('newGiftKey').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
+  const name=document.getElementById('newGiftName').value.trim();
+  const icon=document.getElementById('newGiftIcon').value.trim();
+  const category=document.getElementById('newGiftCategory').value;
+  const price=parseInt(document.getElementById('newGiftPrice').value)||100;
+  const supply=parseInt(document.getElementById('newGiftSupply').value)||1000000;
+  if(!key || key.length < 2){ toast('Ключ минимум 2 символа'); return; }
+  if(!name){ toast('Введите название'); return; }
+  if(!icon){ toast('Введите картинку'); return; }
+  if(GIFT_CATALOG[key]){ toast('Ключ занят'); return; }
+  const bgPresets = ['from-red-500 to-pink-600','from-blue-500 to-indigo-600','from-emerald-500 to-teal-600','from-amber-500 to-orange-600','from-purple-600 to-indigo-900','from-cyan-400 to-blue-700','from-fuchsia-400 to-purple-600','from-zinc-600 to-zinc-900'];
+  const bg = bgPresets[Math.floor(Math.random()*bgPresets.length)];
+  const emoji = /^[^a-zA-Z0-9]{1,4}$/.test(icon) ? icon : '';
+  await database.ref('giftsMarket/'+key).set({name, icon, emoji, bg, category, price, totalSupply: supply, custom: true, createdBy: db.currentUser.username});
+  GIFT_CATALOG[key] = { name, icon, emoji, bg, category, price, totalSupply: supply };
+  toast('✅ Создан: '+name);
+  closeModal();
+  openAdminModal();
+  adminTab('gifts');
+}
 
-/* ============================================================
-   LIGHTBOX
-============================================================ */
+/* ===== LIGHTBOX ===== */
 function openImage(src){
   const el=document.createElement('div');
   el.className='fixed inset-0 z-[600] bg-black/95 flex items-center justify-center p-4 fade-in cursor-zoom-out';
@@ -2992,9 +2887,7 @@ function openImage(src){
   document.body.appendChild(el);
 }
 
-/* ============================================================
-   KICKOFF
-============================================================ */
+/* ===== KICKOFF ===== */
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){document.querySelectorAll('.ctx-menu, .reaction-picker, .side-ctx, .mention-dropdown').forEach(el=>el.remove());}
 });
