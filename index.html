@@ -9,8 +9,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="67gramm">
 <link rel="manifest" href="manifest.json">
-<link rel="apple-touch-icon" href="icon-192.png">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%233390ec%22/><text x=%2250%22 y=%2266%22 font-size=%2245%22 font-family=%22Arial,sans-serif%22 font-weight=%22900%22 fill=%22white%22 text-anchor=%22middle%22>67</text></svg>">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='42' fill='%233390ec'/%3E%3Ctext x='96' y='128' font-size='90' font-family='Arial,sans-serif' font-weight='900' fill='white' text-anchor='middle'%3E67%3C/text%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%233390ec'/%3E%3Ctext x='50' y='66' font-size='45' font-family='Arial,sans-serif' font-weight='900' fill='white' text-anchor='middle'%3E67%3C/text%3E%3C/svg%3E">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -311,13 +311,9 @@ function floorPrice(giftKey){const c=getGiftConfig(giftKey);return Math.max(1,Ma
 
 /* ===== BOOT ===== */
 window.onload = async function(){
-  // Проверка PIN
   if(localStorage.getItem('g67_pin_enabled') === '1'){
     const savedUser = localStorage.getItem('g67_currentUser');
-    if(savedUser){
-      showPinLock();
-      return;
-    }
+    if(savedUser){ showPinLock(); return; }
   }
   try {
     await registerServiceWorker();
@@ -350,8 +346,7 @@ window.onload = async function(){
 function trackPresence(){
   if(!db.currentUser) return;
   const ping = () => { if(db.currentUser) database.ref('users/'+db.currentUser.username+'/lastSeen').set(Date.now()).catch(()=>{}); };
-  ping();
-  setInterval(ping, 45000);
+  ping(); setInterval(ping, 45000);
   window.addEventListener('beforeunload', ping);
 }
 async function checkDailyBonus(){
@@ -364,7 +359,7 @@ async function checkDailyBonus(){
   setTimeout(()=>toast(`🎁 Ежедневный бонус: +${bonus} ⭐`,5000), 1500);
 }
 
-/* ===== SERVICE WORKER + PUSH ===== */
+/* ===== SERVICE WORKER ===== */
 async function registerServiceWorker(){
   if(!('serviceWorker' in navigator)) return null;
   try {
@@ -393,8 +388,7 @@ async function registerServiceWorker(){
     `;
     const blob = new Blob([swCode], {type:'application/javascript'});
     const url = URL.createObjectURL(blob);
-    const reg = await navigator.serviceWorker.register(url);
-    return reg;
+    return await navigator.serviceWorker.register(url);
   } catch(e){ console.warn('SW reg fail:', e); return null; }
 }
 async function requestNotifPermissionIfNeeded(){
@@ -421,8 +415,7 @@ async function requestNotifPermission(fromBanner){
   if(p === 'granted'){
     toast('✅ Уведомления включены');
     if(VAPID_PUBLIC_KEY && VAPID_PUBLIC_KEY.length > 20 && messaging){
-      try { const token = await messaging.getToken({vapidKey: VAPID_PUBLIC_KEY}); if(token && db.currentUser){ await database.ref('users/'+db.currentUser.username+'/fcmToken').set(token); } }
-      catch(e){ console.warn('FCM token fail:', e); }
+      try { const token = await messaging.getToken({vapidKey: VAPID_PUBLIC_KEY}); if(token && db.currentUser){ await database.ref('users/'+db.currentUser.username+'/fcmToken').set(token); } } catch(e){ console.warn('FCM token fail:', e); }
     }
   } else { toast('Уведомления отключены'); }
 }
@@ -436,11 +429,9 @@ function notifyNewMessage(chatName, text, fromUser){
   if(navigator.vibrate) navigator.vibrate([200,100,200]);
   playNotifySound();
 }
-function playNotifySound(){
-  try { const ctx=new (window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.setValueAtTime(.1,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.25);o.start();o.stop(ctx.currentTime+.25); } catch(e){}
-}
+function playNotifySound(){try{const ctx=new (window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.setValueAtTime(.1,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.25);o.start();o.stop(ctx.currentTime+.25);}catch(e){}}
 
-/* ===== PWA ===== */
+/* ===== PWA INSTALL ===== */
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   window._installPrompt = e;
@@ -451,7 +442,7 @@ function showInstallBanner(){
   const el = document.createElement('div');
   el.id = 'installBanner';
   el.className = 'fixed bottom-20 left-4 right-4 bg-[#17212b] border border-[#3390ec]/30 rounded-2xl p-4 shadow-2xl z-[9998] fade-in flex items-center gap-3';
-  el.innerHTML = `<div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#3390ec] to-[#2b78c5] flex items-center justify-center text-white text-xl font-black shrink-0">67</div><div class="flex-grow min-w-0"><div class="text-white font-medium text-sm">Установить 67gramm</div><div class="text-tg-gray text-xs">На главный экран как приложение</div></div><button onclick="installPWA()" class="bg-[#3390ec] text-white px-4 py-2 rounded-xl text-xs font-medium btn-press">Установить</button><button onclick="document.getElementById('installBanner').remove();localStorage.setItem('pwa_dismissed','1')" class="text-tg-gray hover:text-white p-1"><i class="fas fa-times"></i></button>`;
+  el.innerHTML = `<div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#3390ec] to-[#2b78c5] flex items-center justify-center text-white text-xl font-black shrink-0">67</div><div class="flex-grow min-w-0"><div class="text-white font-medium text-sm">Установить 67gramm</div><div class="text-tg-gray text-xs">На главный экран</div></div><button onclick="installPWA()" class="bg-[#3390ec] text-white px-4 py-2 rounded-xl text-xs font-medium btn-press">Установить</button><button onclick="document.getElementById('installBanner').remove();localStorage.setItem('pwa_dismissed','1')" class="text-tg-gray hover:text-white p-1"><i class="fas fa-times"></i></button>`;
   document.body.appendChild(el);
 }
 async function installPWA(){
@@ -559,19 +550,11 @@ function startGlobalListeners(){
 function stopGlobalListeners(){
   try{database.ref().off();}catch(e){}
   Object.keys(chatRefs).forEach(k=>delete chatRefs[k]);
-  currentChatListener=null;
-  globalListenersStarted=false;
+  currentChatListener=null;globalListenersStarted=false;
 }
 
 /* ===== THEME ===== */
-function applyTheme(theme){
-  const t=theme||'dark';
-  document.body.classList.remove('theme-light','theme-amoled');
-  if(t==='light')document.body.classList.add('theme-light');
-  else if(t==='amoled')document.body.classList.add('theme-amoled');
-  else if(t==='system'){if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)document.body.classList.add('theme-light');}
-  applyChatBg();
-}
+function applyTheme(theme){const t=theme||'dark';document.body.classList.remove('theme-light','theme-amoled');if(t==='light')document.body.classList.add('theme-light');else if(t==='amoled')document.body.classList.add('theme-amoled');else if(t==='system'){if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: light)').matches)document.body.classList.add('theme-light');}applyChatBg();}
 function applyFontScale(px){document.querySelectorAll('#msgContainer [data-msg-text]').forEach(el=>el.style.fontSize=(px||15)+'px');}
 function applyChatBg(){const url=db.currentUser?.chatBg||THEMES_BG.default;const ca=document.getElementById('chatArea');if(ca)ca.style.backgroundImage=`url('${url}')`;}
 function applyScale(val){const s=Math.max(0.5,Math.min(2,val/100));const wrap=document.getElementById('appScaleWrapper');if(!wrap)return;wrap.style.transform=`scale(${s})`;wrap.style.transformOrigin='top left';wrap.style.width=(100/s)+'vw';wrap.style.height=(100/s)+'vh';}
@@ -630,18 +613,10 @@ async function handleAuthSubmit(){
     if(ud.banned){toast('Заблокирован');return;}
     const hash=await hashPass(p);
     if(hash!==ud.passHash&&p!==ud.passPlain){toast('Неверный пароль');return;}
-    // Проверка 2FA
     if(ud.twoFA?.enabled && ud.twoFA?.secret){
       const code = prompt('Введите 6-значный код из Google Authenticator:');
       if(!code){ toast('Отменено'); return; }
-      const totp = new OTPAuth.TOTP({
-        issuer: '67gramm',
-        label: ud.username,
-        algorithm: 'SHA1',
-        digits: 6,
-        period: 30,
-        secret: OTPAuth.Secret.fromBase32(ud.twoFA.secret)
-      });
+      const totp = new OTPAuth.TOTP({ issuer: '67gramm', label: ud.username, algorithm: 'SHA1', digits: 6, period: 30, secret: OTPAuth.Secret.fromBase32(ud.twoFA.secret) });
       const delta = totp.validate({ token: code.trim(), window: 1 });
       if(delta === null){ toast('❌ Неверный код'); return; }
     }
@@ -664,17 +639,10 @@ function logout(){
 function showPinLock(){
   document.body.innerHTML = `
     <div id="pinLockScreen" class="fixed inset-0 z-[99999] bg-tg-main flex flex-col items-center justify-center p-6">
-      <div class="w-20 h-20 rounded-full bg-gradient-to-br from-[#3390ec] to-[#2b78c5] flex items-center justify-center mb-6 shadow-2xl">
-        <i class="fas fa-lock text-white text-3xl"></i>
-      </div>
+      <div class="w-20 h-20 rounded-full bg-gradient-to-br from-[#3390ec] to-[#2b78c5] flex items-center justify-center mb-6 shadow-2xl"><i class="fas fa-lock text-white text-3xl"></i></div>
       <h1 class="text-white text-2xl font-bold mb-2">67gramm</h1>
       <p class="text-tg-gray text-sm mb-8">Введите PIN-код</p>
-      <div class="flex gap-3 mb-8" id="pinDots">
-        <div class="w-4 h-4 rounded-full bg-[#2b5278]"></div>
-        <div class="w-4 h-4 rounded-full bg-[#2b5278]"></div>
-        <div class="w-4 h-4 rounded-full bg-[#2b5278]"></div>
-        <div class="w-4 h-4 rounded-full bg-[#2b5278]"></div>
-      </div>
+      <div class="flex gap-3 mb-8" id="pinDots"><div class="w-4 h-4 rounded-full bg-[#2b5278]"></div><div class="w-4 h-4 rounded-full bg-[#2b5278]"></div><div class="w-4 h-4 rounded-full bg-[#2b5278]"></div><div class="w-4 h-4 rounded-full bg-[#2b5278]"></div></div>
       <div class="grid grid-cols-3 gap-4 max-w-[280px] w-full">
         ${[1,2,3,4,5,6,7,8,9,'bio',0,'del'].map(k => {
           if(k === 'bio') return `<button onclick="tryBiometric()" class="w-16 h-16 rounded-full bg-[#17212b] text-cyan-400 flex items-center justify-center text-2xl btn-press"><i class="fas fa-fingerprint"></i></button>`;
@@ -683,8 +651,7 @@ function showPinLock(){
         }).join('')}
       </div>
       <button onclick="pinLogout()" class="mt-8 text-tg-gray hover:text-white text-xs">Войти под другим аккаунтом</button>
-    </div>
-  `;
+    </div>`;
   window._pinEntered = '';
   refreshEmojis();
 }
@@ -709,73 +676,31 @@ function pinPress(digit){
   }
 }
 function pinDelete(){ window._pinEntered = window._pinEntered.slice(0, -1); updatePinDots(); }
-function updatePinDots(){
-  const dots = document.querySelectorAll('#pinDots div');
-  dots.forEach((d, i) => {
-    if(i < window._pinEntered.length) d.className = 'w-4 h-4 rounded-full bg-[#3390ec] transition';
-    else d.className = 'w-4 h-4 rounded-full bg-[#2b5278] transition';
-  });
-}
-function pinLogout(){
-  localStorage.removeItem('g67_pin');
-  localStorage.removeItem('g67_pin_enabled');
-  localStorage.removeItem('g67_currentUser');
-  location.reload();
-}
-async function tryBiometric(){
-  if(!window.PublicKeyCredential){ toast('Не поддерживается'); return; }
-  try {
-    const avail = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
-    if(!avail){ toast('Нет отпечатка/Face ID'); return; }
-    toast('Проверьте отпечаток...');
-    setTimeout(() => { document.getElementById('pinLockScreen')?.remove(); location.reload(); }, 1000);
-  } catch(e){ toast('Ошибка'); }
-}
+function updatePinDots(){const dots=document.querySelectorAll('#pinDots div');dots.forEach((d,i)=>{if(i<window._pinEntered.length)d.className='w-4 h-4 rounded-full bg-[#3390ec] transition';else d.className='w-4 h-4 rounded-full bg-[#2b5278] transition';});}
+function pinLogout(){localStorage.removeItem('g67_pin');localStorage.removeItem('g67_pin_enabled');localStorage.removeItem('g67_currentUser');location.reload();}
+async function tryBiometric(){if(!window.PublicKeyCredential){toast('Не поддерживается');return;}try{const avail=await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();if(!avail){toast('Нет отпечатка/Face ID');return;}toast('Проверьте отпечаток...');setTimeout(()=>{document.getElementById('pinLockScreen')?.remove();location.reload();},1000);}catch(e){toast('Ошибка');}}
 function openPinSettings(){
   const enabled = localStorage.getItem('g67_pin_enabled') === '1';
   if(enabled){
-    openModal('PIN-код', `<div class="text-center mb-5"><i class="fas fa-lock text-emerald-400 text-5xl mb-3"></i><p class="text-white font-medium mb-1">PIN-код включён</p><p class="text-tg-gray text-xs">Запрашивается при каждом открытии</p></div><button onclick="changePIN()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm mb-2">Изменить PIN</button><button onclick="disablePIN()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Отключить PIN</button>`);
+    openModal('PIN-код', `<div class="text-center mb-5"><i class="fas fa-lock text-emerald-400 text-5xl mb-3"></i><p class="text-white font-medium mb-1">PIN-код включён</p></div><button onclick="changePIN()" class="w-full bg-[#3390ec] text-white font-medium py-3.5 rounded-xl btn-press text-sm mb-2">Изменить PIN</button><button onclick="disablePIN()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Отключить PIN</button>`);
     return;
   }
-  openModal('Включить PIN-код', `<p class="text-white text-sm mb-3">Придумайте 4-значный PIN для входа в приложение</p><input id="newPin" type="tel" maxlength="4" placeholder="••••" inputmode="numeric" class="w-full bg-[#0e1621] text-white px-4 py-4 rounded-xl border border-black/30 focus:border-[#3390ec] text-2xl text-center tracking-[1rem] mb-3"><input id="newPin2" type="tel" maxlength="4" placeholder="Повторите" inputmode="numeric" class="w-full bg-[#0e1621] text-white px-4 py-4 rounded-xl border border-black/30 focus:border-[#3390ec] text-2xl text-center tracking-[1rem] mb-5"><button onclick="enablePIN()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Включить</button>`);
+  openModal('Включить PIN-код', `<p class="text-white text-sm mb-3">Придумайте 4-значный PIN</p><input id="newPin" type="tel" maxlength="4" placeholder="••••" inputmode="numeric" class="w-full bg-[#0e1621] text-white px-4 py-4 rounded-xl border border-black/30 focus:border-[#3390ec] text-2xl text-center tracking-[1rem] mb-3"><input id="newPin2" type="tel" maxlength="4" placeholder="Повторите" inputmode="numeric" class="w-full bg-[#0e1621] text-white px-4 py-4 rounded-xl border border-black/30 focus:border-[#3390ec] text-2xl text-center tracking-[1rem] mb-5"><button onclick="enablePIN()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Включить</button>`);
   setTimeout(() => document.getElementById('newPin')?.focus(), 100);
 }
-function enablePIN(){
-  const p1 = document.getElementById('newPin').value;
-  const p2 = document.getElementById('newPin2').value;
-  if(p1.length !== 4){ toast('4 цифры'); return; }
-  if(p1 !== p2){ toast('PIN не совпадают'); return; }
-  localStorage.setItem('g67_pin', p1);
-  localStorage.setItem('g67_pin_enabled', '1');
-  toast('✅ PIN включён');
-  closeModal();
-}
-function changePIN(){ localStorage.removeItem('g67_pin_enabled'); openPinSettings(); }
-function disablePIN(){
-  if(!confirm('Отключить PIN?')) return;
-  localStorage.removeItem('g67_pin');
-  localStorage.removeItem('g67_pin_enabled');
-  toast('PIN отключён');
-  closeModal();
-}
+function enablePIN(){const p1=document.getElementById('newPin').value;const p2=document.getElementById('newPin2').value;if(p1.length!==4){toast('4 цифры');return;}if(p1!==p2){toast('PIN не совпадают');return;}localStorage.setItem('g67_pin',p1);localStorage.setItem('g67_pin_enabled','1');toast('✅ PIN включён');closeModal();}
+function changePIN(){localStorage.removeItem('g67_pin_enabled');openPinSettings();}
+function disablePIN(){if(!confirm('Отключить PIN?'))return;localStorage.removeItem('g67_pin');localStorage.removeItem('g67_pin_enabled');toast('PIN отключён');closeModal();}
 
 /* ===== TON CONNECT ===== */
 function initTonConnect(){
   if(typeof TON_CONNECT_UI === 'undefined') return;
   try {
-    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
-      manifestUrl: location.origin + '/sixseven-messenger/tonconnect-manifest.json',
-      buttonRootId: 'tonConnectBtn'
-    });
+    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({ manifestUrl: location.origin + '/sixseven-messenger/tonconnect-manifest.json', buttonRootId: 'tonConnectBtn' });
     tonConnectUI.onStatusChange(wallet => {
       if(wallet){
         const addr = wallet.account.address;
-        database.ref('users/'+db.currentUser.username+'/tonWallet').set({
-          address: addr,
-          chain: wallet.account.chain,
-          walletName: wallet.device.appName || 'TON Wallet',
-          connectedAt: Date.now()
-        });
+        database.ref('users/'+db.currentUser.username+'/tonWallet').set({ address: addr, chain: wallet.account.chain, walletName: wallet.device.appName || 'TON Wallet', connectedAt: Date.now() });
         toast('✅ Кошелёк: ' + shortAddr(addr));
       }
     });
@@ -785,41 +710,20 @@ async function sendTonToWallet(amount){
   if(!tonConnectUI){ toast('TON Connect не загружен'); return; }
   if(!tonConnectUI.connected){ toast('Подключите кошелёк'); await tonConnectUI.openModal(); return; }
   const address = db.currentUser.tonWallet?.address;
-  if(!address){ toast('Нет привязанного кошелька'); return; }
+  if(!address){ toast('Нет кошелька'); return; }
   const nanoAmount = Math.floor(amount * 1e9).toString();
-  try {
-    const tx = { validUntil: Math.floor(Date.now() / 1000) + 600, messages: [{ address, amount: nanoAmount }] };
-    await tonConnectUI.sendTransaction(tx);
-    toast('✅ Отправлено!');
-  } catch(e){ console.error(e); toast('Ошибка отправки'); }
+  try { await tonConnectUI.sendTransaction({ validUntil: Math.floor(Date.now() / 1000) + 600, messages: [{ address, amount: nanoAmount }] }); toast('✅ Отправлено!'); }
+  catch(e){ console.error(e); toast('Ошибка отправки'); }
 }
 function openTonConnectModal(){
-  const u = db.currentUser;
-  const wallet = u.tonWallet;
+  const u = db.currentUser; const wallet = u.tonWallet;
   openModal('TON Connect', `
     <div class="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-5 mb-4 text-white shadow-xl text-center"><i class="fas fa-wallet text-4xl mb-2"></i><div class="text-2xl font-black mb-1">${fmtTon(u.ton||0)} TON</div><p class="text-xs opacity-90">≈ $${((u.ton||0)*TON_USD).toFixed(2)}</p></div>
-    ${wallet ? `
-      <div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 mb-4">
-        <p class="text-tg-gray text-xs mb-1">Привязанный кошелёк</p>
-        <p class="text-cyan-400 font-mono text-sm truncate mb-1">${escapeHtml(wallet.address)}</p>
-        <p class="text-tg-gray text-[10px]">${escapeHtml(wallet.walletName || 'TON Wallet')}</p>
-      </div>
-      <button onclick="sendTonToWallet(${u.ton||0})" ${(!u.ton||u.ton<=0)?'disabled':''} class="w-full ${(u.ton&&u.ton>0)?'bg-cyan-600 hover:bg-cyan-500':'bg-[#2b3a4a] cursor-not-allowed'} text-white font-medium py-3.5 rounded-xl btn-press text-sm mb-2"><i class="fas fa-paper-plane mr-2"></i>Вывести ${fmtTon(u.ton||0)} TON</button>
-      <button onclick="disconnectTon()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3 rounded-xl btn-press text-sm">Отключить кошелёк</button>
-    ` : `
-      <p class="text-white text-sm mb-3 text-center">Подключи TON-кошелёк для вывода средств</p>
-      <p class="text-tg-gray text-xs text-center mb-4">Tonkeeper, MyTonWallet, Telegram Wallet</p>
-      <div id="tonConnectBtn" class="mb-4"></div>
-      <button onclick="tonConnectUI ? tonConnectUI.openModal() : toast('Не загружен')" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm"><i class="fas fa-link mr-2"></i>Подключить кошелёк</button>
-    `}
+    ${wallet ? `<div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 mb-4"><p class="text-tg-gray text-xs mb-1">Кошелёк</p><p class="text-cyan-400 font-mono text-sm truncate mb-1">${escapeHtml(wallet.address)}</p><p class="text-tg-gray text-[10px]">${escapeHtml(wallet.walletName || 'TON Wallet')}</p></div><button onclick="sendTonToWallet(${u.ton||0})" ${(!u.ton||u.ton<=0)?'disabled':''} class="w-full ${(u.ton&&u.ton>0)?'bg-cyan-600 hover:bg-cyan-500':'bg-[#2b3a4a] cursor-not-allowed'} text-white font-medium py-3.5 rounded-xl btn-press text-sm mb-2"><i class="fas fa-paper-plane mr-2"></i>Вывести ${fmtTon(u.ton||0)} TON</button><button onclick="disconnectTon()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3 rounded-xl btn-press text-sm">Отключить</button>` : `<p class="text-white text-sm mb-3 text-center">Подключи TON-кошелёк</p><p class="text-tg-gray text-xs text-center mb-4">Tonkeeper, MyTonWallet, Telegram Wallet</p><div id="tonConnectBtn" class="mb-4"></div><button onclick="tonConnectUI ? tonConnectUI.openModal() : toast('Не загружен')" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm"><i class="fas fa-link mr-2"></i>Подключить</button>`}
   `);
   setTimeout(initTonConnect, 100);
 }
-async function disconnectTon(){
-  if(tonConnectUI?.connected) await tonConnectUI.disconnect();
-  await database.ref('users/'+db.currentUser.username+'/tonWallet').remove();
-  toast('Кошелёк отключён'); closeModal();
-}
+async function disconnectTon(){if(tonConnectUI?.connected)await tonConnectUI.disconnect();await database.ref('users/'+db.currentUser.username+'/tonWallet').remove();toast('Кошелёк отключён');closeModal();}
 
 /* ===== AI ПЕРЕВОДЧИК ===== */
 async function translateMsg(mid, targetLang = 'ru'){
@@ -828,20 +732,13 @@ async function translateMsg(mid, targetLang = 'ru'){
   const cacheKey = 'tr_' + mid + '_' + targetLang;
   const cached = sessionStorage.getItem(cacheKey);
   if(cached){ showTranslation(mid, cached); return; }
-  if(!AI_API_KEY || AI_API_KEY.includes('ТВОЙ_КЛЮЧ')){ toast('AI не настроен. Получи ключ на openrouter.ai'); return; }
+  if(!AI_API_KEY || AI_API_KEY.includes('ТВОЙ_КЛЮЧ')){ toast('AI не настроен'); return; }
   toast('🌐 Переводим...');
   try {
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + AI_API_KEY, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: AI_MODEL,
-        messages: [
-          { role: 'system', content: `Ты переводчик. Переведи текст на ${targetLang === 'ru' ? 'русский' : targetLang === 'en' ? 'английский' : targetLang}. Отвечай ТОЛЬКО переводом, без пояснений.` },
-          { role: 'user', content: m.text }
-        ],
-        max_tokens: 500
-      })
+      body: JSON.stringify({ model: AI_MODEL, messages: [{ role: 'system', content: `Ты переводчик. Переведи текст на ${targetLang === 'ru' ? 'русский' : targetLang === 'en' ? 'английский' : targetLang}. Отвечай ТОЛЬКО переводом.` }, { role: 'user', content: m.text }], max_tokens: 500 })
     });
     const data = await res.json();
     const translation = data.choices?.[0]?.message?.content?.trim();
@@ -851,8 +748,7 @@ async function translateMsg(mid, targetLang = 'ru'){
   } catch(e){ console.error(e); toast('Ошибка AI'); }
 }
 function showTranslation(mid, text){
-  const row = document.querySelector(`[data-mid="${mid}"]`);
-  if(!row) return;
+  const row = document.querySelector(`[data-mid="${mid}"]`); if(!row) return;
   row.querySelector('.translation-box')?.remove();
   const box = document.createElement('div');
   box.className = 'translation-box mt-2 pt-2 border-t border-white/10 text-[13px] text-blue-200/90 italic';
@@ -869,33 +765,19 @@ function renderMainLayout(){
   <div id="sidebarSide" class="w-full md:w-[400px] h-full bg-tg-sidebar flex flex-col border-r border-black/40 z-10 shrink-0">
     <div class="h-14 flex items-center px-3 gap-2 shrink-0 bg-tg-header border-b border-black/20">
       <button onclick="toggleDrawerMenu()" class="text-tg-gray hover:text-white text-xl p-2 rounded-full hover:bg-[#202b36] transition btn-press"><i class="fas fa-bars"></i></button>
-      <div class="flex-grow bg-[#0e1621] rounded-full flex items-center px-3.5 py-2 border border-black/30 focus-within:border-[#3390ec]/50 transition">
-        <i class="fas fa-search text-tg-gray text-sm mr-3"></i>
-        <input type="text" id="searchInput" oninput="renderSidebar()" placeholder="Поиск" class="bg-transparent border-none text-white text-sm w-full">
-      </div>
+      <div class="flex-grow bg-[#0e1621] rounded-full flex items-center px-3.5 py-2 border border-black/30 focus-within:border-[#3390ec]/50 transition"><i class="fas fa-search text-tg-gray text-sm mr-3"></i><input type="text" id="searchInput" oninput="renderSidebar()" placeholder="Поиск" class="bg-transparent border-none text-white text-sm w-full"></div>
     </div>
     <div id="storiesBar" class="flex gap-3 overflow-x-auto scrollbar-hide px-3 py-2 border-b border-black/20 shrink-0"></div>
     <div id="folderTabs" class="flex overflow-x-auto scrollbar-hide px-2 border-b border-black/30 shrink-0 bg-tg-sidebar"></div>
     <div id="chatList" class="flex-grow overflow-y-auto"></div>
   </div>
   <div id="chatArea" class="mobile-hidden mobile-full flex-grow h-full bg-tg-main flex flex-col relative bg-cover bg-center" style="background-image:url('${THEMES_BG.default}');background-blend-mode:overlay;background-color:rgba(14,22,33,.94);">
-    <div class="flex-grow flex flex-col items-center justify-center text-center px-6">
-      <div class="bg-[#17212b]/95 px-6 py-3 rounded-full text-tg-gray text-sm shadow-lg border border-black/30 mb-3">Выберите чат</div>
-    </div>
+    <div class="flex-grow flex flex-col items-center justify-center text-center px-6"><div class="bg-[#17212b]/95 px-6 py-3 rounded-full text-tg-gray text-sm shadow-lg border border-black/30 mb-3">Выберите чат</div></div>
   </div>
   <div id="drawerMenu" class="fixed inset-y-0 left-0 w-[300px] bg-tg-sidebar shadow-2xl transform -translate-x-full transition-transform duration-300 z-50 flex flex-col border-r border-black/40">
     <div class="p-5 bg-gradient-to-b from-[#2b5278] to-[#24445f] text-white flex flex-col justify-end min-h-[170px] shadow-inner">
-      <div class="flex items-center gap-3 mb-3">
-        <div id="drawerAvatar" class="cursor-pointer" onclick="openMyProfile()"></div>
-        <div class="min-w-0 flex-grow">
-          <div class="font-bold text-base truncate flex items-center gap-1.5" id="drawerName"></div>
-          <div class="text-xs text-white/70 truncate" id="drawerPhone"></div>
-        </div>
-      </div>
-      <div class="grid grid-cols-2 gap-2 text-xs">
-        <div class="bg-black/20 rounded-lg p-2"><div class="text-white/60">Звёзды</div><div class="font-bold">${fmtStars(db.currentUser.stars||0)} ⭐</div></div>
-        <div class="bg-black/20 rounded-lg p-2"><div class="text-white/60">TON</div><div class="font-bold">${fmtTon(db.currentUser.ton||0)} 💎</div></div>
-      </div>
+      <div class="flex items-center gap-3 mb-3"><div id="drawerAvatar" class="cursor-pointer" onclick="openMyProfile()"></div><div class="min-w-0 flex-grow"><div class="font-bold text-base truncate flex items-center gap-1.5" id="drawerName"></div><div class="text-xs text-white/70 truncate" id="drawerPhone"></div></div></div>
+      <div class="grid grid-cols-2 gap-2 text-xs"><div class="bg-black/20 rounded-lg p-2"><div class="text-white/60">Звёзды</div><div class="font-bold">${fmtStars(db.currentUser.stars||0)} ⭐</div></div><div class="bg-black/20 rounded-lg p-2"><div class="text-white/60">TON</div><div class="font-bold">${fmtTon(db.currentUser.ton||0)} 💎</div></div></div>
     </div>
     <div class="py-2 overflow-y-auto flex-grow text-white font-normal text-[15px] space-y-0.5">
       <div onclick="openWalletModal()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] flex items-center gap-5 transition"><i class="fas fa-wallet text-cyan-400 text-lg w-6 text-center"></i> Кошелёк</div>
@@ -916,11 +798,8 @@ function renderMainLayout(){
       <div onclick="logout()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] flex items-center gap-5 text-red-400 transition"><i class="fas fa-sign-out-alt text-red-400 text-lg w-6 text-center"></i> Выход</div>
     </div>
   </div>
-  <div id="drawerOverlay" onclick="toggleDrawerMenu()" class="hidden fixed inset-0 bg-black/60 z-40 fade-in"></div>
-  `;
-  renderSidebar();
-  renderStories();
-  updateDrawerInfo();
+  <div id="drawerOverlay" onclick="toggleDrawerMenu()" class="hidden fixed inset-0 bg-black/60 z-40 fade-in"></div>`;
+  renderSidebar();renderStories();updateDrawerInfo();
 }
 function toggleDrawerMenu(){const d=document.getElementById('drawerMenu'),o=document.getElementById('drawerOverlay');if(!d||!o)return;d.classList.toggle('-translate-x-full');o.classList.toggle('hidden');updateDrawerInfo();}
 function updateDrawerInfo(){const u=db.currentUser;if(!u)return;const n=document.getElementById('drawerName'),p=document.getElementById('drawerPhone'),a=document.getElementById('drawerAvatar');if(n)n.innerHTML=escapeHtml(u.displayName||u.username)+(isPrem(u)?' <i class="fas fa-crown text-amber-300 text-xs"></i>':'');if(p)p.innerText=u.phone||('@'+u.username);if(a)a.innerHTML=getAvatarHtml(u.avatar,u.displayName||u.username,12,'ring-2 ring-white/20');refreshEmojis(document.getElementById('drawerMenu'));}
@@ -928,17 +807,9 @@ function updateDrawerInfo(){const u=db.currentUser;if(!u)return;const n=document
 /* ===== STORIES ===== */
 function renderStories(){
   const bar = document.getElementById('storiesBar'); if(!bar) return;
-  const all = Object.entries(db.stories||{}).filter(([un,s])=>{
-    if(!s.items) return false;
-    return Object.values(s.items).some(it=>Date.now()-it.at<86400000);
-  });
+  const all = Object.entries(db.stories||{}).filter(([un,s])=>{if(!s.items)return false;return Object.values(s.items).some(it=>Date.now()-it.at<86400000);});
   const add = `<div onclick="document.getElementById('hiddenStoryInput').click()" class="flex flex-col items-center gap-1 shrink-0 cursor-pointer"><div class="w-14 h-14 rounded-full border-2 border-dashed border-[#3390ec] flex items-center justify-center text-[#3390ec] text-xl"><i class="fas fa-plus"></i></div><span class="text-[10px] text-tg-gray">Сторис</span></div>`;
-  const items = all.map(([un,s])=>{
-    const u = db.users[un]||{};
-    const seen = s.seen && s.seen[db.currentUser.username];
-    const ringClass = seen ? 'story-ring-seen' : 'story-ring';
-    return `<div onclick="openStories('${un}')" class="flex flex-col items-center gap-1 shrink-0 cursor-pointer"><div class="${ringClass}"><div class="bg-tg-sidebar rounded-full p-0.5">${getAvatarHtml(u.avatar,u.displayName||un,12)}</div></div><span class="text-[10px] text-tg-gray truncate max-w-[56px]">${escapeHtml((u.displayName||un).slice(0,8))}</span></div>`;
-  }).join('');
+  const items = all.map(([un,s])=>{const u = db.users[un]||{};const seen = s.seen && s.seen[db.currentUser.username];const ringClass = seen ? 'story-ring-seen' : 'story-ring';return `<div onclick="openStories('${un}')" class="flex flex-col items-center gap-1 shrink-0 cursor-pointer"><div class="${ringClass}"><div class="bg-tg-sidebar rounded-full p-0.5">${getAvatarHtml(u.avatar,u.displayName||un,12)}</div></div><span class="text-[10px] text-tg-gray truncate max-w-[56px]">${escapeHtml((u.displayName||un).slice(0,8))}</span></div>`;}).join('');
   bar.innerHTML = add + items;
 }
 document.getElementById('hiddenStoryInput')?.addEventListener('change', async e => {
@@ -954,29 +825,20 @@ function openStories(uname){
   const s = db.stories[uname]; if(!s || !s.items) return;
   const items = Object.entries(s.items).filter(([iid,it])=>Date.now()-it.at<86400000).sort((a,b)=>a[1].at-b[1].at);
   if(!items.length) return;
-  const u = db.users[uname]||{};
-  let idx = 0;
+  const u = db.users[uname]||{};let idx = 0;
   const render = () => {
     const [iid, item] = items[idx];
     const progress = items.map((_,i)=>`<div class="flex-1 h-1 bg-white/30 rounded-full overflow-hidden"><div class="h-full bg-white transition-all" style="width:${i===idx?'100%':'0%'}"></div></div>`).join('');
     document.getElementById('storyOverlay')?.remove();
-    document.body.insertAdjacentHTML('beforeend', `
-      <div id="storyOverlay" class="fixed inset-0 z-[600] bg-black flex flex-col fade-in">
-        <div class="flex gap-1 p-2">${progress}</div>
-        <div class="flex items-center gap-3 px-3 py-2">${getAvatarHtml(u.avatar,u.displayName||uname,10)}<div class="flex-grow"><div class="text-white text-sm font-medium">${escapeHtml(u.displayName||uname)}</div><div class="text-white/60 text-xs">${Math.floor((Date.now()-item.at)/3600000)} ч назад</div></div><button onclick="closeStory()" class="text-white text-xl p-2"><i class="fas fa-times"></i></button></div>
-        <div class="flex-grow flex items-center justify-center relative" onclick="nextStory()">${item.type?.startsWith('video/') ? `<video src="${item.data}" autoplay class="max-w-full max-h-full"></video>` : `<img src="${item.data}" class="max-w-full max-h-full object-contain">`}</div>
-        <div class="absolute left-0 top-12 bottom-0 w-1/3 cursor-pointer" onclick="event.stopPropagation();prevStory()"></div>
-        <div class="absolute right-0 top-12 bottom-0 w-1/3 cursor-pointer" onclick="event.stopPropagation();nextStory()"></div>
-      </div>
-    `);
+    document.body.insertAdjacentHTML('beforeend', `<div id="storyOverlay" class="fixed inset-0 z-[600] bg-black flex flex-col fade-in"><div class="flex gap-1 p-2">${progress}</div><div class="flex items-center gap-3 px-3 py-2">${getAvatarHtml(u.avatar,u.displayName||uname,10)}<div class="flex-grow"><div class="text-white text-sm font-medium">${escapeHtml(u.displayName||uname)}</div><div class="text-white/60 text-xs">${Math.floor((Date.now()-item.at)/3600000)} ч назад</div></div><button onclick="closeStory()" class="text-white text-xl p-2"><i class="fas fa-times"></i></button></div><div class="flex-grow flex items-center justify-center relative" onclick="nextStory()">${item.type?.startsWith('video/') ? `<video src="${item.data}" autoplay class="max-w-full max-h-full"></video>` : `<img src="${item.data}" class="max-w-full max-h-full object-contain">`}</div><div class="absolute left-0 top-12 bottom-0 w-1/3 cursor-pointer" onclick="event.stopPropagation();prevStory()"></div><div class="absolute right-0 top-12 bottom-0 w-1/3 cursor-pointer" onclick="event.stopPropagation();nextStory()"></div></div>`);
   };
   window._storyCtx = {items, idx, render, uname};
   render();
   database.ref(`stories/${uname}/seen/${db.currentUser.username}`).set(true);
 }
-function nextStory(){ const c=window._storyCtx; if(!c) return; c.idx++; if(c.idx >= c.items.length){closeStory();return;} c.render(); }
-function prevStory(){ const c=window._storyCtx; if(!c) return; c.idx = Math.max(0, c.idx-1); c.render(); }
-function closeStory(){ document.getElementById('storyOverlay')?.remove(); window._storyCtx = null; }
+function nextStory(){const c=window._storyCtx;if(!c)return;c.idx++;if(c.idx>=c.items.length){closeStory();return;}c.render();}
+function prevStory(){const c=window._storyCtx;if(!c)return;c.idx=Math.max(0,c.idx-1);c.render();}
+function closeStory(){document.getElementById('storyOverlay')?.remove();window._storyCtx=null;}
 
 /* ===== SIDEBAR ===== */
 function renderSidebar(){
@@ -996,17 +858,8 @@ function renderSidebar(){
     if(isGroup){name=c.name||'Группа';avatar=c.avatar;}
     else if(isSaved){name='Избранное';avatar='';}
     else{const ou=Object.keys(c.members||{}).find(m=>m!==db.currentUser.username);const u=db.users[ou]||{};name=u.displayName||ou||'Пользователь';avatar=u.avatar;prem=isPrem(u);online=isOnline(u);}
-    const lm=c.lastMessage;
-    let text='Нет сообщений';
-    if(lm){
-      if(lm.text) text=lm.text;
-      else if(lm.fileType?.startsWith('image/')) text='📷 Фото';
-      else if(lm.fileType?.startsWith('video/')&&lm.isCircle) text='⭕ Кружок';
-      else if(lm.fileType?.startsWith('video/')) text='📹 Видео';
-      else if(lm.fileType?.startsWith('audio/')) text='🎤 Голосовое';
-      else if(lm.fileType) text='📎 Вложение';
-      if(lm.pollId) text='📊 Опрос';
-    }
+    const lm=c.lastMessage;let text='Нет сообщений';
+    if(lm){if(lm.text)text=lm.text;else if(lm.fileType?.startsWith('image/'))text='📷 Фото';else if(lm.fileType?.startsWith('video/')&&lm.isCircle)text='⭕ Кружок';else if(lm.fileType?.startsWith('video/'))text='📹 Видео';else if(lm.fileType?.startsWith('audio/'))text='🎤 Голосовое';else if(lm.fileType)text='📎 Вложение';if(lm.pollId)text='📊 Опрос';}
     return{cid,name,avatar,prem,online,lastAt:lm?.at||c.createdAt||0,lastText:text,mine:lm&&lm.from===db.currentUser.username,pinned:!!c.pinnedMsg};
   }).filter(Boolean);
   const q=(document.getElementById('searchInput')?.value||'').toLowerCase();
@@ -1017,10 +870,7 @@ function renderSidebar(){
     <div onclick="openChat('${i.cid}')" oncontextmenu="event.preventDefault();showChatCtxMenu('${i.cid}', event.clientX, event.clientY);" class="chat-item flex items-center gap-3 px-3 py-2 hover:bg-[#202b36] ${activeChatId===i.cid?'active bg-tg-active':''} transition">
       <div class="relative shrink-0 py-2">${getAvatarHtml(i.avatar,i.name,12)}${i.online?'<span class="online-dot absolute bottom-2 right-0 w-3 h-3 bg-emerald-500 rounded-full"></span>':''}</div>
       <div class="flex-grow min-w-0 py-2 pr-1">
-        <div class="flex justify-between items-center gap-2 mb-0.5">
-          <div class="text-white font-medium text-[15px] truncate flex items-center gap-1">${escapeHtml(i.name)} ${i.prem?'<i class="fas fa-crown text-amber-400 text-[10px]"></i>':''}</div>
-          <div class="text-[11px] ${activeChatId===i.cid?'text-blue-200/90':'text-tg-gray'} shrink-0 flex items-center gap-1">${i.pinned?'<i class="fas fa-thumbtack"></i>':''}${i.lastAt?listTime(i.lastAt):''}</div>
-        </div>
+        <div class="flex justify-between items-center gap-2 mb-0.5"><div class="text-white font-medium text-[15px] truncate flex items-center gap-1">${escapeHtml(i.name)} ${i.prem?'<i class="fas fa-crown text-amber-400 text-[10px]"></i>':''}</div><div class="text-[11px] ${activeChatId===i.cid?'text-blue-200/90':'text-tg-gray'} shrink-0 flex items-center gap-1">${i.pinned?'<i class="fas fa-thumbtack"></i>':''}${i.lastAt?listTime(i.lastAt):''}</div></div>
         <div class="flex items-center gap-1 text-[13px] ${activeChatId===i.cid?'text-blue-100/80':'text-tg-gray'} truncate">${i.mine?'<i class="fas fa-check-double text-[#5eb5f7] text-[11px] shrink-0"></i>':''}<span class="truncate">${escapeHtml(i.lastText)}</span></div>
       </div>
     </div>`).join('');
@@ -1065,40 +915,22 @@ function openChat(cid){
   <div class="h-14 bg-tg-header flex items-center justify-between px-3 shrink-0 shadow-md z-10 border-b border-black/30">
     <div class="flex items-center gap-3 min-w-0 flex-grow ${!isGroup&&!isSaved?'cursor-pointer':''}" ${!isGroup&&!isSaved&&targetUser?`onclick="openProfileModal('${Object.keys(chat.members).find(m=>m!==db.currentUser.username)}')"`:''}>
       <button onclick="document.getElementById('chatArea').classList.add('mobile-hidden')" class="md:hidden text-tg-gray hover:text-white mr-1 text-lg p-1"><i class="fas fa-arrow-left"></i></button>
-      <div class="flex items-center gap-3 min-w-0 flex-grow py-1.5">
-        ${getAvatarHtml(av,name,10)}
-        <div class="flex flex-col min-w-0">
-          <span id="chatTitle" class="text-white font-medium text-[15px] truncate">${escapeHtml(name)}</span>
-          <span id="chatSub" class="text-tg-blue text-xs truncate">${escapeHtml(sub)}</span>
-        </div>
-      </div>
+      <div class="flex items-center gap-3 min-w-0 flex-grow py-1.5">${getAvatarHtml(av,name,10)}<div class="flex flex-col min-w-0"><span id="chatTitle" class="text-white font-medium text-[15px] truncate">${escapeHtml(name)}</span><span id="chatSub" class="text-tg-blue text-xs truncate">${escapeHtml(sub)}</span></div></div>
     </div>
     <div class="flex gap-4 text-tg-gray text-lg shrink-0 pl-2">
-      ${!isGroup && !isSaved ? `<button onclick="startCall('${Object.keys(chat.members).find(m=>m!==db.currentUser.username)}','audio')" class="hover:text-white cursor-pointer transition p-1" title="Аудио"><i class="fas fa-phone"></i></button><button onclick="startCall('${Object.keys(chat.members).find(m=>m!==db.currentUser.username)}','video')" class="hover:text-white cursor-pointer transition p-1" title="Видео"><i class="fas fa-video"></i></button>` : isGroup ? `<button onclick="startGroupCall('${cid}')" class="hover:text-white cursor-pointer transition p-1" title="Групповой звонок"><i class="fas fa-phone-volume"></i></button>` : ''}
+      ${!isGroup && !isSaved ? `<button onclick="startCall('${Object.keys(chat.members).find(m=>m!==db.currentUser.username)}','audio')" class="hover:text-white cursor-pointer transition p-1"><i class="fas fa-phone"></i></button><button onclick="startCall('${Object.keys(chat.members).find(m=>m!==db.currentUser.username)}','video')" class="hover:text-white cursor-pointer transition p-1"><i class="fas fa-video"></i></button>` : isGroup ? `<button onclick="startGroupCall('${cid}')" class="hover:text-white cursor-pointer transition p-1"><i class="fas fa-phone-volume"></i></button>` : ''}
       <button onclick="openSearchInChat()" class="hover:text-white cursor-pointer transition p-1"><i class="fas fa-search"></i></button>
       <button onclick="openChatMenu()" class="hover:text-white cursor-pointer transition p-1"><i class="fas fa-ellipsis-v"></i></button>
     </div>
   </div>
   <div id="pinnedBarWrap"></div>
-  <div id="msgContainerWrap" class="flex-grow overflow-hidden relative">
-    <div id="msgContainer" class="absolute inset-0 overflow-y-auto px-3 py-4 flex flex-col"></div>
-    <div id="scrollBottomBtn" class="scroll-bottom hidden" onclick="scrollToBottom(true)"><i class="fas fa-chevron-down"></i><span class="badge hidden" id="newMsgBadge">0</span></div>
-  </div>
+  <div id="msgContainerWrap" class="flex-grow overflow-hidden relative"><div id="msgContainer" class="absolute inset-0 overflow-y-auto px-3 py-4 flex flex-col"></div><div id="scrollBottomBtn" class="scroll-bottom hidden" onclick="scrollToBottom(true)"><i class="fas fa-chevron-down"></i><span class="badge hidden" id="newMsgBadge">0</span></div></div>
   <div id="replyBarWrap"></div>
   <div id="emojiPreviewBar" class="hidden bg-tg-sidebar border-t border-black/20 px-3 py-1.5 flex items-center gap-2 text-xs text-tg-gray"><span>Превью:</span><div id="emojiPreviewContent" class="flex gap-0.5 items-center text-lg"></div></div>
-  <div id="formatBar" class="hidden bg-tg-sidebar border-t border-black/20 px-3 py-2 flex items-center gap-2">
-    <button onclick="toggleFormat('bold')" id="fmt_bold" class="text-tg-gray hover:text-white px-2 py-1 rounded font-bold">B</button>
-    <button onclick="toggleFormat('italic')" id="fmt_italic" class="text-tg-gray hover:text-white px-2 py-1 rounded italic">I</button>
-    <button onclick="toggleFormat('code')" id="fmt_code" class="text-tg-gray hover:text-white px-2 py-1 rounded font-mono text-xs">&lt;/&gt;</button>
-    <button onclick="toggleFormat('spoiler')" id="fmt_spoiler" class="text-tg-gray hover:text-white px-2 py-1 rounded text-xs">👁</button>
-  </div>
+  <div id="formatBar" class="hidden bg-tg-sidebar border-t border-black/20 px-3 py-2 flex items-center gap-2"><button onclick="toggleFormat('bold')" id="fmt_bold" class="text-tg-gray hover:text-white px-2 py-1 rounded font-bold">B</button><button onclick="toggleFormat('italic')" id="fmt_italic" class="text-tg-gray hover:text-white px-2 py-1 rounded italic">I</button><button onclick="toggleFormat('code')" id="fmt_code" class="text-tg-gray hover:text-white px-2 py-1 rounded font-mono text-xs">&lt;/&gt;</button><button onclick="toggleFormat('spoiler')" id="fmt_spoiler" class="text-tg-gray hover:text-white px-2 py-1 rounded text-xs">👁</button></div>
   <div class="bg-tg-sidebar px-3 py-2.5 shrink-0 flex items-end gap-1.5 z-10 border-t border-black/30 relative">
     <div id="emojiPanel" class="hidden absolute bottom-full left-3 mb-2 bg-[#17212b] border border-black/40 rounded-2xl shadow-2xl w-[380px] max-w-[94vw] pop-in">
-      <div class="flex border-b border-black/20 text-xs">
-        <button onclick="setEmojiTab('emoji')" class="emoji-tab flex-1 py-2 text-[#3390ec] font-medium" data-tab="emoji">😀</button>
-        <button onclick="setEmojiTab('sticker')" class="emoji-tab flex-1 py-2 text-tg-gray" data-tab="sticker">🎨</button>
-        <button onclick="setEmojiTab('gif')" class="emoji-tab flex-1 py-2 text-tg-gray" data-tab="gif">GIF</button>
-      </div>
+      <div class="flex border-b border-black/20 text-xs"><button onclick="setEmojiTab('emoji')" class="emoji-tab flex-1 py-2 text-[#3390ec] font-medium" data-tab="emoji">😀</button><button onclick="setEmojiTab('sticker')" class="emoji-tab flex-1 py-2 text-tg-gray" data-tab="sticker">🎨</button><button onclick="setEmojiTab('gif')" class="emoji-tab flex-1 py-2 text-tg-gray" data-tab="gif">GIF</button></div>
       <div id="emojiTabContent" class="p-3 grid grid-cols-8 gap-1"></div>
       <div id="stickerTabContent" class="p-3 grid grid-cols-4 gap-2 hidden"></div>
       <div id="gifTabContent" class="p-3 hidden"><input id="gifSearch" type="text" placeholder="Поиск GIF..." oninput="searchGifs(this.value)" class="w-full bg-[#0e1621] text-white px-3 py-2 rounded-lg text-xs mb-2 border border-black/20"><div id="gifGrid" class="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto"></div></div>
@@ -1112,24 +944,10 @@ function openChat(cid){
   </div>`;
   applyChatBg();
   setTimeout(()=>document.getElementById('msgInput')?.focus(),50);
-  refreshEmojis(ca);
-  updateInputUI();
-  refreshPinnedBar();
-  renderEmojiTab();
+  refreshEmojis(ca);updateInputUI();refreshPinnedBar();renderEmojiTab();
   const mc=document.getElementById('msgContainer');
-  if(mc)mc.addEventListener('scroll',()=>{
-    const nearBottom=mc.scrollHeight-mc.scrollTop-mc.clientHeight<150;
-    const btn=document.getElementById('scrollBottomBtn');
-    if(btn)btn.classList.toggle('hidden',nearBottom);
-    if(nearBottom){newMessagesCount=0;const b=document.getElementById('newMsgBadge');if(b){b.classList.add('hidden');b.textContent='0';}}
-  });
-  typingListenerRef=snap=>{
-    const data=snap.val()||{};const now=Date.now();
-    const typers=Object.keys(data).filter(u=>u!==db.currentUser.username&&(now-(data[u]||0))<5000);
-    const subEl=document.getElementById('chatSub');if(!subEl)return;
-    if(typers.length){const unames=typers.map(u=>(db.users[u]?.displayName||u));subEl.innerHTML=`<span class="typing-anim"><span></span><span></span><span></span></span> <span class="text-[#5eb5f7]">${escapeHtml(unames.join(', '))} печатает...</span>`;}
-    else{const c=db.chats[activeChatId];if(c){if(c.type==='group'){const cnt=Object.keys(c.members||{}).length;subEl.textContent=`${cnt} ${plural(cnt,'участник','участника','участников')}`;}else if(c.type==='saved'){subEl.textContent='сохранённые сообщения';}else{const ou=Object.keys(c.members||{}).find(m=>m!==db.currentUser.username);const u=db.users[ou]||{};subEl.textContent=lastSeenText(u);}}}
-  };
+  if(mc)mc.addEventListener('scroll',()=>{const nearBottom=mc.scrollHeight-mc.scrollTop-mc.clientHeight<150;const btn=document.getElementById('scrollBottomBtn');if(btn)btn.classList.toggle('hidden',nearBottom);if(nearBottom){newMessagesCount=0;const b=document.getElementById('newMsgBadge');if(b){b.classList.add('hidden');b.textContent='0';}}});
+  typingListenerRef=snap=>{const data=snap.val()||{};const now=Date.now();const typers=Object.keys(data).filter(u=>u!==db.currentUser.username&&(now-(data[u]||0))<5000);const subEl=document.getElementById('chatSub');if(!subEl)return;if(typers.length){const unames=typers.map(u=>(db.users[u]?.displayName||u));subEl.innerHTML=`<span class="typing-anim"><span></span><span></span><span></span></span> <span class="text-[#5eb5f7]">${escapeHtml(unames.join(', '))} печатает...</span>`;}else{const c=db.chats[activeChatId];if(c){if(c.type==='group'){const cnt=Object.keys(c.members||{}).length;subEl.textContent=`${cnt} ${plural(cnt,'участник','участника','участников')}`;}else if(c.type==='saved'){subEl.textContent='сохранённые сообщения';}else{const ou=Object.keys(c.members||{}).find(m=>m!==db.currentUser.username);const u=db.users[ou]||{};subEl.textContent=lastSeenText(u);}}}};
   database.ref('typing/'+cid).on('value',typingListenerRef);
   currentChatListener=snap=>{
     const msgs=snap.val()||{};const mc=document.getElementById('msgContainer');if(!mc)return;
@@ -1185,11 +1003,8 @@ function renderMessages(list,isGroup){
       if(m.text){const formatted = parseFormatted(m.text);content+=`<div data-msg-text class="text-white whitespace-pre-wrap break-words leading-[1.35] ${m.fileType?'mt-1':''}" style="font-size:${db.currentUser?.fontScale||15}px">${formatted}${m.edited?' <span class="text-[10px] opacity-60 italic">(изм.)</span>':''}</div>`;}
     }
     let reactHtml='';
-    if(m.reactions&&Object.keys(m.reactions).length){
-      const pills=Object.keys(m.reactions).map(emo=>{const users=m.reactions[emo];const cnt=Object.keys(users).length;const mineR=!!users[db.currentUser.username];return `<div class="reaction-pill ${mineR?'mine':''}" onclick="event.stopPropagation();toggleReaction('${m._id}','${emo}')">${emojiPickerBtn(emo,14)}<span>${cnt}</span></div>`;}).join('');
-      reactHtml=`<div class="reactions-row">${pills}</div>`;
-    }
-    const reportBtn=!mine?`<button onclick="event.stopPropagation();reportMsg('${m._id}')" class="report-btn absolute -left-8 top-1/2 -translate-y-1/2 text-tg-gray hover:text-red-400 p-1 transition" title="Жалоба"><i class="fas fa-exclamation-triangle text-xs"></i></button>`:'';
+    if(m.reactions&&Object.keys(m.reactions).length){const pills=Object.keys(m.reactions).map(emo=>{const users=m.reactions[emo];const cnt=Object.keys(users).length;const mineR=!!users[db.currentUser.username];return `<div class="reaction-pill ${mineR?'mine':''}" onclick="event.stopPropagation();toggleReaction('${m._id}','${emo}')">${emojiPickerBtn(emo,14)}<span>${cnt}</span></div>`;}).join('');reactHtml=`<div class="reactions-row">${pills}</div>`;}
+    const reportBtn=!mine?`<button onclick="event.stopPropagation();reportMsg('${m._id}')" class="report-btn absolute -left-8 top-1/2 -translate-y-1/2 text-tg-gray hover:text-red-400 p-1 transition"><i class="fas fa-exclamation-triangle text-xs"></i></button>`:'';
     const tailClass=sameSender?'':'with-tail';
     html+=`<div class="flex ${mine?'justify-end':'justify-start'} msg-row ${prevSame?'mt-0.5':'mt-2'}" data-mid="${m._id}" data-mine="${mine?1:0}"><div class="relative msg-bubble ${mine?'msg-out':'msg-in'} ${tailClass}">${!mine&&isGroup&&!sameSender?`<div class="text-[#5eb5f7] font-semibold text-[13px] mb-0.5">${escapeHtml(db.users[m.from]?.displayName||m.from)}</div>`:''}${reportBtn}${content}${reactHtml}<div class="text-[11px] ${mine?'text-blue-200/80':'text-tg-gray/90'} float-right ml-2 mt-1 select-none flex items-center gap-1 leading-none">${m.pinned?'<i class="fas fa-thumbtack text-[9px]"></i>':''}${timeFormat(m.at)}${mine?'<i class="fas fa-check-double text-[10px]"></i>':''}</div><div class="clear-both"></div></div></div>`;
     prev=m;prevSame=sameSender;
@@ -1301,12 +1116,7 @@ async function deleteMsg(mid,forAll=true){
 function openForwardModal(mid){
   const m=currentMessages.find(x=>x._id===mid);if(!m)return;
   const chatIds=Object.keys(db.chats);if(!chatIds.length){toast('Нет чатов');return;}
-  const html=chatIds.map(cid=>{const c=db.chats[cid];let name='Чат',av='';
-    if(c.type==='group'){name=c.name;av=c.avatar;}
-    else if(c.type==='saved'){name='Избранное';av='';}
-    else{const ou=Object.keys(c.members||{}).find(x=>x!==db.currentUser.username);const u=db.users[ou]||{};name=u.displayName||ou;av=u.avatar;}
-    return `<div onclick="doForward('${mid}','${cid}')" class="flex items-center gap-3 p-2.5 hover:bg-[#202b36] rounded-xl cursor-pointer transition">${getAvatarHtml(av,name,10)}<span class="text-white text-sm truncate">${escapeHtml(name)}</span></div>`;
-  }).join('');
+  const html=chatIds.map(cid=>{const c=db.chats[cid];let name='Чат',av='';if(c.type==='group'){name=c.name;av=c.avatar;}else if(c.type==='saved'){name='Избранное';av='';}else{const ou=Object.keys(c.members||{}).find(x=>x!==db.currentUser.username);const u=db.users[ou]||{};name=u.displayName||ou;av=u.avatar;}return `<div onclick="doForward('${mid}','${cid}')" class="flex items-center gap-3 p-2.5 hover:bg-[#202b36] rounded-xl cursor-pointer transition">${getAvatarHtml(av,name,10)}<span class="text-white text-sm truncate">${escapeHtml(name)}</span></div>`;}).join('');
   openModal('Переслать',`<div class="max-h-72 overflow-y-auto space-y-0.5">${html}</div>`);
 }
 async function doForward(mid,cid){
@@ -1568,8 +1378,7 @@ async function renderEmojiTab(){
   if(grid)grid.innerHTML=emojiList.map(e=>`<button onclick="insertEmoji('${e}')" class="emoji-btn rounded-lg p-1 transition">${emojiPickerBtn(e,26)}</button>`).join('');
 }
 async function loadStickers(){
-  const stickerGrid=document.getElementById('stickerTabContent');
-  if(!stickerGrid) return;
+  const stickerGrid=document.getElementById('stickerTabContent');if(!stickerGrid) return;
   stickerGrid.innerHTML = '<div class="col-span-4 text-center text-tg-gray text-xs py-4">Загрузка...</div>';
   const snap = await database.ref('stickerPacks').once('value');
   const packs = snap.val() || {};
@@ -1718,21 +1527,9 @@ function openProfileModal(username){
   const isMe=username===db.currentUser.username;
   const unames = Object.keys(u.usernames||{[u.username]:1});
   openModal('Профиль',`
-    <div class="text-center mb-5">
-      <div class="mb-3 flex justify-center">${getAvatarHtml(u.avatar,u.displayName||u.username,24)}</div>
-      <h3 class="text-white text-xl font-bold flex items-center justify-center gap-1.5">${escapeHtml(u.displayName||u.username)} ${isPrem(u)?'<i class="fas fa-crown text-amber-300 text-sm"></i>':''}</h3>
-      <div class="flex flex-wrap gap-1 justify-center mb-2">${unames.map(un=>`<span class="bg-[#0e1621] border border-black/30 rounded-full px-2.5 py-0.5 text-tg-blue text-xs">@${escapeHtml(un)}</span>`).join('')}</div>
-      <p class="text-tg-gray text-xs">${isOnline(u)?'<span class="text-emerald-400">● в сети</span>':escapeHtml(lastSeenText(u))}</p>
-    </div>
+    <div class="text-center mb-5"><div class="mb-3 flex justify-center">${getAvatarHtml(u.avatar,u.displayName||u.username,24)}</div><h3 class="text-white text-xl font-bold flex items-center justify-center gap-1.5">${escapeHtml(u.displayName||u.username)} ${isPrem(u)?'<i class="fas fa-crown text-amber-300 text-sm"></i>':''}</h3><div class="flex flex-wrap gap-1 justify-center mb-2">${unames.map(un=>`<span class="bg-[#0e1621] border border-black/30 rounded-full px-2.5 py-0.5 text-tg-blue text-xs">@${escapeHtml(un)}</span>`).join('')}</div><p class="text-tg-gray text-xs">${isOnline(u)?'<span class="text-emerald-400">● в сети</span>':escapeHtml(lastSeenText(u))}</p></div>
     ${!isMe?`<div class="grid grid-cols-3 gap-2 mb-5"><button onclick="closeModal();startDialogWith('${username}')" class="profile-action"><i class="fas fa-comment"></i><span>Написать</span></button><button onclick="startCall('${username}','audio')" class="profile-action"><i class="fas fa-phone"></i><span>Аудио</span></button><button onclick="startCall('${username}','video')" class="profile-action"><i class="fas fa-video"></i><span>Видео</span></button></div>`:''}
-    <div class="space-y-3 bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-sm mb-5">
-      <div><span class="text-tg-gray text-xs block mb-0.5">Телефон</span><span class="text-white font-medium">${escapeHtml(u.phone||'Не указан')}</span></div>
-      <div><span class="text-tg-gray text-xs block mb-0.5">О себе</span><span class="text-white font-medium">${escapeHtml(u.bio||'Добро пожаловать!')}</span></div>
-      <div class="grid grid-cols-2 gap-2">
-        <div><span class="text-tg-gray text-xs block mb-0.5">Звёзды</span><span class="text-amber-400 font-bold">${fmtStars(u.stars||0)} ⭐</span></div>
-        <div><span class="text-tg-gray text-xs block mb-0.5">TON</span><span class="text-cyan-400 font-bold">${fmtTon(u.ton||0)} 💎</span></div>
-      </div>
-    </div>
+    <div class="space-y-3 bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-sm mb-5"><div><span class="text-tg-gray text-xs block mb-0.5">Телефон</span><span class="text-white font-medium">${escapeHtml(u.phone||'Не указан')}</span></div><div><span class="text-tg-gray text-xs block mb-0.5">О себе</span><span class="text-white font-medium">${escapeHtml(u.bio||'Добро пожаловать!')}</span></div><div class="grid grid-cols-2 gap-2"><div><span class="text-tg-gray text-xs block mb-0.5">Звёзды</span><span class="text-amber-400 font-bold">${fmtStars(u.stars||0)} ⭐</span></div><div><span class="text-tg-gray text-xs block mb-0.5">TON</span><span class="text-cyan-400 font-bold">${fmtTon(u.ton||0)} 💎</span></div></div></div>
     ${renderProfileGiftsSection(u,isMe)}
   `);
 }
@@ -1741,15 +1538,9 @@ function openMyProfile(){
   const u=db.users[db.currentUser.username]||db.currentUser;
   const unames=Object.keys(u.usernames||{[u.username]:1});
   openModal('Мой профиль',`
-    <div class="text-center mb-5"><div class="mb-3 flex justify-center">${getAvatarHtml(u.avatar,u.displayName||u.username,24)}</div><h3 class="text-white text-xl font-bold flex items-center justify-center gap-1.5">${escapeHtml(u.displayName||u.username)} ${isPrem(u)?'<i class="fas fa-crown text-amber-300 text-sm"></i>':''}</h3><div class="flex flex-wrap gap-1 justify-center mb-2">${unames.map(un=>`<span class="bg-[#0e1621] border border-black/30 rounded-full px-2.5 py-0.5 text-tg-blue text-xs">@${escapeHtml(un)}</span>`).join('')}</div><p class="text-tg-gray text-xs">${isOnline(u)?'<span class="text-emerald-400">● в сети</span>':escapeHtml(lastSeenText(u))}</p></div>
-    <div class="grid grid-cols-2 gap-2 mb-3">
-      <button onclick="closeModal();openWalletModal()" class="bg-gradient-to-br from-amber-500 to-orange-600 p-3 rounded-xl text-white text-center"><i class="fas fa-star text-xl mb-1"></i><div class="text-xs">Звёзды</div><div class="font-bold">${fmtStars(u.stars||0)}</div></button>
-      <button onclick="closeModal();openWalletModal()" class="bg-gradient-to-br from-cyan-500 to-blue-600 p-3 rounded-xl text-white text-center"><i class="fas fa-gem text-xl mb-1"></i><div class="text-xs">TON</div><div class="font-bold">${fmtTon(u.ton||0)}</div></button>
-    </div>
-    <div class="space-y-3 bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-sm mb-5">
-      <div><span class="text-tg-gray text-xs block mb-0.5">Телефон</span><span class="text-white font-medium">${escapeHtml(u.phone||'Не указан')}</span></div>
-      <div><span class="text-tg-gray text-xs block mb-0.5">О себе</span><span class="text-white font-medium">${escapeHtml(u.bio||'Добро пожаловать!')}</span></div>
-    </div>
+    <div class="text-center mb-5"><div class="mb-3 flex justify-center">${getAvatarHtml(u.avatar,u.displayName||u.username,24)}</div><h3 class="text-white text-xl font-bold flex items-center justify-center gap-1.5">${escapeHtml(u.displayName||u.username)} ${isPrem(u)?'<i class="fas fa-crown text-amber-300 text-sm"></i>':''}</h3><div class="flex flex-wrap gap-1 justify-center mb-2">${unames.map(un=>`<span class="bg-[#0e1621] border border-black/30 rounded-full px-2.5 py-0.5 text-tg-blue text-xs">@${escapeHtml(un)}</span>`).join('')}</div></div>
+    <div class="grid grid-cols-2 gap-2 mb-3"><button onclick="closeModal();openWalletModal()" class="bg-gradient-to-br from-amber-500 to-orange-600 p-3 rounded-xl text-white text-center"><i class="fas fa-star text-xl mb-1"></i><div class="text-xs">Звёзды</div><div class="font-bold">${fmtStars(u.stars||0)}</div></button><button onclick="closeModal();openWalletModal()" class="bg-gradient-to-br from-cyan-500 to-blue-600 p-3 rounded-xl text-white text-center"><i class="fas fa-gem text-xl mb-1"></i><div class="text-xs">TON</div><div class="font-bold">${fmtTon(u.ton||0)}</div></button></div>
+    <div class="space-y-3 bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-sm mb-5"><div><span class="text-tg-gray text-xs block mb-0.5">Телефон</span><span class="text-white font-medium">${escapeHtml(u.phone||'Не указан')}</span></div><div><span class="text-tg-gray text-xs block mb-0.5">О себе</span><span class="text-white font-medium">${escapeHtml(u.bio||'Добро пожаловать!')}</span></div></div>
     ${renderProfileGiftsSection(u,true)}
     <button onclick="closeModal();openBuyUsernameModal()" class="w-full bg-[#0e1621] hover:bg-[#202b36] border border-black/30 text-white font-medium py-3 rounded-xl btn-press text-sm transition mt-3"><i class="fas fa-at mr-2"></i>Мои юзернеймы (${unames.length}/40)</button>
     <button onclick="closeModal();openSetAccountModal()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm transition mt-2">Редактировать профиль</button>
@@ -1787,8 +1578,8 @@ function openBuyUsernameModal(){
       <input id="newUsernameInput" type="text" placeholder="от ${USERNAME_MIN} символов" maxlength="20" class="w-full bg-black/30 text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-2" oninput="validateNewUsername(this.value)">
       <div id="newUsernameError" class="text-red-400 text-xs mb-3 hidden"></div>
       <div class="flex justify-between items-center mb-3"><span class="text-tg-gray text-xs">Стоимость</span><span class="text-amber-400 font-bold flex items-center gap-1">${USERNAME_PRICE} <i class="fas fa-star text-xs"></i></span></div>
-      <div class="flex justify-between items-center mb-3"><span class="text-tg-gray text-xs">Ваш баланс</span><span class="${afford?'text-emerald-400':'text-red-400'} font-bold flex items-center gap-1">${fmtStars(u.stars||0)} <i class="fas fa-star text-xs"></i></span></div>
-      <div class="text-[11px] text-tg-gray mb-3 leading-relaxed">· Минимум ${USERNAME_MIN} символов<br>· Только латиница, цифры и _<br>· 4-значные выдаёт только админ</div>
+      <div class="flex justify-between items-center mb-3"><span class="text-tg-gray text-xs">Баланс</span><span class="${afford?'text-emerald-400':'text-red-400'} font-bold flex items-center gap-1">${fmtStars(u.stars||0)} <i class="fas fa-star text-xs"></i></span></div>
+      <div class="text-[11px] text-tg-gray mb-3">· Минимум ${USERNAME_MIN} символов<br>· Латиница, цифры и _<br>· 4-значные выдаёт админ</div>
       <button onclick="doBuyUsername()" ${(!canBuy||!afford)?'disabled':''} class="w-full ${(canBuy&&afford)?'bg-[#3390ec] hover:bg-[#2b78c5]':'bg-[#2b3a4a] cursor-not-allowed'} text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">${!canBuy?'Лимит':!afford?'Мало звёзд':'Купить за '+USERNAME_PRICE+' ⭐'}</button>
     </div>
   `);
@@ -1833,7 +1624,6 @@ async function removeUsername(un){
   toast('Удалено');
   closeModal();openBuyUsernameModal();
 }
-
 /* ===== МАГАЗИН ПОДАРКОВ ===== */
 function openGiftsModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
@@ -1878,7 +1668,7 @@ async function buyGift(gid){
   giftsTab='my';openGiftsModal();
 }
 
-/* ===== УЛУЧШЕНИЕ / ДЕТАЛИ ===== */
+/* ===== УЛУЧШЕНИЕ NFT ===== */
 function openUpgradeModal(giftId){
   const g=db.currentUser.gifts?.[giftId];if(!g){toast('Не найден');return;}
   if(!isNft(g.giftKey)){toast('Только NFT');return;}
@@ -1923,6 +1713,7 @@ function showGiftDetail(giftId,ownerUsername){
     ${isMine?`<div class="space-y-2">${isNFT?`<button onclick="closeModal();openUpgradeModal('${giftId}')" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90 text-white font-semibold py-3.5 rounded-xl btn-press text-sm transition"><i class="fas fa-dice mr-2"></i>Улучшить</button>`:''}<button onclick="closeModal();openSellGiftModal('${giftId}')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3.5 rounded-xl btn-press text-sm transition"><i class="fas fa-tag mr-2"></i>Продать</button></div>`:''}
   `);
 }
+
 /* ===== КОШЕЛОК ===== */
 function openWalletModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
@@ -1940,18 +1731,11 @@ function openWalletModal(){
     </div>
     ${walletTab==='balance'?`
       <div class="bg-gradient-to-br from-[#3390ec] to-[#2b78c5] rounded-2xl p-6 mb-4 text-white shadow-xl"><p class="text-xs uppercase tracking-wider opacity-80 mb-1">Общий баланс</p><div class="text-4xl font-black mb-1">$${totalUsd.toFixed(2)}</div></div>
-      <div class="grid grid-cols-2 gap-3 mb-4">
-        <div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-center"><i class="fas fa-star text-amber-400 text-xl mb-2"></i><div class="text-white text-xs mb-1">Звёзды</div><div class="text-amber-400 font-bold text-lg">${fmtStars(stars)}</div></div>
-        <div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-center"><i class="fas fa-gem text-cyan-400 text-xl mb-2"></i><div class="text-white text-xs mb-1">TON</div><div class="text-cyan-400 font-bold text-lg">${fmtTon(ton)}</div></div>
-      </div>
+      <div class="grid grid-cols-2 gap-3 mb-4"><div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-center"><i class="fas fa-star text-amber-400 text-xl mb-2"></i><div class="text-white text-xs mb-1">Звёзды</div><div class="text-amber-400 font-bold text-lg">${fmtStars(stars)}</div></div><div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-center"><i class="fas fa-gem text-cyan-400 text-xl mb-2"></i><div class="text-white text-xs mb-1">TON</div><div class="text-cyan-400 font-bold text-lg">${fmtTon(ton)}</div></div></div>
       <button onclick="walletTab='buy';openWalletModal();" class="w-full bg-gradient-to-r from-[#3390ec] to-[#2b78c5] hover:opacity-90 text-white font-semibold py-3.5 rounded-xl btn-press text-sm mb-2 shadow-lg"><i class="fab fa-telegram mr-2"></i>Купить звёзды</button>
       <button onclick="walletTab='ton';openWalletModal();" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-semibold py-3.5 rounded-xl btn-press text-sm"><i class="fas fa-exchange-alt mr-2"></i>Обменять TON</button>
     `:walletTab==='buy'?`
-      <div class="bg-gradient-to-br from-[#3390ec] to-[#2b78c5] rounded-2xl p-5 mb-4 text-white shadow-xl text-center">
-        <i class="fab fa-telegram text-4xl mb-2"></i>
-        <h3 class="text-lg font-bold mb-1">Оплата через Telegram Stars</h3>
-        <p class="text-xs opacity-90">1 ⭐ TG = 100 ⭐ 67gramm</p>
-      </div>
+      <div class="bg-gradient-to-br from-[#3390ec] to-[#2b78c5] rounded-2xl p-5 mb-4 text-white shadow-xl text-center"><i class="fab fa-telegram text-4xl mb-2"></i><h3 class="text-lg font-bold mb-1">Оплата через Telegram Stars</h3><p class="text-xs opacity-90">1 ⭐ TG = 100 ⭐ 67gramm</p></div>
       <button onclick="payWithTelegramStars()" class="w-full bg-gradient-to-r from-[#3390ec] to-[#2b78c5] hover:opacity-90 text-white font-medium py-4 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-[#3390ec]/30 mb-4"><i class="fab fa-telegram text-lg"></i><span>Открыть магазин в Telegram</span><span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">рекомендуем</span></button>
       <p class="text-center text-tg-gray text-[11px] mb-4">После оплаты звёзды зачислятся автоматически в течение 5 секунд</p>
       <div class="bg-[#0e1621] p-4 rounded-xl border border-black/30 text-xs space-y-2">
@@ -2024,10 +1808,7 @@ function openShopModal(){
   openModal('Пополнение',`
     <div class="bg-gradient-to-br from-[#3390ec] to-[#2b78c5] rounded-2xl p-5 mb-4 text-white shadow-xl text-center"><i class="fab fa-telegram text-4xl mb-2"></i><h3 class="text-lg font-bold mb-1">Оплата через Telegram Stars</h3><p class="text-xs opacity-90">1 ⭐ TG = 100 ⭐ 67gramm</p></div>
     <button onclick="payWithTelegramStars()" class="w-full bg-gradient-to-r from-[#3390ec] to-[#2b78c5] hover:opacity-90 text-white font-medium py-4 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition shadow-lg mb-4"><i class="fab fa-telegram text-lg"></i>Открыть магазин в Telegram</button>
-    <div class="grid grid-cols-2 gap-3 mb-4">
-      <div class="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-4 text-white text-center"><i class="fas fa-star text-2xl mb-1"></i><div class="text-xs">Звёзды</div><div class="text-xl font-bold">${fmtStars(db.currentUser.stars||0)}</div></div>
-      <div class="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-4 text-white text-center"><i class="fas fa-gem text-2xl mb-1"></i><div class="text-xs">TON</div><div class="text-xl font-bold">${fmtTon(db.currentUser.ton||0)}</div></div>
-    </div>
+    <div class="grid grid-cols-2 gap-3 mb-4"><div class="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-4 text-white text-center"><i class="fas fa-star text-2xl mb-1"></i><div class="text-xs">Звёзды</div><div class="text-xl font-bold">${fmtStars(db.currentUser.stars||0)}</div></div><div class="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-4 text-white text-center"><i class="fas fa-gem text-2xl mb-1"></i><div class="text-xs">TON</div><div class="text-xl font-bold">${fmtTon(db.currentUser.ton||0)}</div></div></div>
   `);
 }
 function fakePay(amt, priceTxt){
@@ -2161,7 +1942,7 @@ setInterval(async () => {
   }
 }, 60000);
 
-/* ===== ПРОДАЖА / МАРКЕТПЛЕЙС ===== */
+/* ===== ПРОДАЖА ===== */
 function openSellGiftModal(giftId){
   const g=db.currentUser.gifts?.[giftId];if(!g){toast('Не найден');return;}
   const existingListing=Object.entries(db.listings||{}).find(([lid,l])=>l.seller===db.currentUser.username&&l.giftId===giftId);
@@ -2176,39 +1957,18 @@ function openSellGiftModal(giftId){
   const floor=floorPrice(g.giftKey||'default');
   openModal('Продать подарок',`
     <div class="text-center mb-4"><div class="w-24 h-24 rounded-3xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center mx-auto mb-3 shadow-xl overflow-hidden">${renderGiftIcon(g.icon,'text-5xl','',g.emoji)}</div><h3 class="text-white text-lg font-bold mb-1">${escapeHtml(g.name)}</h3></div>
-    <div class="flex gap-2 mb-4 bg-[#0e1621] p-1 rounded-xl border border-black/30">
-      <button id="sellTypeSell" onclick="selectSellType('sell')" class="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#2b5278] text-white">Продажа</button>
-      <button id="sellTypeAuction" onclick="selectSellType('auction')" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-tg-gray">Аукцион</button>
-      <input type="hidden" id="sellType" value="sell">
-    </div>
-    <div class="bg-[#0e1621] p-3 rounded-xl border border-black/30 mb-4">
-      <p class="text-white text-xs font-medium mb-2">Валюта</p>
-      <div class="flex gap-2">
-        <button id="sellCurStars" onclick="selectSellCurrency('stars')" class="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#2b5278] text-white">⭐ Звёзды</button>
-        <button id="sellCurTon" onclick="selectSellCurrency('ton')" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-tg-gray">💎 TON</button>
-      </div>
-      <input type="hidden" id="sellCurrency" value="stars">
-    </div>
+    <div class="flex gap-2 mb-4 bg-[#0e1621] p-1 rounded-xl border border-black/30"><button id="sellTypeSell" onclick="selectSellType('sell')" class="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#2b5278] text-white">Продажа</button><button id="sellTypeAuction" onclick="selectSellType('auction')" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-tg-gray">Аукцион</button><input type="hidden" id="sellType" value="sell"></div>
+    <div class="bg-[#0e1621] p-3 rounded-xl border border-black/30 mb-4"><p class="text-white text-xs font-medium mb-2">Валюта</p><div class="flex gap-2"><button id="sellCurStars" onclick="selectSellCurrency('stars')" class="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#2b5278] text-white">⭐ Звёзды</button><button id="sellCurTon" onclick="selectSellCurrency('ton')" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-tg-gray">💎 TON</button></div><input type="hidden" id="sellCurrency" value="stars"></div>
     <label class="text-xs text-tg-gray mb-1.5 block" id="priceLabel">Цена</label>
     <input id="sellPriceInput" type="number" min="${floor}" value="${floor}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-2">
     <div class="text-[11px] text-tg-gray mb-3 px-1">Минимум: ${floor} ⭐</div>
-    <div id="auctionDurationBox" class="hidden mb-4">
-      <label class="text-xs text-tg-gray mb-1.5 block">Длительность</label>
-      <div class="grid grid-cols-4 gap-2">
-        <button onclick="setDuration(1)" class="duration-btn py-2 rounded-lg text-xs font-medium border border-black/30 text-tg-gray">1ч</button>
-        <button onclick="setDuration(6)" class="duration-btn py-2 rounded-lg text-xs font-medium border border-black/30 text-tg-gray">6ч</button>
-        <button onclick="setDuration(24)" class="duration-btn py-2 rounded-lg text-xs font-medium border border-black/30 text-tg-gray">24ч</button>
-        <button onclick="setDuration(72)" class="duration-btn py-2 rounded-lg text-xs font-medium border border-black/30 text-tg-gray">3 дня</button>
-      </div>
-      <input type="hidden" id="auctionDuration" value="24">
-    </div>
+    <div id="auctionDurationBox" class="hidden mb-4"><label class="text-xs text-tg-gray mb-1.5 block">Длительность</label><div class="grid grid-cols-4 gap-2"><button onclick="setDuration(1)" class="duration-btn py-2 rounded-lg text-xs font-medium border border-black/30 text-tg-gray">1ч</button><button onclick="setDuration(6)" class="duration-btn py-2 rounded-lg text-xs font-medium border border-black/30 text-tg-gray">6ч</button><button onclick="setDuration(24)" class="duration-btn py-2 rounded-lg text-xs font-medium border border-black/30 text-tg-gray">24ч</button><button onclick="setDuration(72)" class="duration-btn py-2 rounded-lg text-xs font-medium border border-black/30 text-tg-gray">3 дня</button></div><input type="hidden" id="auctionDuration" value="24"></div>
     <button onclick="doSellOrAuction('${giftId}')" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Выставить</button>
   `);
 }
 function selectSellType(type){
   document.getElementById('sellType').value = type;
-  const s = document.getElementById('sellTypeSell');
-  const a = document.getElementById('sellTypeAuction');
+  const s = document.getElementById('sellTypeSell');const a = document.getElementById('sellTypeAuction');
   if(s) s.className = 'flex-1 py-2.5 rounded-lg text-sm font-medium ' + (type==='sell'?'bg-[#2b5278] text-white':'text-tg-gray');
   if(a) a.className = 'flex-1 py-2.5 rounded-lg text-sm font-medium ' + (type==='auction'?'bg-[#2b5278] text-white':'text-tg-gray');
   document.getElementById('auctionDurationBox').classList.toggle('hidden', type !== 'auction');
@@ -2228,8 +1988,7 @@ function selectSellCurrency(cur){
   if(btnT)btnT.className='flex-1 py-2.5 rounded-lg text-sm font-medium transition '+(cur==='ton'?'bg-cyan-600 text-white':'text-tg-gray hover:text-white');
 }
 async function doSellOrAuction(giftId){
-  const g = db.currentUser.gifts?.[giftId];
-  if(!g) return;
+  const g = db.currentUser.gifts?.[giftId];if(!g) return;
   const type = document.getElementById('sellType').value;
   const inp = document.getElementById('sellPriceInput');
   const floor = floorPrice(g.giftKey||'default');
@@ -2242,8 +2001,7 @@ async function doSellOrAuction(giftId){
     await database.ref('users/' + db.currentUser.username + '/gifts/' + giftId).remove();
     await database.ref('auctions/' + aid).set(auction);
     toast('🔨 Аукцион создан на ' + durationH + 'ч');
-    closeModal();
-    return;
+    closeModal();return;
   }
   const exists = Object.entries(db.listings||{}).find(([lid,l]) => l.seller===db.currentUser.username && l.giftId===giftId);
   if(exists){ toast('Уже выставлен'); return; }
@@ -2260,17 +2018,17 @@ async function cancelListing(listingId){
   await database.ref('listings/'+listingId).remove();
   toast('Снято');
 }
+
+/* ===== МАРКЕТПЛЕЙС ===== */
 function openMarketplaceModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
-  const allListings = db.listings||{};
-  const listings = Object.entries(allListings).filter(([lid,l]) => l.seller !== db.currentUser.username);
+  const listings = Object.entries(db.listings||{}).filter(([lid,l]) => l.seller !== db.currentUser.username);
   if(!listings.length){
-    openModal('Маркетплейс',`<div class="text-center py-8"><i class="fas fa-store text-5xl text-tg-gray/30 mb-3"></i><p class="text-white font-medium mb-1">Пока нет активных лотов</p><p class="text-tg-gray text-xs mb-4">Выставьте свой подарок</p><button onclick="closeModal();openMyProfile()" class="bg-[#3390ec] text-white text-sm font-medium px-4 py-2.5 rounded-xl btn-press">Перейти в профиль</button></div>`);
+    openModal('Маркетплейс',`<div class="text-center py-8"><i class="fas fa-store text-5xl text-tg-gray/30 mb-3"></i><p class="text-white font-medium mb-1">Пока нет активных лотов</p><button onclick="closeModal();openMyProfile()" class="bg-[#3390ec] text-white text-sm font-medium px-4 py-2.5 rounded-xl btn-press">Перейти в профиль</button></div>`);
     return;
   }
   listings.sort((a,b)=>(b[1].createdAt||0)-(a[1].createdAt||0));
-  const myStars = db.currentUser.stars||0;
-  const myTon = db.currentUser.ton||0;
+  const myStars = db.currentUser.stars||0;const myTon = db.currentUser.ton||0;
   const html = listings.map(([lid,l]) => {
     const g = l.giftData||{};
     const rarityInfo = g.traits ? RARITY_TIERS[g.traits.rarity] : null;
@@ -2322,8 +2080,7 @@ async function buyListing(listingId){
   const sellerPays=currency==='ton'?fmtTon(starsToTon(l.price*(1-MARKET_FEE)))+' 💎':(l.price-Math.ceil(l.price*MARKET_FEE))+' ⭐';
   await database.ref('messages/'+chatId+'/'+notifId).set({from:db.currentUser.username,text:`💸 Продано: ${l.giftData.name} — вы получили ${sellerPays}`,at:Date.now()});
   await database.ref('chats/'+chatId+'/lastMessage').set({text:`💸 Продано`,from:db.currentUser.username,at:Date.now()});
-  toast('✅ Куплено!');
-  closeModal();
+  toast('✅ Куплено!');closeModal();
 }
 function openMyListingsModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
@@ -2334,18 +2091,8 @@ function openMyListingsModal(){
     return;
   }
   let html = '';
-  myListings.forEach(([lid,l])=>{
-    const g=l.giftData||{};
-    const priceText=(l.currency==='ton'?fmtTon(starsToTon(l.price))+' 💎':l.price+' ⭐');
-    html += `<div class="bg-[#0e1621] rounded-2xl border border-black/30 flex items-center gap-3 p-3 mb-2"><div class="w-14 h-14 rounded-xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center shrink-0">${renderGiftIcon(g.icon,'text-2xl','',g.emoji)}</div><div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(g.name||'Подарок')}</div><div class="text-amber-400 text-xs font-bold">${priceText} · Продажа</div></div><button onclick="cancelListing('${lid}');closeModal();openMyListingsModal();" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg btn-press transition">Снять</button></div>`;
-  });
-  myAuctions.forEach(([aid,a])=>{
-    const g=a.giftData||{};
-    const priceText=(a.currency==='ton'?fmtTon(starsToTon(a.currentPrice))+' 💎':a.currentPrice+' ⭐');
-    const tl = Math.max(0, a.endsAt - Date.now());
-    const hh = Math.floor(tl/3600000), mm = Math.floor((tl%3600000)/60000);
-    html += `<div class="bg-[#0e1621] rounded-2xl border border-amber-500/30 flex items-center gap-3 p-3 mb-2"><div class="w-14 h-14 rounded-xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center shrink-0">${renderGiftIcon(g.icon,'text-2xl','',g.emoji)}</div><div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(g.name||'Подарок')}</div><div class="text-amber-400 text-xs font-bold">${priceText} · ${hh}ч ${mm}м</div></div><button onclick="cancelAuction('${aid}');closeModal();openMyListingsModal();" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg btn-press transition">Отменить</button></div>`;
-  });
+  myListings.forEach(([lid,l])=>{const g=l.giftData||{};const priceText=(l.currency==='ton'?fmtTon(starsToTon(l.price))+' 💎':l.price+' ⭐');html += `<div class="bg-[#0e1621] rounded-2xl border border-black/30 flex items-center gap-3 p-3 mb-2"><div class="w-14 h-14 rounded-xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center shrink-0">${renderGiftIcon(g.icon,'text-2xl','',g.emoji)}</div><div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(g.name||'Подарок')}</div><div class="text-amber-400 text-xs font-bold">${priceText} · Продажа</div></div><button onclick="cancelListing('${lid}');closeModal();openMyListingsModal();" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg btn-press transition">Снять</button></div>`;});
+  myAuctions.forEach(([aid,a])=>{const g=a.giftData||{};const priceText=(a.currency==='ton'?fmtTon(starsToTon(a.currentPrice))+' 💎':a.currentPrice+' ⭐');const tl = Math.max(0, a.endsAt - Date.now());const hh = Math.floor(tl/3600000), mm = Math.floor((tl%3600000)/60000);html += `<div class="bg-[#0e1621] rounded-2xl border border-amber-500/30 flex items-center gap-3 p-3 mb-2"><div class="w-14 h-14 rounded-xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center shrink-0">${renderGiftIcon(g.icon,'text-2xl','',g.emoji)}</div><div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(g.name||'Подарок')}</div><div class="text-amber-400 text-xs font-bold">${priceText} · ${hh}ч ${mm}м</div></div><button onclick="cancelAuction('${aid}');closeModal();openMyListingsModal();" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg btn-press transition">Отменить</button></div>`;});
   openModal('Мои лоты · '+(myListings.length + myAuctions.length),`<div class="max-h-[60vh] overflow-y-auto">${html}</div>`);
 }
 
@@ -2354,7 +2101,7 @@ function openPremiumModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
   const u=db.currentUser;const isActive=isPrem(u);const cost=500;const days=30;
   const until=isActive?new Date(u.premiumUntil).toLocaleDateString('ru-RU'):'';
-  openModal('👑 Premium',`<div class="bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-600 rounded-2xl p-6 mb-4 text-white shadow-xl text-center"><i class="fas fa-crown text-5xl mb-3"></i><h2 class="text-2xl font-black mb-1">67gramm Premium</h2><p class="text-sm opacity-90">${isActive?'Активен до '+until:'Открой все возможности'}</p></div><div class="space-y-3 mb-5"><div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-crown text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Именной бейдж 👑</span></div><div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-palette text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Эксклюзивные темы</span></div><div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-upload text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Файлы до 4 ГБ</span></div><div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-gift text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Скидка 10% на подарки</span></div></div>${!isActive?`<div class="bg-[#0e1621] p-4 rounded-xl border border-black/30 mb-4 text-center"><div class="text-amber-400 font-bold text-3xl">${cost} ⭐</div><div class="text-tg-gray text-xs mt-1">на ${days} дней</div></div><button onclick="activatePremium(${cost},${days})" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90 text-white font-bold py-3.5 rounded-xl btn-press text-sm transition">⭐ Активировать</button>`:`<button onclick="cancelPremium()" class="w-full bg-[#2b3a4a] hover:bg-[#3a4d61] text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">Отменить</button>`}`);
+  openModal('👑 Premium',`<div class="bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-600 rounded-2xl p-6 mb-4 text-white shadow-xl text-center"><i class="fas fa-crown text-5xl mb-3"></i><h2 class="text-2xl font-black mb-1">67gramm Premium</h2><p class="text-sm opacity-90">${isActive?'Активен до '+until:'Открой все возможности'}</p></div><div class="space-y-3 mb-5"><div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-crown text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Именной бейдж 👑</span></div><div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-palette text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Эксклюзивные темы</span></div><div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-upload text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Файлы до 4 ГБ</span></div><div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-gift text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Скидка 10%</span></div></div>${!isActive?`<div class="bg-[#0e1621] p-4 rounded-xl border border-black/30 mb-4 text-center"><div class="text-amber-400 font-bold text-3xl">${cost} ⭐</div><div class="text-tg-gray text-xs mt-1">на ${days} дней</div></div><button onclick="activatePremium(${cost},${days})" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90 text-white font-bold py-3.5 rounded-xl btn-press text-sm transition">⭐ Активировать</button>`:`<button onclick="cancelPremium()" class="w-full bg-[#2b3a4a] hover:bg-[#3a4d61] text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">Отменить</button>`}`);
 }
 async function activatePremium(cost,days){
   const stars=db.currentUser.stars||0;
@@ -2402,14 +2149,7 @@ async function executeCreateGroup(){
   const uns=document.getElementById('ngUsers').value.split(',').map(s=>s.trim().toLowerCase().replace('@','')).filter(Boolean);
   if(!name){toast('Введите название');return;}
   const mem={[db.currentUser.username]:true};
-  for(const u of uns){
-    if(u===db.currentUser.username)continue;
-    let realOwner=u;
-    const oSnap=await database.ref('usernames/'+u).once('value');
-    if(oSnap.exists())realOwner=oSnap.val().owner;
-    const s=await database.ref('users/'+realOwner).once('value');
-    if(s.exists())mem[realOwner]=true;
-  }
+  for(const u of uns){if(u===db.currentUser.username)continue;let realOwner=u;const oSnap=await database.ref('usernames/'+u).once('value');if(oSnap.exists())realOwner=oSnap.val().owner;const s=await database.ref('users/'+realOwner).once('value');if(s.exists())mem[realOwner]=true;}
   const cid='grp_'+uid();
   await database.ref('chats/'+cid).set({type:'group',name,members:mem,createdAt:Date.now(),createdBy:db.currentUser.username,admins:{[db.currentUser.username]:true}});
   for(const m of Object.keys(mem))await database.ref('userChats/'+m+'/'+cid).set(true);
@@ -2431,12 +2171,7 @@ async function startCall(targetUser,type='audio'){
   await database.ref('calls/'+callId).set({from:db.currentUser.username,to:targetUser,type,status:'ringing',createdAt:Date.now()});
   showCallUI('Звонок...');
   const statusRef=database.ref('calls/'+callId+'/status');
-  const handler=statusRef.on('value',async snap=>{
-    const st=snap.val();
-    if(st==='accepted'){statusRef.off('value',handler);await setupPeer(true,callId);setCallStatus('Соединение...');}
-    else if(st==='declined'){toast('Отклонён');endCall();}
-    else if(st==='ended'){endCall();}
-  });
+  const handler=statusRef.on('value',async snap=>{const st=snap.val();if(st==='accepted'){statusRef.off('value',handler);await setupPeer(true,callId);setCallStatus('Соединение...');}else if(st==='declined'){toast('Отклонён');endCall();}else if(st==='ended'){endCall();}});
   callState.listeners.push(()=>statusRef.off('value',handler));
   setTimeout(()=>{if(callState.callId===callId && callState.active && !callState.peer){toast('Нет ответа');endCall();}},60000);
 }
@@ -2450,13 +2185,7 @@ async function setupPeer(isCaller,callId){
   const remoteIce=database.ref('calls/'+callId+'/ice/'+(isCaller?'callee':'caller'));
   const ih=remoteIce.on('child_added',s=>{const c=s.val();if(c)peer.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{});});
   callState.listeners.push(()=>remoteIce.off('child_added',ih));
-  if(isCaller){
-    const offer=await peer.createOffer();await peer.setLocalDescription(offer);
-    await database.ref('calls/'+callId+'/offer').set({type:offer.type,sdp:offer.sdp});
-    const ansRef=database.ref('calls/'+callId+'/answer');
-    const ah=ansRef.on('value',async s=>{const a=s.val();if(a && !peer.currentRemoteDescription){await peer.setRemoteDescription(new RTCSessionDescription(a));ansRef.off('value',ah);}});
-    callState.listeners.push(()=>ansRef.off('value',ah));
-  }
+  if(isCaller){const offer=await peer.createOffer();await peer.setLocalDescription(offer);await database.ref('calls/'+callId+'/offer').set({type:offer.type,sdp:offer.sdp});const ansRef=database.ref('calls/'+callId+'/answer');const ah=ansRef.on('value',async s=>{const a=s.val();if(a && !peer.currentRemoteDescription){await peer.setRemoteDescription(new RTCSessionDescription(a));ansRef.off('value',ah);}});callState.listeners.push(()=>ansRef.off('value',ah));}
 }
 async function acceptCall(callId,remoteUser,type){
   document.getElementById('incomingCallOverlay')?.remove();
@@ -2504,12 +2233,7 @@ function toggleCamera(){if(!callState.localStream)return;const t=callState.local
 function listenIncomingCalls(){
   if(!db.currentUser)return;
   const me=db.currentUser.username;
-  database.ref('calls').on('value',snap=>{
-    const calls=snap.val()||{};
-    const myRing=Object.entries(calls).find(([cid,c])=>c.to===me && c.status==='ringing' && !callState.active);
-    if(myRing)showIncomingCall(myRing[0],myRing[1]);
-    else document.getElementById('incomingCallOverlay')?.remove();
-  });
+  database.ref('calls').on('value',snap=>{const calls=snap.val()||{};const myRing=Object.entries(calls).find(([cid,c])=>c.to===me && c.status==='ringing' && !callState.active);if(myRing)showIncomingCall(myRing[0],myRing[1]);else document.getElementById('incomingCallOverlay')?.remove();});
 }
 function showIncomingCall(callId,callData){
   if(document.getElementById('incomingCallOverlay'))return;
@@ -2523,32 +2247,16 @@ async function declineCall(callId){await database.ref('calls/'+callId+'/status')
 async function startGroupCall(chatId){
   if(groupCallState.active){toast('Уже активен групповой звонок');return;}
   if(!navigator.mediaDevices){toast('Не поддерживается');return;}
-  const chat = db.chats[chatId];
-  if(!chat || chat.type!=='group'){toast('Только в группе');return;}
-  const roomId = 'room_'+chatId;
-  const me = db.currentUser.username;
+  const chat = db.chats[chatId];if(!chat || chat.type!=='group'){toast('Только в группе');return;}
+  const roomId = 'room_'+chatId;const me = db.currentUser.username;
   const participants = Object.keys(chat.members||{}).filter(u=>u!==me);
   if(!participants.length){toast('Нет участников');return;}
-  try{const stream = await navigator.mediaDevices.getUserMedia({audio:true, video:false});groupCallState.localStream = stream;}
-  catch(err){toast('Нет доступа к микрофону');return;}
-  groupCallState.active = true;
-  groupCallState.roomId = roomId;
-  groupCallState.peers = {};
-  groupCallState.participants = {};
-  groupCallState.listeners = [];
+  try{const stream = await navigator.mediaDevices.getUserMedia({audio:true, video:false});groupCallState.localStream = stream;}catch(err){toast('Нет доступа к микрофону');return;}
+  groupCallState.active = true;groupCallState.roomId = roomId;groupCallState.peers = {};groupCallState.participants = {};groupCallState.listeners = [];
   await database.ref('rooms/'+roomId+'/info').set({chatId, startedBy:me, startedAt:Date.now()});
   await database.ref('rooms/'+roomId+'/participants/'+me).set({joinedAt:Date.now(), online:true});
   const partRef = database.ref('rooms/'+roomId+'/participants');
-  const partHandler = partRef.on('value', snap => {
-    const parts = snap.val()||{};
-    groupCallState.participants = parts;
-    Object.keys(parts).forEach(user => {
-      if(user === me) return;
-      if(groupCallState.peers[user]) return;
-      if(!parts[user].online) return;
-      if(me < user){ createPeerConnection(user, roomId, true); } else { createPeerConnection(user, roomId, false); }
-    });
-  });
+  const partHandler = partRef.on('value', snap => {const parts = snap.val()||{};groupCallState.participants = parts;Object.keys(parts).forEach(user => {if(user === me) return;if(groupCallState.peers[user]) return;if(!parts[user].online) return;if(me < user){ createPeerConnection(user, roomId, true); } else { createPeerConnection(user, roomId, false); }});});
   groupCallState.listeners.push(()=>partRef.off('value', partHandler));
   showGroupCallUI();
   await database.ref('chats/'+chatId).update({activeCall: roomId, callStartedAt: Date.now()});
@@ -2559,54 +2267,19 @@ async function createPeerConnection(remoteUser, roomId, isInitiator){
   const peer = new RTCPeerConnection(RTC_CONFIG);
   groupCallState.peers[remoteUser] = {pc: peer, stream: null};
   groupCallState.localStream.getTracks().forEach(t => peer.addTrack(t, groupCallState.localStream));
-  peer.ontrack = e => {
-    groupCallState.peers[remoteUser].stream = e.streams[0];
-    const audioEl = document.getElementById('gcAudio_'+remoteUser);
-    if(audioEl){ audioEl.srcObject = e.streams[0]; audioEl.play().catch(()=>{}); }
-    else { const a = document.createElement('audio'); a.id='gcAudio_'+remoteUser; a.autoplay=true; a.srcObject=e.streams[0]; document.body.appendChild(a); }
-    updateGroupCallGrid();
-  };
+  peer.ontrack = e => {groupCallState.peers[remoteUser].stream = e.streams[0];const audioEl = document.getElementById('gcAudio_'+remoteUser);if(audioEl){ audioEl.srcObject = e.streams[0]; audioEl.play().catch(()=>{}); }else { const a = document.createElement('audio'); a.id='gcAudio_'+remoteUser; a.autoplay=true; a.srcObject=e.streams[0]; document.body.appendChild(a); }updateGroupCallGrid();};
   peer.onicecandidate = e => { if(e.candidate) database.ref(`rooms/${roomId}/signals/${me}_to_${remoteUser}/ice`).push(e.candidate.toJSON()); };
   peer.onconnectionstatechange = () => { if(peer.connectionState === 'disconnected' || peer.connectionState === 'failed'){ removePeerFromCall(remoteUser); } };
   const remoteIceRef = database.ref(`rooms/${roomId}/signals/${remoteUser}_to_${me}/ice`);
   const iceHandler = remoteIceRef.on('child_added', s => { const c = s.val(); if(c) peer.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}); });
   groupCallState.listeners.push(() => remoteIceRef.off('child_added', iceHandler));
-  if(isInitiator){
-    const offer = await peer.createOffer();await peer.setLocalDescription(offer);
-    await database.ref(`rooms/${roomId}/signals/${me}_to_${remoteUser}/offer`).set({type:offer.type, sdp:offer.sdp});
-    const ansRef = database.ref(`rooms/${roomId}/signals/${remoteUser}_to_${me}/answer`);
-    const ah = ansRef.on('value', async s => { const a = s.val(); if(a && !peer.currentRemoteDescription){ await peer.setRemoteDescription(new RTCSessionDescription(a)); ansRef.off('value', ah); } });
-    groupCallState.listeners.push(() => ansRef.off('value', ah));
-  } else {
-    const offerRef = database.ref(`rooms/${roomId}/signals/${remoteUser}_to_${me}/offer`);
-    const oh = offerRef.on('value', async s => {
-      const o = s.val();
-      if(o && !peer.currentRemoteDescription){
-        await peer.setRemoteDescription(new RTCSessionDescription(o));
-        const answer = await peer.createAnswer();
-        await peer.setLocalDescription(answer);
-        await database.ref(`rooms/${roomId}/signals/${me}_to_${remoteUser}/answer`).set({type:answer.type, sdp:answer.sdp});
-        offerRef.off('value', oh);
-      }
-    });
-    groupCallState.listeners.push(() => offerRef.off('value', oh));
-  }
+  if(isInitiator){const offer = await peer.createOffer();await peer.setLocalDescription(offer);await database.ref(`rooms/${roomId}/signals/${me}_to_${remoteUser}/offer`).set({type:offer.type, sdp:offer.sdp});const ansRef = database.ref(`rooms/${roomId}/signals/${remoteUser}_to_${me}/answer`);const ah = ansRef.on('value', async s => { const a = s.val(); if(a && !peer.currentRemoteDescription){ await peer.setRemoteDescription(new RTCSessionDescription(a)); ansRef.off('value', ah); } });groupCallState.listeners.push(() => ansRef.off('value', ah));}
+  else {const offerRef = database.ref(`rooms/${roomId}/signals/${remoteUser}_to_${me}/offer`);const oh = offerRef.on('value', async s => { const o = s.val(); if(o && !peer.currentRemoteDescription){ await peer.setRemoteDescription(new RTCSessionDescription(o)); const answer = await peer.createAnswer(); await peer.setLocalDescription(answer); await database.ref(`rooms/${roomId}/signals/${me}_to_${remoteUser}/answer`).set({type:answer.type, sdp:answer.sdp}); offerRef.off('value', oh); }});groupCallState.listeners.push(() => offerRef.off('value', oh));}
 }
-function removePeerFromCall(remoteUser){
-  const p = groupCallState.peers[remoteUser];
-  if(p){ try{p.pc.close();}catch(e){} delete groupCallState.peers[remoteUser]; }
-  document.getElementById('gcAudio_'+remoteUser)?.remove();
-  updateGroupCallGrid();
-}
+function removePeerFromCall(remoteUser){const p = groupCallState.peers[remoteUser];if(p){ try{p.pc.close();}catch(e){} delete groupCallState.peers[remoteUser]; }document.getElementById('gcAudio_'+remoteUser)?.remove();updateGroupCallGrid();}
 async function leaveGroupCall(){
-  const me = db.currentUser.username;
-  const roomId = groupCallState.roomId;
-  if(roomId){
-    await database.ref(`rooms/${roomId}/participants/${me}`).remove().catch(()=>{});
-    await database.ref(`rooms/${roomId}/signals`).remove().catch(()=>{});
-    const roomSnap = await database.ref(`rooms/${roomId}/participants`).once('value');
-    if(!roomSnap.exists()) await database.ref('rooms/'+roomId).remove().catch(()=>{});
-  }
+  const me = db.currentUser.username;const roomId = groupCallState.roomId;
+  if(roomId){await database.ref(`rooms/${roomId}/participants/${me}`).remove().catch(()=>{});await database.ref(`rooms/${roomId}/signals`).remove().catch(()=>{});const roomSnap = await database.ref(`rooms/${roomId}/participants`).once('value');if(!roomSnap.exists()) await database.ref('rooms/'+roomId).remove().catch(()=>{});}
   Object.keys(groupCallState.peers).forEach(u => removePeerFromCall(u));
   groupCallState.listeners.forEach(fn => { try{fn();}catch(e){} });groupCallState.listeners = [];
   if(groupCallState.localStream){ groupCallState.localStream.getTracks().forEach(t=>t.stop()); groupCallState.localStream = null; }
@@ -2620,43 +2293,19 @@ function showGroupCallUI(){
 }
 function updateGroupCallGrid(){
   const grid = document.getElementById('groupCallGrid');if(!grid) return;
-  const participants = groupCallState.participants || {};
-  const me = db.currentUser.username;
+  const participants = groupCallState.participants || {};const me = db.currentUser.username;
   const others = Object.keys(participants).filter(u => u !== me);
   const cEl = document.getElementById('gcCount');if(cEl) cEl.textContent = 'Участники: ' + (1 + others.length);
   const myTile = grid.querySelector('[data-user="'+me+'"]');
   let html = myTile ? myTile.outerHTML : '';
-  others.forEach(u => {
-    if(grid.querySelector('[data-user="'+u+'"]')) return;
-    const user = db.users[u] || {};
-    html += `<div class="group-call-tile" data-user="${u}">${getAvatarHtml(user.avatar, user.displayName||u, 20)}<div class="absolute bottom-2 left-2 text-white text-xs bg-black/50 px-2 py-1 rounded">${escapeHtml(user.displayName||u)}</div></div>`;
-  });
+  others.forEach(u => {if(grid.querySelector('[data-user="'+u+'"]')) return;const user = db.users[u] || {};html += `<div class="group-call-tile" data-user="${u}">${getAvatarHtml(user.avatar, user.displayName||u, 20)}<div class="absolute bottom-2 left-2 text-white text-xs bg-black/50 px-2 py-1 rounded">${escapeHtml(user.displayName||u)}</div></div>`;});
   grid.innerHTML = html;
 }
-function toggleGroupMute(){
-  if(!groupCallState.localStream) return;
-  const t = groupCallState.localStream.getAudioTracks()[0];if(!t) return;
-  t.enabled = !t.enabled;
-  const b = document.getElementById('gcBtnMute');
-  if(b) b.innerHTML = t.enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash text-red-400"></i>';
-}
+function toggleGroupMute(){if(!groupCallState.localStream) return;const t = groupCallState.localStream.getAudioTracks()[0];if(!t) return;t.enabled = !t.enabled;const b = document.getElementById('gcBtnMute');if(b) b.innerHTML = t.enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash text-red-400"></i>';}
 function listenIncomingGroupCalls(){
   if(!db.currentUser) return;
   const me = db.currentUser.username;
-  database.ref('rooms').on('value', snap => {
-    const rooms = snap.val()||{};
-    let inviteRoom = null;
-    Object.entries(rooms).forEach(([rid, r]) => {
-      if(!r.info || !r.participants) return;
-      const chatId = r.info.chatId;
-      const myChats = db.chats[chatId];if(!myChats) return;
-      if(r.participants[me]) return;if(r.info.startedBy === me) return;
-      if(r.declined && r.declined[me]) return;
-      inviteRoom = {roomId: rid, info: r.info, from: r.info.startedBy};
-    });
-    if(inviteRoom && !groupCallState.active){ showIncomingGroupCall(inviteRoom.roomId, inviteRoom.info, inviteRoom.from); }
-    else { document.getElementById('incomingGroupCallOverlay')?.remove(); }
-  });
+  database.ref('rooms').on('value', snap => {const rooms = snap.val()||{};let inviteRoom = null;Object.entries(rooms).forEach(([rid, r]) => {if(!r.info || !r.participants) return;const chatId = r.info.chatId;const myChats = db.chats[chatId];if(!myChats) return;if(r.participants[me]) return;if(r.info.startedBy === me) return;if(r.declined && r.declined[me]) return;inviteRoom = {roomId: rid, info: r.info, from: r.info.startedBy};});if(inviteRoom && !groupCallState.active){ showIncomingGroupCall(inviteRoom.roomId, inviteRoom.info, inviteRoom.from); }else { document.getElementById('incomingGroupCallOverlay')?.remove(); }});
 }
 function showIncomingGroupCall(roomId, info, from){
   if(document.getElementById('incomingGroupCallOverlay')) return;
@@ -2670,32 +2319,18 @@ async function joinGroupCall(roomId){
   if(groupCallState.active){ toast('Уже в звонке'); return; }
   if(!navigator.mediaDevices){ toast('Не поддерживается'); return; }
   const me = db.currentUser.username;
-  try{const stream = await navigator.mediaDevices.getUserMedia({audio:true, video:false});groupCallState.localStream = stream;}
-  catch(err){ toast('Нет доступа'); return; }
+  try{const stream = await navigator.mediaDevices.getUserMedia({audio:true, video:false});groupCallState.localStream = stream;}catch(err){ toast('Нет доступа'); return; }
   groupCallState.active = true;groupCallState.roomId = roomId;groupCallState.peers = {};groupCallState.listeners = [];
   await database.ref(`rooms/${roomId}/participants/${me}`).set({joinedAt:Date.now(), online:true});
   const partRef = database.ref(`rooms/${roomId}/participants`);
-  const partHandler = partRef.on('value', snap => {
-    const parts = snap.val()||{};
-    groupCallState.participants = parts;
-    Object.keys(parts).forEach(user => {
-      if(user === me || groupCallState.peers[user]) return;
-      if(!parts[user].online) return;
-      if(me < user) createPeerConnection(user, roomId, true);
-      else createPeerConnection(user, roomId, false);
-    });
-    updateGroupCallGrid();
-  });
+  const partHandler = partRef.on('value', snap => {const parts = snap.val()||{};groupCallState.participants = parts;Object.keys(parts).forEach(user => {if(user === me || groupCallState.peers[user]) return;if(!parts[user].online) return;if(me < user) createPeerConnection(user, roomId, true);else createPeerConnection(user, roomId, false);});updateGroupCallGrid();});
   groupCallState.listeners.push(()=>partRef.off('value', partHandler));
   showGroupCallUI();
 }
 function openNewGroupCallModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
   const groupChats = Object.entries(db.chats||{}).filter(([cid,c])=>c.type==='group');
-  if(!groupChats.length){
-    openModal('Групповой звонок',`<div class="text-center py-6"><i class="fas fa-phone-volume text-5xl text-tg-gray/30 mb-3"></i><p class="text-white font-medium mb-1">Нет групп</p></div>`);
-    return;
-  }
+  if(!groupChats.length){openModal('Групповой звонок',`<div class="text-center py-6"><i class="fas fa-phone-volume text-5xl text-tg-gray/30 mb-3"></i><p class="text-white font-medium mb-1">Нет групп</p></div>`);return;}
   const html = groupChats.map(([cid,c])=>{const cnt = Object.keys(c.members||{}).length;return `<div onclick="closeModal();startGroupCall('${cid}')" class="flex items-center gap-3 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition">${getAvatarHtml(c.avatar,c.name||'Группа',10)}<div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(c.name||'Группа')}</div><div class="text-tg-gray text-xs">${cnt} ${plural(cnt,'участник','участника','участников')}</div></div><i class="fas fa-phone text-emerald-400"></i></div>`;}).join('');
   openModal('Групповой звонок', `<div class="space-y-1 max-h-72 overflow-y-auto">${html}</div>`);
 }
@@ -2709,10 +2344,7 @@ function openSettingsModal(){
   const notifStatus=Notification.permission;
   const pinEnabled = localStorage.getItem('g67_pin_enabled') === '1';
   openModal('Настройки',`
-    <div class="flex items-center gap-4 mb-6">
-      <div class="relative cursor-pointer group" onclick="document.getElementById('hiddenAvatarInput').click()">${getAvatarHtml(u.avatar,u.displayName||u.username,20)}<div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><i class="fas fa-camera text-white"></i></div></div>
-      <div class="min-w-0"><div class="text-lg font-medium text-white truncate">${escapeHtml(u.displayName||u.username)}</div><div class="text-sm text-tg-gray truncate">${escapeHtml(u.phone||'Телефон')}</div><div class="text-sm text-tg-blue truncate">@${escapeHtml(u.username)}</div></div>
-    </div>
+    <div class="flex items-center gap-4 mb-6"><div class="relative cursor-pointer group" onclick="document.getElementById('hiddenAvatarInput').click()">${getAvatarHtml(u.avatar,u.displayName||u.username,20)}<div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><i class="fas fa-camera text-white"></i></div></div><div class="min-w-0"><div class="text-lg font-medium text-white truncate">${escapeHtml(u.displayName||u.username)}</div><div class="text-sm text-tg-gray truncate">${escapeHtml(u.phone||'Телефон')}</div><div class="text-sm text-tg-blue truncate">@${escapeHtml(u.username)}</div></div></div>
     <div class="space-y-1 bg-[#0e1621] rounded-2xl p-2 mb-4 border border-black/30">
       <div onclick="closeModal();openSetAccountModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="far fa-user w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Профиль</span></div>
       <div onclick="closeModal();openBuyUsernameModal()" class="flex items-center justify-between p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><div class="flex items-center gap-4"><i class="fas fa-at w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Мои юзернеймы</span></div><span class="text-tg-blue text-xs">${Object.keys(u.usernames||{}).length} / 40</span></div>
@@ -2724,23 +2356,9 @@ function openSettingsModal(){
       <div onclick="closeModal();openSessionsModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-mobile-alt w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Сессии</span></div>
       <div onclick="requestNotifPermission(true)" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-bell w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Уведомления</span><span class="ml-auto text-xs ${notifStatus==='granted'?'text-emerald-400':notifStatus==='denied'?'text-red-400':'text-amber-400'}">${notifStatus==='granted'?'вкл':notifStatus==='denied'?'запрещены':'включить'}</span></div>
     </div>
-    <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30">
-      <div class="text-white text-sm mb-3 flex items-center gap-4"><i class="fas fa-palette text-tg-gray text-lg w-6 text-center"></i>Тема</div>
-      <div class="grid grid-cols-4 gap-2">
-        <button onclick="setTheme('dark')" class="py-2 rounded-lg text-xs font-medium border ${theme==='dark'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">Тёмная</button>
-        <button onclick="setTheme('light')" class="py-2 rounded-lg text-xs font-medium border ${theme==='light'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">Светлая</button>
-        <button onclick="setTheme('amoled')" class="py-2 rounded-lg text-xs font-medium border ${theme==='amoled'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">AMOLED</button>
-        <button onclick="setTheme('system')" class="py-2 rounded-lg text-xs font-medium border ${theme==='system'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">Авто</button>
-      </div>
-    </div>
-    <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30">
-      <div class="flex justify-between items-center mb-3 text-white text-sm"><div class="flex items-center gap-4"><i class="fas fa-font text-tg-gray text-lg w-6 text-center"></i>Размер текста</div><span id="fsTxt" class="text-tg-blue font-semibold">${fs}px</span></div>
-      <input type="range" min="12" max="22" value="${fs}" oninput="document.getElementById('fsTxt').innerText=this.value+'px'; applyFontScale(this.value);" onchange="database.ref('users/'+db.currentUser.username+'/fontScale').set(parseInt(this.value))" class="w-full accent-[#3390ec]">
-    </div>
-    <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30">
-      <div class="flex justify-between items-center mb-3 text-white text-sm"><div class="flex items-center gap-4"><i class="far fa-eye text-tg-gray text-lg w-6 text-center"></i>Масштаб</div><span id="scTxt" class="text-tg-blue font-semibold">${scale}%</span></div>
-      <input type="range" min="70" max="140" value="${scale}" oninput="document.getElementById('scTxt').innerText=this.value+'%'; applyScale(this.value);" onchange="database.ref('users/'+db.currentUser.username+'/scale').set(parseInt(this.value))" class="w-full accent-[#3390ec]">
-    </div>
+    <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30"><div class="text-white text-sm mb-3 flex items-center gap-4"><i class="fas fa-palette text-tg-gray text-lg w-6 text-center"></i>Тема</div><div class="grid grid-cols-4 gap-2"><button onclick="setTheme('dark')" class="py-2 rounded-lg text-xs font-medium border ${theme==='dark'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">Тёмная</button><button onclick="setTheme('light')" class="py-2 rounded-lg text-xs font-medium border ${theme==='light'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">Светлая</button><button onclick="setTheme('amoled')" class="py-2 rounded-lg text-xs font-medium border ${theme==='amoled'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">AMOLED</button><button onclick="setTheme('system')" class="py-2 rounded-lg text-xs font-medium border ${theme==='system'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">Авто</button></div></div>
+    <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30"><div class="flex justify-between items-center mb-3 text-white text-sm"><div class="flex items-center gap-4"><i class="fas fa-font text-tg-gray text-lg w-6 text-center"></i>Размер текста</div><span id="fsTxt" class="text-tg-blue font-semibold">${fs}px</span></div><input type="range" min="12" max="22" value="${fs}" oninput="document.getElementById('fsTxt').innerText=this.value+'px'; applyFontScale(this.value);" onchange="database.ref('users/'+db.currentUser.username+'/fontScale').set(parseInt(this.value))" class="w-full accent-[#3390ec]"></div>
+    <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30"><div class="flex justify-between items-center mb-3 text-white text-sm"><div class="flex items-center gap-4"><i class="far fa-eye text-tg-gray text-lg w-6 text-center"></i>Масштаб</div><span id="scTxt" class="text-tg-blue font-semibold">${scale}%</span></div><input type="range" min="70" max="140" value="${scale}" oninput="document.getElementById('scTxt').innerText=this.value+'%'; applyScale(this.value);" onchange="database.ref('users/'+db.currentUser.username+'/scale').set(parseInt(this.value))" class="w-full accent-[#3390ec]"></div>
   `);
 }
 function setTheme(t){applyTheme(t);database.ref('users/'+db.currentUser.username+'/theme').set(t);openSettingsModal();}
@@ -2769,17 +2387,14 @@ async function savePrivacyData(){
 }
 function openTwoFAModal(){
   const enabled = !!db.currentUser.twoFA?.secret;
-  if(enabled){
-    openModal('2FA', `<div class="text-center mb-5"><i class="fas fa-shield-alt text-emerald-400 text-5xl mb-3"></i><p class="text-white font-medium mb-1">2FA включена</p><p class="text-tg-gray text-xs">Через Google Authenticator</p></div><button onclick="disable2FATOTP()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Отключить</button>`);
-    return;
-  }
+  if(enabled){openModal('2FA', `<div class="text-center mb-5"><i class="fas fa-shield-alt text-emerald-400 text-5xl mb-3"></i><p class="text-white font-medium mb-1">2FA включена</p></div><button onclick="disable2FATOTP()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Отключить</button>`);return;}
   const secret = new OTPAuth.Secret({ size: 20 });
   const secretB32 = secret.base32;
   const totp = new OTPAuth.TOTP({ issuer: '67gramm', label: db.currentUser.username, algorithm: 'SHA1', digits: 6, period: 30, secret: secret });
   const uri = totp.toString();
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(uri)}`;
   window._pending2FASecret = secretB32;
-  openModal('Включить 2FA', `<p class="text-white text-sm mb-3 text-center">Открой Google Authenticator и отсканируй QR</p><div class="bg-white p-3 rounded-2xl mx-auto mb-4 w-fit"><img src="${qrUrl}" class="w-48 h-48"></div><p class="text-tg-gray text-xs text-center mb-2">Или введи код вручную:</p><div class="bg-[#0e1621] p-3 rounded-xl mb-4 text-center"><span class="text-amber-400 font-mono text-sm select-all">${secretB32}</span></div><p class="text-white text-sm mb-2">Введи 6-значный код из приложения:</p><input id="totpCode" type="tel" maxlength="6" inputmode="numeric" placeholder="000000" class="w-full bg-[#0e1621] text-white px-4 py-4 rounded-xl border border-black/30 focus:border-[#3390ec] text-2xl text-center tracking-[0.5rem] mb-5 font-mono"><button onclick="enable2FATOTP()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Включить 2FA</button>`);
+  openModal('Включить 2FA', `<p class="text-white text-sm mb-3 text-center">Открой Google Authenticator и отсканируй QR</p><div class="bg-white p-3 rounded-2xl mx-auto mb-4 w-fit"><img src="${qrUrl}" class="w-48 h-48"></div><p class="text-tg-gray text-xs text-center mb-2">Или код вручную:</p><div class="bg-[#0e1621] p-3 rounded-xl mb-4 text-center"><span class="text-amber-400 font-mono text-sm select-all">${secretB32}</span></div><p class="text-white text-sm mb-2">Введи 6-значный код:</p><input id="totpCode" type="tel" maxlength="6" inputmode="numeric" placeholder="000000" class="w-full bg-[#0e1621] text-white px-4 py-4 rounded-xl border border-black/30 focus:border-[#3390ec] text-2xl text-center tracking-[0.5rem] mb-5 font-mono"><button onclick="enable2FATOTP()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Включить</button>`);
   setTimeout(() => document.getElementById('totpCode')?.focus(), 100);
 }
 async function enable2FATOTP(){
@@ -2793,14 +2408,9 @@ async function enable2FATOTP(){
   toast('✅ 2FA включена');
   openSettingsModal();
 }
-async function disable2FATOTP(){
-  if(!confirm('Отключить 2FA?')) return;
-  await database.ref('users/'+db.currentUser.username+'/twoFA').remove();
-  toast('2FA отключена');
-  openSettingsModal();
-}
+async function disable2FATOTP(){if(!confirm('Отключить 2FA?'))return;await database.ref('users/'+db.currentUser.username+'/twoFA').remove();toast('2FA отключена');openSettingsModal();}
 function openSessionsModal(){
-  openModal('Сессии',`<div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30 mb-3"><div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400"><i class="fas fa-mobile-alt"></i></div><div class="flex-grow"><div class="text-white text-sm font-medium">Это устройство</div><div class="text-tg-gray text-xs">Сейчас</div></div><span class="text-emerald-400 text-xs">● Online</span></div><button onclick="terminateAllSessions()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Завершить другие сессии</button>`);
+  openModal('Сессии',`<div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30 mb-3"><div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400"><i class="fas fa-mobile-alt"></i></div><div class="flex-grow"><div class="text-white text-sm font-medium">Это устройство</div><div class="text-tg-gray text-xs">Сейчас</div></div><span class="text-emerald-400 text-xs">● Online</span></div><button onclick="terminateAllSessions()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Завершить другие</button>`);
 }
 function terminateAllSessions(){toast('Сессии завершены');closeModal();}
 function openSetFoldersModal(){
@@ -2837,29 +2447,14 @@ function openAdminModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
   const reports=db.reports||{};
   const rHtml=Object.keys(reports).map(rid=>{const r=reports[rid];return `<div class="bg-[#0e1621] p-3.5 rounded-xl mb-3 text-sm border border-red-900/40"><div class="flex justify-between items-start mb-1"><span class="text-red-400 font-bold">на @${escapeHtml(r.from)}</span><span class="text-tg-gray text-[10px]">${timeFormat(r.at)}</span></div><div class="text-white my-1.5 break-words">"${escapeHtml(r.text)}"</div><div class="flex gap-2 mt-2"><button onclick="adminBanUser('${r.from}')" class="bg-red-600 text-white px-3 py-1 rounded-lg text-xs">Бан</button><button onclick="adminDismissReport('${rid}')" class="bg-[#2b5278] text-white px-3 py-1 rounded-lg text-xs">Скрыть</button></div></div>`;}).join('')||'<p class="text-tg-gray text-sm text-center py-4">Жалоб нет</p>';
-  const usersHtml=Object.keys(db.users||{}).map(un=>{
-    const u=db.users[un];
-    const unamesCount = Object.keys(u.usernames||{[un]:1}).length;
-    return `<div class="bg-[#0e1621] p-3 rounded-xl mb-3 border border-black/30 text-xs"><div class="flex justify-between items-center mb-2"><span class="text-white font-bold text-sm">@${escapeHtml(un)} ${u.isAdmin?'👑':''}</span><span class="text-amber-400 font-bold">${u.stars||0} ⭐ ${fmtTon(u.ton||0)} 💎</span></div><div class="text-tg-gray mb-2">Юзернеймов: ${unamesCount}/40</div><div class="flex flex-wrap gap-2 mt-2"><button onclick="adminGiveStars('${un}')" class="bg-amber-600 text-white px-2.5 py-1 rounded-lg">+⭐</button><button onclick="adminGiveTon('${un}')" class="bg-cyan-600 text-white px-2.5 py-1 rounded-lg">+TON</button><button onclick="adminGrant4CharUsername('${un}')" class="bg-purple-600 text-white px-2.5 py-1 rounded-lg">@4симв</button><button onclick="adminViewUserChats('${un}')" class="bg-blue-600 text-white px-2.5 py-1 rounded-lg">💬 Чаты</button><button onclick="adminViewUserPasswords()" class="bg-indigo-600 text-white px-2.5 py-1 rounded-lg">🔑 Пароли</button><button onclick="adminToggleBan('${un}', ${!u.banned})" class="${u.banned?'bg-emerald-600':'bg-red-600'} text-white px-2.5 py-1 rounded-lg">${u.banned?'Разбан':'Бан'}</button></div></div>`;
-  }).join('');
+  const usersHtml=Object.keys(db.users||{}).map(un=>{const u=db.users[un];const unamesCount = Object.keys(u.usernames||{[un]:1}).length;return `<div class="bg-[#0e1621] p-3 rounded-xl mb-3 border border-black/30 text-xs"><div class="flex justify-between items-center mb-2"><span class="text-white font-bold text-sm">@${escapeHtml(un)} ${u.isAdmin?'👑':''}</span><span class="text-amber-400 font-bold">${u.stars||0} ⭐ ${fmtTon(u.ton||0)} 💎</span></div><div class="text-tg-gray mb-2">Юзернеймов: ${unamesCount}/40</div><div class="flex flex-wrap gap-2 mt-2"><button onclick="adminGiveStars('${un}')" class="bg-amber-600 text-white px-2.5 py-1 rounded-lg">+⭐</button><button onclick="adminGiveTon('${un}')" class="bg-cyan-600 text-white px-2.5 py-1 rounded-lg">+TON</button><button onclick="adminGrant4CharUsername('${un}')" class="bg-purple-600 text-white px-2.5 py-1 rounded-lg">@4симв</button><button onclick="adminViewUserChats('${un}')" class="bg-blue-600 text-white px-2.5 py-1 rounded-lg">💬 Чаты</button><button onclick="adminViewUserPasswords()" class="bg-indigo-600 text-white px-2.5 py-1 rounded-lg">🔑 Пароли</button><button onclick="adminToggleBan('${un}', ${!u.banned})" class="${u.banned?'bg-emerald-600':'bg-red-600'} text-white px-2.5 py-1 rounded-lg">${u.banned?'Разбан':'Бан'}</button></div></div>`;}).join('');
   const catalogKeys=Object.keys(GIFT_CATALOG);
-  const catalogAdminHtml=catalogKeys.map(k=>{
-    const cat=GIFT_CATALOG[k];
-    const cfg=getGiftConfig(k);
-    const currentIcon=db.giftConfig?.[k]?.icon||cat.icon;
-    const currentEmoji=db.giftConfig?.[k]?.emoji||cat.emoji||'';
-    const isImg=/^(https?:\/\/|data:image\/)/i.test(currentIcon);
-    return `<div class="bg-[#0e1621] p-3 rounded-xl mb-2 border border-black/30"><div class="flex items-center gap-2 mb-2"><div class="w-12 h-12 rounded-xl bg-gradient-to-tr ${cat.bg} flex items-center justify-center shrink-0 overflow-hidden">${isImg?`<img src="${escapeHtml(currentIcon)}" class="w-full h-full object-contain" onerror="this.parentNode.innerHTML='<span class=\\'text-2xl\\'>${currentEmoji||'🎁'}</span>'">`:`<span class="text-2xl">${escapeHtml(currentIcon||currentEmoji||'🎁')}</span>`}</div><div class="flex-grow min-w-0"><div class="text-white font-bold text-xs truncate">${escapeHtml(cat.name)}</div><div class="text-[10px] text-tg-gray">${k} · ${cat.category==='collectible'?'NFT':'Regular'}</div></div></div><div class="bg-[#17212b] rounded-lg p-2 mb-2"><label class="text-[9px] text-tg-gray uppercase block mb-1">Картинка</label><div class="flex gap-1.5"><input id="cfg_icon_${k}" type="text" value="${escapeHtml(currentIcon)}" placeholder="URL или 🎁" class="flex-grow bg-black/30 text-white px-2 py-1.5 rounded text-xs border border-black/20"><button onclick="document.getElementById('admIconInput_${k}').click()" class="bg-[#3390ec] text-white px-2 rounded text-xs"><i class="fas fa-upload"></i></button><input type="file" id="admIconInput_${k}" class="hidden" accept="image/*" onchange="adminUploadIcon('${k}', this)"></div><div class="grid grid-cols-8 gap-1 mt-1.5">${['🎁','❤️','🧸','🎂','💐','🚀','🏆','💍','💎','🍾','🌹','👑','⭐','🔥','✨','💝'].map(e=>`<button type="button" onclick="document.getElementById('cfg_icon_${k}').value='${e}'" class="text-base hover:bg-white/10 rounded p-0.5">${e}</button>`).join('')}</div></div><div class="grid grid-cols-3 gap-1.5"><div><label class="text-[9px] text-tg-gray uppercase block mb-0.5">Цена ⭐</label><input type="number" id="cfg_price_${k}" value="${cfg.price}" min="1" class="w-full bg-[#17212b] text-white px-2 py-1.5 rounded text-xs border border-black/20"></div><div><label class="text-[9px] text-tg-gray uppercase block mb-0.5">Создано</label><input type="number" id="cfg_minted_${k}" value="${cfg.minted}" min="0" class="w-full bg-[#17212b] text-white px-2 py-1.5 rounded text-xs border border-black/20"></div><div><label class="text-[9px] text-tg-gray uppercase block mb-0.5">Всего</label><input type="number" id="cfg_supply_${k}" value="${cfg.totalSupply}" min="1" class="w-full bg-[#17212b] text-white px-2 py-1.5 rounded text-xs border border-black/20"></div></div><button onclick="adminSaveGiftConfig('${k}')" class="w-full mt-2 bg-[#3390ec] hover:bg-[#2b78c5] text-white py-1.5 rounded text-[11px] font-medium btn-press transition">Сохранить</button></div>`;
-  }).join('');
+  const catalogAdminHtml=catalogKeys.map(k=>{const cat=GIFT_CATALOG[k];const cfg=getGiftConfig(k);const currentIcon=db.giftConfig?.[k]?.icon||cat.icon;const currentEmoji=db.giftConfig?.[k]?.emoji||cat.emoji||'';const isImg=/^(https?:\/\/|data:image\/)/i.test(currentIcon);return `<div class="bg-[#0e1621] p-3 rounded-xl mb-2 border border-black/30"><div class="flex items-center gap-2 mb-2"><div class="w-12 h-12 rounded-xl bg-gradient-to-tr ${cat.bg} flex items-center justify-center shrink-0 overflow-hidden">${isImg?`<img src="${escapeHtml(currentIcon)}" class="w-full h-full object-contain" onerror="this.parentNode.innerHTML='<span class=\\'text-2xl\\'>${currentEmoji||'🎁'}</span>'">`:`<span class="text-2xl">${escapeHtml(currentIcon||currentEmoji||'🎁')}</span>`}</div><div class="flex-grow min-w-0"><div class="text-white font-bold text-xs truncate">${escapeHtml(cat.name)}</div><div class="text-[10px] text-tg-gray">${k} · ${cat.category==='collectible'?'NFT':'Regular'}</div></div></div><div class="bg-[#17212b] rounded-lg p-2 mb-2"><label class="text-[9px] text-tg-gray uppercase block mb-1">Картинка</label><div class="flex gap-1.5"><input id="cfg_icon_${k}" type="text" value="${escapeHtml(currentIcon)}" placeholder="URL или 🎁" class="flex-grow bg-black/30 text-white px-2 py-1.5 rounded text-xs border border-black/20"><button onclick="document.getElementById('admIconInput_${k}').click()" class="bg-[#3390ec] text-white px-2 rounded text-xs"><i class="fas fa-upload"></i></button><input type="file" id="admIconInput_${k}" class="hidden" accept="image/*" onchange="adminUploadIcon('${k}', this)"></div><div class="grid grid-cols-8 gap-1 mt-1.5">${['🎁','❤️','🧸','🎂','💐','🚀','🏆','💍','💎','🍾','🌹','👑','⭐','🔥','✨','💝'].map(e=>`<button type="button" onclick="document.getElementById('cfg_icon_${k}').value='${e}'" class="text-base hover:bg-white/10 rounded p-0.5">${e}</button>`).join('')}</div></div><div class="grid grid-cols-3 gap-1.5"><div><label class="text-[9px] text-tg-gray uppercase block mb-0.5">Цена ⭐</label><input type="number" id="cfg_price_${k}" value="${cfg.price}" min="1" class="w-full bg-[#17212b] text-white px-2 py-1.5 rounded text-xs border border-black/20"></div><div><label class="text-[9px] text-tg-gray uppercase block mb-0.5">Создано</label><input type="number" id="cfg_minted_${k}" value="${cfg.minted}" min="0" class="w-full bg-[#17212b] text-white px-2 py-1.5 rounded text-xs border border-black/20"></div><div><label class="text-[9px] text-tg-gray uppercase block mb-0.5">Всего</label><input type="number" id="cfg_supply_${k}" value="${cfg.totalSupply}" min="1" class="w-full bg-[#17212b] text-white px-2 py-1.5 rounded text-xs border border-black/20"></div></div><button onclick="adminSaveGiftConfig('${k}')" class="w-full mt-2 bg-[#3390ec] hover:bg-[#2b78c5] text-white py-1.5 rounded text-[11px] font-medium btn-press transition">Сохранить</button></div>`;}).join('');
   openModal('Админ панель',`
     <button onclick="closeModal();adminResetAllClick()" class="w-full bg-red-900/50 hover:bg-red-900 border border-red-700 text-red-300 text-xs font-medium py-2 rounded-lg mb-3 transition"><i class="fas fa-bomb mr-1"></i>СБРОСИТЬ ВСЁ (3 подтверждения)</button>
     <button onclick="closeModal();adminOpenCreateGiftModal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 rounded-lg text-sm mb-3 btn-press transition"><i class="fas fa-plus mr-2"></i>Создать новый подарок</button>
     <button onclick="closeModal();openAdminStickerPacks()" class="w-full bg-pink-600 hover:bg-pink-500 text-white font-medium py-2.5 rounded-lg text-sm mb-3 btn-press transition"><i class="fas fa-smile mr-2"></i>Управление стикерами</button>
-    <div class="flex gap-1 mb-4 bg-[#0e1621] p-1 rounded-xl border border-black/30 sticky top-0 z-10">
-      <button onclick="adminTab('gifts')" id="admTab_gifts" class="flex-1 py-2 rounded-lg text-xs font-medium bg-[#2b5278] text-white">Каталог</button>
-      <button onclick="adminTab('reports')" id="admTab_reports" class="flex-1 py-2 rounded-lg text-xs font-medium text-tg-gray">Жалобы</button>
-      <button onclick="adminTab('users')" id="admTab_users" class="flex-1 py-2 rounded-lg text-xs font-medium text-tg-gray">Юзеры</button>
-    </div>
+    <div class="flex gap-1 mb-4 bg-[#0e1621] p-1 rounded-xl border border-black/30 sticky top-0 z-10"><button onclick="adminTab('gifts')" id="admTab_gifts" class="flex-1 py-2 rounded-lg text-xs font-medium bg-[#2b5278] text-white">Каталог</button><button onclick="adminTab('reports')" id="admTab_reports" class="flex-1 py-2 rounded-lg text-xs font-medium text-tg-gray">Жалобы</button><button onclick="adminTab('users')" id="admTab_users" class="flex-1 py-2 rounded-lg text-xs font-medium text-tg-gray">Юзеры</button></div>
     <div id="admSec_gifts"><h4 class="text-white font-medium mb-2.5 text-sm"><i class="fas fa-sliders-h text-amber-400 mr-2"></i>Цена / количество / картинка</h4><div class="max-h-[60vh] overflow-y-auto">${catalogAdminHtml}</div></div>
     <div id="admSec_reports" class="hidden"><h4 class="text-red-400 font-medium mb-2.5 text-sm"><i class="fas fa-flag mr-1"></i>Жалобы</h4><div class="max-h-72 overflow-y-auto">${rHtml}</div></div>
     <div id="admSec_users" class="hidden"><h4 class="text-white font-medium mb-2.5 text-sm"><i class="fas fa-users mr-1"></i>Пользователи</h4><div class="max-h-72 overflow-y-auto">${usersHtml}</div></div>
@@ -2874,21 +2469,14 @@ async function adminSaveGiftConfig(giftKey){
   await database.ref('giftConfig/'+giftKey).update({price,minted,totalSupply:supply,icon});
   toast('✅ Сохранено');
 }
-async function adminUploadIcon(giftKey,input){
-  const f=input.files[0];if(!f)return;
-  if(f.size>200000){toast('Максимум 200KB');return;}
-  const b64=await fileToBase64(f);
-  document.getElementById('cfg_icon_'+giftKey).value=b64;
-  toast('Загружено');
-}
+async function adminUploadIcon(giftKey,input){const f=input.files[0];if(!f)return;if(f.size>200000){toast('Максимум 200KB');return;}const b64=await fileToBase64(f);document.getElementById('cfg_icon_'+giftKey).value=b64;toast('Загружено');}
 async function adminToggleBan(un,ban){await database.ref('users/'+un+'/banned').set(ban);toast(ban?'Забанен':'Разбанен');openAdminModal();adminTab('users');}
 async function adminBanUser(un){await database.ref('users/'+un+'/banned').set(true);toast('Забанен');openAdminModal();adminTab('reports');}
 async function adminDismissReport(rid){await database.ref('reports/'+rid).remove();toast('Скрыто');openAdminModal();adminTab('reports');}
 async function adminGiveStars(un){const amt=parseInt(prompt('Звёзд?','100'));if(!amt)return;const s=await database.ref('users/'+un+'/stars').once('value');await database.ref('users/'+un+'/stars').set((s.val()||0)+amt);toast('+'+amt+' ⭐');}
 async function adminGiveTon(un){const amt=parseFloat(prompt('TON?','1'));if(!amt)return;const s=await database.ref('users/'+un+'/ton').once('value');await database.ref('users/'+un+'/ton').set((s.val()||0)+amt);toast('+'+amt+' 💎');}
 async function adminGrant4CharUsername(ownerUsername){
-  const un=prompt('4-значный юзернейм:','');
-  if(!un)return;
+  const un=prompt('4-значный юзернейм:','');if(!un)return;
   const lower=un.trim().toLowerCase();
   if(lower.length!==4){toast('Ровно 4');return;}
   if(!/^[a-z]+$/.test(lower)){toast('Только латинские буквы');return;}
@@ -2967,11 +2555,7 @@ function adminOpenCreateGiftModal(){
     <div class="flex gap-2 mb-3"><input id="newGiftIcon" type="text" placeholder="https://... или 🎁" class="flex-grow bg-[#0e1621] text-white px-4 py-3 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm"><button onclick="document.getElementById('adminNewGiftFile').click()" class="bg-[#3390ec] text-white px-4 rounded-xl text-sm"><i class="fas fa-upload"></i></button><input type="file" id="adminNewGiftFile" class="hidden" accept="image/*" onchange="adminUploadNewGiftIcon(this)"></div>
     <div class="grid grid-cols-8 gap-1 mb-3">${['🎁','❤️','🧸','🎂','💐','🚀','🏆','💍','💎','🍾','🌹','👑','⭐','🔥','✨','💝','🐱','🐶','🦊','🐼','🦄','🐸','🐵','🐧'].map(e=>`<button type="button" onclick="document.getElementById('newGiftIcon').value='${e}'" class="text-xl hover:bg-white/10 rounded p-1">${e}</button>`).join('')}</div>
     <label class="text-xs text-tg-gray mb-1.5 block">Категория</label>
-    <div class="flex gap-2 mb-3">
-      <button id="newGiftCatRegular" onclick="adminSelectNewGiftCat('regular')" class="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#2b5278] text-white">Обычный</button>
-      <button id="newGiftCatNft" onclick="adminSelectNewGiftCat('collectible')" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-tg-gray">NFT</button>
-      <input type="hidden" id="newGiftCategory" value="regular">
-    </div>
+    <div class="flex gap-2 mb-3"><button id="newGiftCatRegular" onclick="adminSelectNewGiftCat('regular')" class="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#2b5278] text-white">Обычный</button><button id="newGiftCatNft" onclick="adminSelectNewGiftCat('collectible')" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-tg-gray">NFT</button><input type="hidden" id="newGiftCategory" value="regular"></div>
     <label class="text-xs text-tg-gray mb-1.5 block">Цена в звёздах</label>
     <input id="newGiftPrice" type="number" min="1" value="100" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-3">
     <label class="text-xs text-tg-gray mb-1.5 block">Тираж (1000000 = ∞)</label>
@@ -2985,13 +2569,7 @@ function adminSelectNewGiftCat(cat){
   if(r)r.className='flex-1 py-2.5 rounded-lg text-sm font-medium transition '+(cat==='regular'?'bg-[#2b5278] text-white':'text-tg-gray hover:text-white');
   if(n)n.className='flex-1 py-2.5 rounded-lg text-sm font-medium transition '+(cat==='collectible'?'bg-[#2b5278] text-white':'text-tg-gray hover:text-white');
 }
-async function adminUploadNewGiftIcon(input){
-  const f=input.files[0];if(!f)return;
-  if(f.size>200000){toast('Максимум 200KB');return;}
-  const b64=await fileToBase64(f);
-  document.getElementById('newGiftIcon').value=b64;
-  toast('Загружено');
-}
+async function adminUploadNewGiftIcon(input){const f=input.files[0];if(!f)return;if(f.size>200000){toast('Максимум 200KB');return;}const b64=await fileToBase64(f);document.getElementById('newGiftIcon').value=b64;toast('Загружено');}
 async function adminCreateNewGift(){
   const key=document.getElementById('newGiftKey').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
   const name=document.getElementById('newGiftName').value.trim();
@@ -3015,25 +2593,9 @@ function openAdminStickerPacks(){
   openModal('Стикерпаки', `<input id="newPackName" type="text" placeholder="Название пака" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-3"><div class="flex gap-2 mb-3"><input id="newStickerUrl" type="text" placeholder="URL стикера" class="flex-grow bg-[#0e1621] text-white px-4 py-3 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm"><button onclick="adminAddStickerFromUrl()" class="bg-[#3390ec] text-white px-4 rounded-xl text-sm">+</button></div><div class="flex gap-2 mb-3"><input type="file" id="stickerFile" class="flex-grow text-white text-xs" accept="image/*"><button onclick="adminUploadSticker()" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs">Загрузить</button></div><div id="stickerPreview" class="flex flex-wrap gap-2 bg-[#0e1621] p-3 rounded-xl mb-4 min-h-[60px]"></div><button onclick="adminSaveStickerPack()" class="w-full bg-[#3390ec] text-white font-medium py-3 rounded-xl">Сохранить пак</button>`);
   window._newPackStickers = [];
 }
-function adminAddStickerFromUrl(){
-  const url = document.getElementById('newStickerUrl').value.trim();
-  if(!url) return;
-  window._newPackStickers.push(url);
-  document.getElementById('newStickerUrl').value = '';
-  renderStickerPreview();
-}
-async function adminUploadSticker(){
-  const f = document.getElementById('stickerFile').files[0];
-  if(!f) return;
-  if(f.size > 300000){ toast('Максимум 300KB'); return; }
-  const b64 = await fileToBase64(f);
-  window._newPackStickers.push(b64);
-  renderStickerPreview();
-}
-function renderStickerPreview(){
-  const box = document.getElementById('stickerPreview');if(!box) return;
-  box.innerHTML = window._newPackStickers.map((u, i) => `<div class="relative"><img src="${u}" class="w-16 h-16 object-contain"><button onclick="window._newPackStickers.splice(${i},1);renderStickerPreview()" class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs">×</button></div>`).join('') || '<span class="text-tg-gray text-xs">Пока пусто</span>';
-}
+function adminAddStickerFromUrl(){const url = document.getElementById('newStickerUrl').value.trim();if(!url) return;window._newPackStickers.push(url);document.getElementById('newStickerUrl').value = '';renderStickerPreview();}
+async function adminUploadSticker(){const f = document.getElementById('stickerFile').files[0];if(!f) return;if(f.size > 300000){ toast('Максимум 300KB'); return; }const b64 = await fileToBase64(f);window._newPackStickers.push(b64);renderStickerPreview();}
+function renderStickerPreview(){const box = document.getElementById('stickerPreview');if(!box) return;box.innerHTML = window._newPackStickers.map((u, i) => `<div class="relative"><img src="${u}" class="w-16 h-16 object-contain"><button onclick="window._newPackStickers.splice(${i},1);renderStickerPreview()" class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs">×</button></div>`).join('') || '<span class="text-tg-gray text-xs">Пока пусто</span>';}
 async function saveStickerPack(){ await adminSaveStickerPack(); }
 async function adminSaveStickerPack(){
   const name = document.getElementById('newPackName').value.trim();
@@ -3059,9 +2621,7 @@ function openImage(src){
 }
 
 /* ===== KICKOFF ===== */
-document.addEventListener('keydown',e=>{
-  if(e.key==='Escape'){document.querySelectorAll('.ctx-menu, .reaction-picker, .side-ctx, .mention-dropdown').forEach(el=>el.remove());}
-});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelectorAll('.ctx-menu, .reaction-picker, .side-ctx, .mention-dropdown').forEach(el=>el.remove());}});
 window.addEventListener('resize',()=>{if(db.currentUser)renderSidebar();});
 </script>
 </body>
