@@ -4,11 +4,19 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>67gramm</title>
+<meta name="theme-color" content="#17212b">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="67gramm">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 rx=%2222%22 fill=%22%233390ec%22/><text x=%2250%22 y=%2266%22 font-size=%2245%22 font-family=%22Arial,sans-serif%22 font-weight=%22900%22 fill=%22white%22 text-anchor=%22middle%22>67</text></svg>">
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/otpauth@9.2.2/dist/otpauth.min.js"></script>
+<script src="https://unpkg.com/@tonconnect/ui@2.0.9/dist/tonconnect-ui.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700;900&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <style>
@@ -115,12 +123,15 @@ const firebaseConfig = {
   appId:"1:652602968843:web:17dadd54f0f5bd6255b00e"
 };
 const VAPID_PUBLIC_KEY = "BEJFj6JyJpxihAhBgY5nbQut9V4BfsFtvMLqIUTrBkS5zbZSnD_tQzv3I64qvAsdUTHdxhXoKLa0UYHATs_FcQk";
+const AI_API_KEY = 'sk-or-v1-ТВОЙ_КЛЮЧ';
+const AI_MODEL = 'google/gemini-flash-1.5';
+const BOT_USERNAME = 'sixsevengram_bot';
 
 let database, messaging;
 try {
   firebase.initializeApp(firebaseConfig);
   database = firebase.database();
-  try { messaging = firebase.messaging(); } catch(e){ console.warn('FCM not available:', e); }
+  try { messaging = firebase.messaging(); } catch(e){ console.warn('FCM:', e); }
 } catch(e){
   console.error('FB init error', e);
   database = { ref: () => ({ on:()=>{}, off:()=>{}, once:()=>Promise.resolve({exists:()=>false,val:()=>null}), set:()=>Promise.resolve(), remove:()=>Promise.resolve(), update:()=>Promise.resolve(), transaction:cb=>Promise.resolve({committed:true,snapshot:{val:()=>cb(0)}}), push:()=>({set:()=>Promise.resolve()}) }) };
@@ -234,7 +245,7 @@ function genSerial(){return String(Math.floor(Math.random()*900000)+100000);}
 function getUpgradeCost(giftKey){const g=GIFT_CATALOG[giftKey];if(!g)return 25;const baseIdx=g.price>=2500?0:g.price>=1000?2:g.price>=400?4:g.price>=150?6:8;const idx=Math.min(UPGRADE_LADDER.length-1,baseIdx+Math.floor(Math.random()*3));return UPGRADE_LADDER[idx];}
 
 /* ===== STATE ===== */
-let db={currentUser:null,users:{},chats:{},reports:{},market:{},listings:{},giftConfig:{},calls:{},stories:{},polls:{}};
+let db={currentUser:null,users:{},chats:{},reports:{},market:{},listings:{},giftConfig:{},calls:{},stories:{},polls:{},auctions:{} };
 let activeChatId=null,activeFolderId='all',activeAuthMode='login',giftsTab='regular',walletTab='balance';
 let currentChatListener=null,globalListenersStarted=false,currentMessages=[];
 const chatRefs={};
@@ -247,6 +258,7 @@ let groupCallState={active:false,roomId:null,peers:{},localStream:null,participa
 let currentStoryIndex=0,currentStoryUser=null;
 let mentionQuery='',mentionStart=0;
 let notificationPermission='default';
+let tonConnectUI=null;
 
 /* ===== UTILS ===== */
 function toast(m,ms=2500){const t=document.getElementById('toast');if(!t)return;t.innerText=m;t.classList.remove('hidden','fade-in');void t.offsetWidth;t.classList.add('fade-in');clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.add('hidden'),ms);}
@@ -269,97 +281,44 @@ function fmtStars(n){return (n||0).toLocaleString('ru-RU');}
 function fmtTon(n){return (n||0).toFixed(2);}
 function starsToTon(s){return s*STARS_TO_TON;}
 function tonToStars(t){return Math.floor(t*TON_TO_STARS);}
+function shortAddr(a){if(!a)return'';return a.slice(0,4)+'...'+a.slice(-4);}
 
 /* ===== APPLE-ЭМОДЗИ ===== */
 const _emojiCache = new Map();
 const EMOJI_REGEX = /(\p{Extended_Pictographic}(?:\uFE0F|\u200D\p{Extended_Pictographic}|\p{Emoji_Modifier})*|\p{Regional_Indicator}{2})/gu;
-function _emojiToCodepoint(str){
-  const points = [];
-  for(const char of str){
-    const cp = char.codePointAt(0);
-    if(cp === 0xFE0F) continue;
-    if(cp === 0x200D){ points.push('200d'); continue; }
-    points.push(cp.toString(16));
-  }
-  return points.join('-');
-}
-function _getEmojiHtml(emoji, size){
-  const key = emoji + '|' + (size||64);
-  if(_emojiCache.has(key)) return _emojiCache.get(key);
-  const cp = _emojiToCodepoint(emoji);
-  const url = `https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/${size||64}/${cp}.png`;
-  const html = `<img src="${url}" alt="${escapeHtml(emoji)}" class="apple-emoji" loading="lazy" onerror="this.replaceWith(document.createTextNode('${escapeHtml(emoji)}'))">`;
-  _emojiCache.set(key, html);
-  return html;
-}
+function _emojiToCodepoint(str){const points=[];for(const char of str){const cp=char.codePointAt(0);if(cp===0xFE0F)continue;if(cp===0x200D){points.push('200d');continue;}points.push(cp.toString(16));}return points.join('-');}
+function _getEmojiHtml(emoji,size){const key=emoji+'|'+(size||64);if(_emojiCache.has(key))return _emojiCache.get(key);const cp=_emojiToCodepoint(emoji);const url=`https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/${size||64}/${cp}.png`;const html=`<img src="${url}" alt="${escapeHtml(emoji)}" class="apple-emoji" loading="lazy" onerror="this.replaceWith(document.createTextNode('${escapeHtml(emoji)}'))">`;_emojiCache.set(key,html);return html;}
 function _emojifyNode(root){
-  if(!root) return;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode: node => {
-      const p = node.parentElement;
-      if(!p) return NodeFilter.FILTER_REJECT;
-      if(p.classList?.contains('no-emoji')) return NodeFilter.FILTER_REJECT;
-      const tag = p.tagName;
-      if(tag === 'SCRIPT' || tag === 'STYLE' || tag === 'TEXTAREA' || tag === 'INPUT') return NodeFilter.FILTER_REJECT;
-      if(p.classList?.contains('apple-emoji')) return NodeFilter.FILTER_REJECT;
-      if(/[\p{Extended_Pictographic}]/u.test(node.nodeValue)) return NodeFilter.FILTER_ACCEPT;
-      return NodeFilter.FILTER_REJECT;
-    }
-  });
-  const nodes = [];
-  while(walker.nextNode()) nodes.push(walker.currentNode);
-  nodes.forEach(node => {
-    const text = node.nodeValue;
-    if(!text || !/[\p{Extended_Pictographic}]/u.test(text)) return;
-    const html = escapeHtml(text).replace(EMOJI_REGEX, m => _getEmojiHtml(m));
-    const span = document.createElement('span');
-    span.className = 'no-emoji-wrap';
-    span.innerHTML = html;
-    node.parentNode.replaceChild(span, node);
-  });
+  if(!root)return;
+  const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,{acceptNode:node=>{const p=node.parentElement;if(!p)return NodeFilter.FILTER_REJECT;if(p.classList?.contains('no-emoji'))return NodeFilter.FILTER_REJECT;const tag=p.tagName;if(tag==='SCRIPT'||tag==='STYLE'||tag==='TEXTAREA'||tag==='INPUT')return NodeFilter.FILTER_REJECT;if(p.classList?.contains('apple-emoji'))return NodeFilter.FILTER_REJECT;if(/[\p{Extended_Pictographic}]/u.test(node.nodeValue))return NodeFilter.FILTER_ACCEPT;return NodeFilter.FILTER_REJECT;}});
+  const nodes=[];while(walker.nextNode())nodes.push(walker.currentNode);
+  nodes.forEach(node=>{const text=node.nodeValue;if(!text||!/[\p{Extended_Pictographic}]/u.test(text))return;const html=escapeHtml(text).replace(EMOJI_REGEX,m=>_getEmojiHtml(m));const span=document.createElement('span');span.className='no-emoji-wrap';span.innerHTML=html;node.parentNode.replaceChild(span,node);});
 }
-function refreshEmojis(root){
-  requestAnimationFrame(() => {
-    try { _emojifyNode(root || document.body); } catch(e){ console.warn('emoji:', e); }
-  });
-}
-function emojiPickerBtn(e, size){
-  const sz = size || 26;
-  return `<img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/64/${_emojiToCodepoint(e)}.png" class="apple-emoji" style="width:${sz}px;height:${sz}px;vertical-align:middle" onerror="this.replaceWith(document.createTextNode('${e}'))">`;
-}
-function updateEmojiPreview(text){
-  const bar = document.getElementById('emojiPreviewBar');
-  const box = document.getElementById('emojiPreviewContent');
-  if(!bar || !box) return;
-  if(!text || !/[\p{Extended_Pictographic}]/u.test(text)){ bar.classList.add('hidden'); box.innerHTML=''; return; }
-  bar.classList.remove('hidden');
-  box.innerHTML = escapeHtml(text).replace(EMOJI_REGEX, m => _getEmojiHtml(m));
-}
+function refreshEmojis(root){requestAnimationFrame(()=>{try{_emojifyNode(root||document.body);}catch(e){console.warn('emoji:',e);}});}
+function emojiPickerBtn(e,size){const sz=size||26;return `<img src="https://cdn.jsdelivr.net/npm/emoji-datasource-apple@15.1.2/img/apple/64/${_emojiToCodepoint(e)}.png" class="apple-emoji" style="width:${sz}px;height:${sz}px;vertical-align:middle" onerror="this.replaceWith(document.createTextNode('${e}'))">`;}
+function updateEmojiPreview(text){const bar=document.getElementById('emojiPreviewBar');const box=document.getElementById('emojiPreviewContent');if(!bar||!box)return;if(!text||!/[\p{Extended_Pictographic}]/u.test(text)){bar.classList.add('hidden');box.innerHTML='';return;}bar.classList.remove('hidden');box.innerHTML=escapeHtml(text).replace(EMOJI_REGEX,m=>_getEmojiHtml(m));}
 
 /* ===== АВАТАРЫ ===== */
 const AVATAR_TEXT={8:'text-xs',10:'text-sm',12:'text-base',14:'text-lg',16:'text-xl',20:'text-2xl',24:'text-4xl',28:'text-5xl',32:'text-5xl'};
 const AVATAR_COLORS=['from-red-500 to-pink-600','from-orange-500 to-red-500','from-amber-500 to-orange-600','from-emerald-500 to-teal-600','from-cyan-500 to-blue-500','from-blue-500 to-indigo-600','from-violet-500 to-purple-600','from-fuchsia-500 to-pink-600'];
 function pickColor(n){let h=0;for(let i=0;i<(n||'').length;i++)h=(h*31+n.charCodeAt(i))|0;return AVATAR_COLORS[Math.abs(h)%AVATAR_COLORS.length];}
 function getAvatarHtml(src,name,size=10,extra=''){const dim=`w-${size} h-${size}`;const base=`${dim} ${extra} rounded-full shrink-0 shadow object-cover avatar-shadow`;if(src)return `<img src="${src}" class="${base}" alt="">`;const letter=escapeHtml((name||'?').trim().charAt(0).toUpperCase()||'?');return `<div class="${dim} ${extra} rounded-full bg-gradient-to-br ${pickColor(name||'?')} flex items-center justify-center text-white font-bold shrink-0 shadow avatar-shadow ${AVATAR_TEXT[size]||'text-sm'}">${letter}</div>`;}
-function renderGiftIcon(icon,size='text-4xl',extra='',emojiFallback){
-  const s=String(icon||'🎁').trim();
-  const px={'text-2xl':'2rem','text-3xl':'3rem','text-4xl':'4rem','text-5xl':'5rem','text-6xl':'6rem'}[size]||'3rem';
-  const fb = emojiFallback || '🎁';
-  if(/^(https?:\/\/|data:image\/)/i.test(s))
-    return `<img src="${escapeHtml(s)}" alt="" class="gift-img ${extra}" style="width:${px};height:${px}" loading="lazy" onerror="this.outerHTML='<span class=\\'${size}\\'>${fb}</span>'">`;
-  return `<span class="${size} ${extra} inline-block align-middle">${s}</span>`;
-}
+function renderGiftIcon(icon,size='text-4xl',extra='',emojiFallback){const s=String(icon||'🎁').trim();const px={'text-2xl':'2rem','text-3xl':'3rem','text-4xl':'4rem','text-5xl':'5rem','text-6xl':'6rem'}[size]||'3rem';const fb=emojiFallback||'🎁';if(/^(https?:\/\/|data:image\/)/i.test(s))return `<img src="${escapeHtml(s)}" alt="" class="gift-img ${extra}" style="width:${px};height:${px}" loading="lazy" onerror="this.outerHTML='<span class=\\'${size}\\'>${fb}</span>'">`;return `<span class="${size} ${extra} inline-block align-middle">${s}</span>`;}
 
 /* ===== КОНФИГ ПОДАРКОВ ===== */
-function getGiftConfig(giftKey){
-  const cfg=db.giftConfig?.[giftKey]||{};
-  const cat=GIFT_CATALOG[giftKey]||{};
-  return{price:cfg.price!=null?cfg.price:(cat.price||10),minted:cfg.minted||0,totalSupply:cfg.totalSupply!=null?cfg.totalSupply:(cat.totalSupply||10000),floorUsd:cat.floorUsd||0,icon:cfg.icon||cat.icon};
-}
+function getGiftConfig(giftKey){const cfg=db.giftConfig?.[giftKey]||{};const cat=GIFT_CATALOG[giftKey]||{};return{price:cfg.price!=null?cfg.price:(cat.price||10),minted:cfg.minted||0,totalSupply:cfg.totalSupply!=null?cfg.totalSupply:(cat.totalSupply||10000),floorUsd:cat.floorUsd||0,icon:cfg.icon||cat.icon};}
 function floorPrice(giftKey){const c=getGiftConfig(giftKey);return Math.max(1,Math.ceil(c.price*0.8));}
 
 /* ===== BOOT ===== */
 window.onload = async function(){
+  // Проверка PIN
+  if(localStorage.getItem('g67_pin_enabled') === '1'){
+    const savedUser = localStorage.getItem('g67_currentUser');
+    if(savedUser){
+      showPinLock();
+      return;
+    }
+  }
   try {
     await registerServiceWorker();
     if('Notification' in window) notificationPermission = Notification.permission;
@@ -462,12 +421,8 @@ async function requestNotifPermission(fromBanner){
   if(p === 'granted'){
     toast('✅ Уведомления включены');
     if(VAPID_PUBLIC_KEY && VAPID_PUBLIC_KEY.length > 20 && messaging){
-      try {
-        const token = await messaging.getToken({vapidKey: VAPID_PUBLIC_KEY});
-        if(token && db.currentUser){
-          await database.ref('users/'+db.currentUser.username+'/fcmToken').set(token);
-        }
-      } catch(e){ console.warn('FCM token fail:', e); }
+      try { const token = await messaging.getToken({vapidKey: VAPID_PUBLIC_KEY}); if(token && db.currentUser){ await database.ref('users/'+db.currentUser.username+'/fcmToken').set(token); } }
+      catch(e){ console.warn('FCM token fail:', e); }
     }
   } else { toast('Уведомления отключены'); }
 }
@@ -475,27 +430,37 @@ function notifyNewMessage(chatName, text, fromUser){
   if(notificationPermission !== 'granted' && Notification.permission !== 'granted') return;
   if(document.hasFocus() && document.visibilityState === 'visible' && activeChatId) return;
   try {
-    const n = new Notification(chatName, {
-      body: text,
-      icon: 'https://cdn-icons-png.flaticon.com/512/2111/2111646.png',
-      badge: 'https://cdn-icons-png.flaticon.com/512/2111/2111646.png',
-      tag: 'msg-' + Date.now()
-    });
+    const n = new Notification(chatName, { body: text, icon: 'https://cdn-icons-png.flaticon.com/512/2111/2111646.png', badge: 'https://cdn-icons-png.flaticon.com/512/2111/2111646.png', tag: 'msg-' + Date.now() });
     n.onclick = () => { window.focus(); n.close(); };
-  } catch(e){ console.warn('Notify fail:', e); }
+  } catch(e){}
   if(navigator.vibrate) navigator.vibrate([200,100,200]);
   playNotifySound();
 }
 function playNotifySound(){
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const o = ctx.createOscillator(), g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.frequency.value = 880;
-    g.gain.setValueAtTime(.1, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(.001, ctx.currentTime + .25);
-    o.start(); o.stop(ctx.currentTime + .25);
-  } catch(e){}
+  try { const ctx=new (window.AudioContext||window.webkitAudioContext)();const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=880;g.gain.setValueAtTime(.1,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.25);o.start();o.stop(ctx.currentTime+.25); } catch(e){}
+}
+
+/* ===== PWA ===== */
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  window._installPrompt = e;
+  if(!localStorage.getItem('pwa_dismissed')) setTimeout(showInstallBanner, 5000);
+});
+function showInstallBanner(){
+  if(document.getElementById('installBanner')) return;
+  const el = document.createElement('div');
+  el.id = 'installBanner';
+  el.className = 'fixed bottom-20 left-4 right-4 bg-[#17212b] border border-[#3390ec]/30 rounded-2xl p-4 shadow-2xl z-[9998] fade-in flex items-center gap-3';
+  el.innerHTML = `<div class="w-12 h-12 rounded-xl bg-gradient-to-br from-[#3390ec] to-[#2b78c5] flex items-center justify-center text-white text-xl font-black shrink-0">67</div><div class="flex-grow min-w-0"><div class="text-white font-medium text-sm">Установить 67gramm</div><div class="text-tg-gray text-xs">На главный экран как приложение</div></div><button onclick="installPWA()" class="bg-[#3390ec] text-white px-4 py-2 rounded-xl text-xs font-medium btn-press">Установить</button><button onclick="document.getElementById('installBanner').remove();localStorage.setItem('pwa_dismissed','1')" class="text-tg-gray hover:text-white p-1"><i class="fas fa-times"></i></button>`;
+  document.body.appendChild(el);
+}
+async function installPWA(){
+  if(!window._installPrompt){ toast('Открой через Chrome на Android'); return; }
+  window._installPrompt.prompt();
+  const { outcome } = await window._installPrompt.userChoice;
+  if(outcome === 'accepted') toast('✅ Установлено!');
+  window._installPrompt = null;
+  document.getElementById('installBanner')?.remove();
 }
 
 /* ===== GLOBAL LISTENERS ===== */
@@ -559,8 +524,8 @@ function startGlobalListeners(){
   database.ref('giftsMarket').on('value',snap=>{const c=snap.val()||{};db.market={...GIFT_CATALOG,...c};});
   database.ref('giftConfig').on('value',snap=>{db.giftConfig=snap.val()||{};});
   database.ref('listings').on('value',snap=>{db.listings=snap.val()||{};});
+  database.ref('auctions').on('value',snap=>{db.auctions=snap.val()||{};});
 
-  // Уведомления об оплате через Telegram Stars
   database.ref('users/'+me+'/payment_notifications').on('child_added', snap => {
     const n = snap.val();
     if(!n || !n.at) return;
@@ -665,6 +630,21 @@ async function handleAuthSubmit(){
     if(ud.banned){toast('Заблокирован');return;}
     const hash=await hashPass(p);
     if(hash!==ud.passHash&&p!==ud.passPlain){toast('Неверный пароль');return;}
+    // Проверка 2FA
+    if(ud.twoFA?.enabled && ud.twoFA?.secret){
+      const code = prompt('Введите 6-значный код из Google Authenticator:');
+      if(!code){ toast('Отменено'); return; }
+      const totp = new OTPAuth.TOTP({
+        issuer: '67gramm',
+        label: ud.username,
+        algorithm: 'SHA1',
+        digits: 6,
+        period: 30,
+        secret: OTPAuth.Secret.fromBase32(ud.twoFA.secret)
+      });
+      const delta = totp.validate({ token: code.trim(), window: 1 });
+      if(delta === null){ toast('❌ Неверный код'); return; }
+    }
     db.currentUser=ud;
     localStorage.setItem('g67_currentUser',u);
     applyTheme(ud.theme||'dark');applyFontScale(ud.fontScale||15);
@@ -675,10 +655,210 @@ async function handleAuthSubmit(){
 function logout(){
   stopGlobalListeners();
   localStorage.removeItem('g67_currentUser');
-  db={currentUser:null,users:{},chats:{},reports:{},market:{},listings:{},giftConfig:{},calls:{},stories:{},polls:{}};
+  db={currentUser:null,users:{},chats:{},reports:{},market:{},listings:{},giftConfig:{},calls:{},stories:{},polls:{},auctions:{}};
   activeChatId=null;activeFolderId='all';
   applyScale(100);document.body.classList.remove('theme-light','theme-amoled');
   renderAuthScreen();
+}
+/* ===== PIN-КОД ===== */
+function showPinLock(){
+  document.body.innerHTML = `
+    <div id="pinLockScreen" class="fixed inset-0 z-[99999] bg-tg-main flex flex-col items-center justify-center p-6">
+      <div class="w-20 h-20 rounded-full bg-gradient-to-br from-[#3390ec] to-[#2b78c5] flex items-center justify-center mb-6 shadow-2xl">
+        <i class="fas fa-lock text-white text-3xl"></i>
+      </div>
+      <h1 class="text-white text-2xl font-bold mb-2">67gramm</h1>
+      <p class="text-tg-gray text-sm mb-8">Введите PIN-код</p>
+      <div class="flex gap-3 mb-8" id="pinDots">
+        <div class="w-4 h-4 rounded-full bg-[#2b5278]"></div>
+        <div class="w-4 h-4 rounded-full bg-[#2b5278]"></div>
+        <div class="w-4 h-4 rounded-full bg-[#2b5278]"></div>
+        <div class="w-4 h-4 rounded-full bg-[#2b5278]"></div>
+      </div>
+      <div class="grid grid-cols-3 gap-4 max-w-[280px] w-full">
+        ${[1,2,3,4,5,6,7,8,9,'bio',0,'del'].map(k => {
+          if(k === 'bio') return `<button onclick="tryBiometric()" class="w-16 h-16 rounded-full bg-[#17212b] text-cyan-400 flex items-center justify-center text-2xl btn-press"><i class="fas fa-fingerprint"></i></button>`;
+          if(k === 'del') return `<button onclick="pinDelete()" class="w-16 h-16 rounded-full bg-[#17212b] text-tg-gray flex items-center justify-center text-xl btn-press"><i class="fas fa-backspace"></i></button>`;
+          return `<button onclick="pinPress('${k}')" class="w-16 h-16 rounded-full bg-[#17212b] hover:bg-[#202b36] text-white flex items-center justify-center text-2xl font-medium btn-press">${k}</button>`;
+        }).join('')}
+      </div>
+      <button onclick="pinLogout()" class="mt-8 text-tg-gray hover:text-white text-xs">Войти под другим аккаунтом</button>
+    </div>
+  `;
+  window._pinEntered = '';
+  refreshEmojis();
+}
+function pinPress(digit){
+  if(window._pinEntered.length >= 4) return;
+  window._pinEntered += digit;
+  updatePinDots();
+  if(window._pinEntered.length === 4){
+    setTimeout(() => {
+      const saved = localStorage.getItem('g67_pin');
+      if(saved === window._pinEntered){
+        if(navigator.vibrate) navigator.vibrate(30);
+        document.getElementById('pinLockScreen')?.remove();
+        location.reload();
+      } else {
+        if(navigator.vibrate) navigator.vibrate([100, 50, 100]);
+        toast('❌ Неверный PIN');
+        window._pinEntered = '';
+        updatePinDots();
+      }
+    }, 150);
+  }
+}
+function pinDelete(){ window._pinEntered = window._pinEntered.slice(0, -1); updatePinDots(); }
+function updatePinDots(){
+  const dots = document.querySelectorAll('#pinDots div');
+  dots.forEach((d, i) => {
+    if(i < window._pinEntered.length) d.className = 'w-4 h-4 rounded-full bg-[#3390ec] transition';
+    else d.className = 'w-4 h-4 rounded-full bg-[#2b5278] transition';
+  });
+}
+function pinLogout(){
+  localStorage.removeItem('g67_pin');
+  localStorage.removeItem('g67_pin_enabled');
+  localStorage.removeItem('g67_currentUser');
+  location.reload();
+}
+async function tryBiometric(){
+  if(!window.PublicKeyCredential){ toast('Не поддерживается'); return; }
+  try {
+    const avail = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    if(!avail){ toast('Нет отпечатка/Face ID'); return; }
+    toast('Проверьте отпечаток...');
+    setTimeout(() => { document.getElementById('pinLockScreen')?.remove(); location.reload(); }, 1000);
+  } catch(e){ toast('Ошибка'); }
+}
+function openPinSettings(){
+  const enabled = localStorage.getItem('g67_pin_enabled') === '1';
+  if(enabled){
+    openModal('PIN-код', `<div class="text-center mb-5"><i class="fas fa-lock text-emerald-400 text-5xl mb-3"></i><p class="text-white font-medium mb-1">PIN-код включён</p><p class="text-tg-gray text-xs">Запрашивается при каждом открытии</p></div><button onclick="changePIN()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm mb-2">Изменить PIN</button><button onclick="disablePIN()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Отключить PIN</button>`);
+    return;
+  }
+  openModal('Включить PIN-код', `<p class="text-white text-sm mb-3">Придумайте 4-значный PIN для входа в приложение</p><input id="newPin" type="tel" maxlength="4" placeholder="••••" inputmode="numeric" class="w-full bg-[#0e1621] text-white px-4 py-4 rounded-xl border border-black/30 focus:border-[#3390ec] text-2xl text-center tracking-[1rem] mb-3"><input id="newPin2" type="tel" maxlength="4" placeholder="Повторите" inputmode="numeric" class="w-full bg-[#0e1621] text-white px-4 py-4 rounded-xl border border-black/30 focus:border-[#3390ec] text-2xl text-center tracking-[1rem] mb-5"><button onclick="enablePIN()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Включить</button>`);
+  setTimeout(() => document.getElementById('newPin')?.focus(), 100);
+}
+function enablePIN(){
+  const p1 = document.getElementById('newPin').value;
+  const p2 = document.getElementById('newPin2').value;
+  if(p1.length !== 4){ toast('4 цифры'); return; }
+  if(p1 !== p2){ toast('PIN не совпадают'); return; }
+  localStorage.setItem('g67_pin', p1);
+  localStorage.setItem('g67_pin_enabled', '1');
+  toast('✅ PIN включён');
+  closeModal();
+}
+function changePIN(){ localStorage.removeItem('g67_pin_enabled'); openPinSettings(); }
+function disablePIN(){
+  if(!confirm('Отключить PIN?')) return;
+  localStorage.removeItem('g67_pin');
+  localStorage.removeItem('g67_pin_enabled');
+  toast('PIN отключён');
+  closeModal();
+}
+
+/* ===== TON CONNECT ===== */
+function initTonConnect(){
+  if(typeof TON_CONNECT_UI === 'undefined') return;
+  try {
+    tonConnectUI = new TON_CONNECT_UI.TonConnectUI({
+      manifestUrl: location.origin + '/sixseven-messenger/tonconnect-manifest.json',
+      buttonRootId: 'tonConnectBtn'
+    });
+    tonConnectUI.onStatusChange(wallet => {
+      if(wallet){
+        const addr = wallet.account.address;
+        database.ref('users/'+db.currentUser.username+'/tonWallet').set({
+          address: addr,
+          chain: wallet.account.chain,
+          walletName: wallet.device.appName || 'TON Wallet',
+          connectedAt: Date.now()
+        });
+        toast('✅ Кошелёк: ' + shortAddr(addr));
+      }
+    });
+  } catch(e){ console.warn('TON Connect init:', e); }
+}
+async function sendTonToWallet(amount){
+  if(!tonConnectUI){ toast('TON Connect не загружен'); return; }
+  if(!tonConnectUI.connected){ toast('Подключите кошелёк'); await tonConnectUI.openModal(); return; }
+  const address = db.currentUser.tonWallet?.address;
+  if(!address){ toast('Нет привязанного кошелька'); return; }
+  const nanoAmount = Math.floor(amount * 1e9).toString();
+  try {
+    const tx = { validUntil: Math.floor(Date.now() / 1000) + 600, messages: [{ address, amount: nanoAmount }] };
+    await tonConnectUI.sendTransaction(tx);
+    toast('✅ Отправлено!');
+  } catch(e){ console.error(e); toast('Ошибка отправки'); }
+}
+function openTonConnectModal(){
+  const u = db.currentUser;
+  const wallet = u.tonWallet;
+  openModal('TON Connect', `
+    <div class="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-5 mb-4 text-white shadow-xl text-center"><i class="fas fa-wallet text-4xl mb-2"></i><div class="text-2xl font-black mb-1">${fmtTon(u.ton||0)} TON</div><p class="text-xs opacity-90">≈ $${((u.ton||0)*TON_USD).toFixed(2)}</p></div>
+    ${wallet ? `
+      <div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 mb-4">
+        <p class="text-tg-gray text-xs mb-1">Привязанный кошелёк</p>
+        <p class="text-cyan-400 font-mono text-sm truncate mb-1">${escapeHtml(wallet.address)}</p>
+        <p class="text-tg-gray text-[10px]">${escapeHtml(wallet.walletName || 'TON Wallet')}</p>
+      </div>
+      <button onclick="sendTonToWallet(${u.ton||0})" ${(!u.ton||u.ton<=0)?'disabled':''} class="w-full ${(u.ton&&u.ton>0)?'bg-cyan-600 hover:bg-cyan-500':'bg-[#2b3a4a] cursor-not-allowed'} text-white font-medium py-3.5 rounded-xl btn-press text-sm mb-2"><i class="fas fa-paper-plane mr-2"></i>Вывести ${fmtTon(u.ton||0)} TON</button>
+      <button onclick="disconnectTon()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3 rounded-xl btn-press text-sm">Отключить кошелёк</button>
+    ` : `
+      <p class="text-white text-sm mb-3 text-center">Подключи TON-кошелёк для вывода средств</p>
+      <p class="text-tg-gray text-xs text-center mb-4">Tonkeeper, MyTonWallet, Telegram Wallet</p>
+      <div id="tonConnectBtn" class="mb-4"></div>
+      <button onclick="tonConnectUI ? tonConnectUI.openModal() : toast('Не загружен')" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm"><i class="fas fa-link mr-2"></i>Подключить кошелёк</button>
+    `}
+  `);
+  setTimeout(initTonConnect, 100);
+}
+async function disconnectTon(){
+  if(tonConnectUI?.connected) await tonConnectUI.disconnect();
+  await database.ref('users/'+db.currentUser.username+'/tonWallet').remove();
+  toast('Кошелёк отключён'); closeModal();
+}
+
+/* ===== AI ПЕРЕВОДЧИК ===== */
+async function translateMsg(mid, targetLang = 'ru'){
+  const m = currentMessages.find(x => x._id === mid);
+  if(!m || !m.text){ toast('Нет текста'); return; }
+  const cacheKey = 'tr_' + mid + '_' + targetLang;
+  const cached = sessionStorage.getItem(cacheKey);
+  if(cached){ showTranslation(mid, cached); return; }
+  if(!AI_API_KEY || AI_API_KEY.includes('ТВОЙ_КЛЮЧ')){ toast('AI не настроен. Получи ключ на openrouter.ai'); return; }
+  toast('🌐 Переводим...');
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + AI_API_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: AI_MODEL,
+        messages: [
+          { role: 'system', content: `Ты переводчик. Переведи текст на ${targetLang === 'ru' ? 'русский' : targetLang === 'en' ? 'английский' : targetLang}. Отвечай ТОЛЬКО переводом, без пояснений.` },
+          { role: 'user', content: m.text }
+        ],
+        max_tokens: 500
+      })
+    });
+    const data = await res.json();
+    const translation = data.choices?.[0]?.message?.content?.trim();
+    if(!translation){ toast('Ошибка перевода'); return; }
+    sessionStorage.setItem(cacheKey, translation);
+    showTranslation(mid, translation);
+  } catch(e){ console.error(e); toast('Ошибка AI'); }
+}
+function showTranslation(mid, text){
+  const row = document.querySelector(`[data-mid="${mid}"]`);
+  if(!row) return;
+  row.querySelector('.translation-box')?.remove();
+  const box = document.createElement('div');
+  box.className = 'translation-box mt-2 pt-2 border-t border-white/10 text-[13px] text-blue-200/90 italic';
+  box.innerHTML = `<i class="fas fa-language mr-1"></i>${escapeHtml(text)}`;
+  row.querySelector('.msg-bubble')?.appendChild(box);
+  refreshEmojis(box);
 }
 
 /* ===== MAIN LAYOUT ===== */
@@ -724,6 +904,7 @@ function renderMainLayout(){
       <div onclick="openBuyUsernameModal()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] flex items-center gap-5 transition"><i class="fas fa-at text-cyan-400 text-lg w-6 text-center"></i> Мои юзернеймы</div>
       <div onclick="openGiftsModal()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] flex items-center gap-5 transition"><i class="fas fa-gift text-pink-400 text-lg w-6 text-center"></i> Подарки и NFT</div>
       <div onclick="openMarketplaceModal()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] flex items-center gap-5 transition"><i class="fas fa-store text-emerald-400 text-lg w-6 text-center"></i> Маркетплейс</div>
+      <div onclick="openAuctionsModal()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] flex items-center gap-5 transition"><i class="fas fa-gavel text-amber-400 text-lg w-6 text-center"></i> Аукционы</div>
       <div onclick="openMyListingsModal()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] flex items-center gap-5 transition"><i class="fas fa-tags text-cyan-400 text-lg w-6 text-center"></i> Мои лоты</div>
       <div onclick="openPremiumModal()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] flex items-center gap-5 transition"><i class="fas fa-crown text-amber-400 text-lg w-6 text-center"></i> Premium</div>
       <div onclick="openNewChatModal()" class="drawer-item px-5 py-3.5 hover:bg-[#202b36] flex items-center gap-5 transition"><i class="far fa-user text-tg-gray text-lg w-6 text-center"></i> Создать чат</div>
@@ -782,14 +963,8 @@ function openStories(uname){
     document.body.insertAdjacentHTML('beforeend', `
       <div id="storyOverlay" class="fixed inset-0 z-[600] bg-black flex flex-col fade-in">
         <div class="flex gap-1 p-2">${progress}</div>
-        <div class="flex items-center gap-3 px-3 py-2">
-          ${getAvatarHtml(u.avatar,u.displayName||uname,10)}
-          <div class="flex-grow"><div class="text-white text-sm font-medium">${escapeHtml(u.displayName||uname)}</div><div class="text-white/60 text-xs">${Math.floor((Date.now()-item.at)/3600000)} ч назад</div></div>
-          <button onclick="closeStory()" class="text-white text-xl p-2"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="flex-grow flex items-center justify-center relative" onclick="nextStory()">
-          ${item.type?.startsWith('video/') ? `<video src="${item.data}" autoplay class="max-w-full max-h-full"></video>` : `<img src="${item.data}" class="max-w-full max-h-full object-contain">`}
-        </div>
+        <div class="flex items-center gap-3 px-3 py-2">${getAvatarHtml(u.avatar,u.displayName||uname,10)}<div class="flex-grow"><div class="text-white text-sm font-medium">${escapeHtml(u.displayName||uname)}</div><div class="text-white/60 text-xs">${Math.floor((Date.now()-item.at)/3600000)} ч назад</div></div><button onclick="closeStory()" class="text-white text-xl p-2"><i class="fas fa-times"></i></button></div>
+        <div class="flex-grow flex items-center justify-center relative" onclick="nextStory()">${item.type?.startsWith('video/') ? `<video src="${item.data}" autoplay class="max-w-full max-h-full"></video>` : `<img src="${item.data}" class="max-w-full max-h-full object-contain">`}</div>
         <div class="absolute left-0 top-12 bottom-0 w-1/3 cursor-pointer" onclick="event.stopPropagation();prevStory()"></div>
         <div class="absolute right-0 top-12 bottom-0 w-1/3 cursor-pointer" onclick="event.stopPropagation();nextStory()"></div>
       </div>
@@ -846,9 +1021,7 @@ function renderSidebar(){
           <div class="text-white font-medium text-[15px] truncate flex items-center gap-1">${escapeHtml(i.name)} ${i.prem?'<i class="fas fa-crown text-amber-400 text-[10px]"></i>':''}</div>
           <div class="text-[11px] ${activeChatId===i.cid?'text-blue-200/90':'text-tg-gray'} shrink-0 flex items-center gap-1">${i.pinned?'<i class="fas fa-thumbtack"></i>':''}${i.lastAt?listTime(i.lastAt):''}</div>
         </div>
-        <div class="flex items-center gap-1 text-[13px] ${activeChatId===i.cid?'text-blue-100/80':'text-tg-gray'} truncate">
-          ${i.mine?'<i class="fas fa-check-double text-[#5eb5f7] text-[11px] shrink-0"></i>':''}<span class="truncate">${escapeHtml(i.lastText)}</span>
-        </div>
+        <div class="flex items-center gap-1 text-[13px] ${activeChatId===i.cid?'text-blue-100/80':'text-tg-gray'} truncate">${i.mine?'<i class="fas fa-check-double text-[#5eb5f7] text-[11px] shrink-0"></i>':''}<span class="truncate">${escapeHtml(i.lastText)}</span></div>
       </div>
     </div>`).join('');
   refreshEmojis(cList);
@@ -901,12 +1074,7 @@ function openChat(cid){
       </div>
     </div>
     <div class="flex gap-4 text-tg-gray text-lg shrink-0 pl-2">
-      ${!isGroup && !isSaved ? `
-        <button onclick="startCall('${Object.keys(chat.members).find(m=>m!==db.currentUser.username)}','audio')" class="hover:text-white cursor-pointer transition p-1" title="Аудио"><i class="fas fa-phone"></i></button>
-        <button onclick="startCall('${Object.keys(chat.members).find(m=>m!==db.currentUser.username)}','video')" class="hover:text-white cursor-pointer transition p-1" title="Видео"><i class="fas fa-video"></i></button>
-      ` : isGroup ? `
-        <button onclick="startGroupCall('${cid}')" class="hover:text-white cursor-pointer transition p-1" title="Групповой звонок"><i class="fas fa-phone-volume"></i></button>
-      ` : ''}
+      ${!isGroup && !isSaved ? `<button onclick="startCall('${Object.keys(chat.members).find(m=>m!==db.currentUser.username)}','audio')" class="hover:text-white cursor-pointer transition p-1" title="Аудио"><i class="fas fa-phone"></i></button><button onclick="startCall('${Object.keys(chat.members).find(m=>m!==db.currentUser.username)}','video')" class="hover:text-white cursor-pointer transition p-1" title="Видео"><i class="fas fa-video"></i></button>` : isGroup ? `<button onclick="startGroupCall('${cid}')" class="hover:text-white cursor-pointer transition p-1" title="Групповой звонок"><i class="fas fa-phone-volume"></i></button>` : ''}
       <button onclick="openSearchInChat()" class="hover:text-white cursor-pointer transition p-1"><i class="fas fa-search"></i></button>
       <button onclick="openChatMenu()" class="hover:text-white cursor-pointer transition p-1"><i class="fas fa-ellipsis-v"></i></button>
     </div>
@@ -917,9 +1085,7 @@ function openChat(cid){
     <div id="scrollBottomBtn" class="scroll-bottom hidden" onclick="scrollToBottom(true)"><i class="fas fa-chevron-down"></i><span class="badge hidden" id="newMsgBadge">0</span></div>
   </div>
   <div id="replyBarWrap"></div>
-  <div id="emojiPreviewBar" class="hidden bg-tg-sidebar border-t border-black/20 px-3 py-1.5 flex items-center gap-2 text-xs text-tg-gray">
-    <span>Превью:</span><div id="emojiPreviewContent" class="flex gap-0.5 items-center text-lg"></div>
-  </div>
+  <div id="emojiPreviewBar" class="hidden bg-tg-sidebar border-t border-black/20 px-3 py-1.5 flex items-center gap-2 text-xs text-tg-gray"><span>Превью:</span><div id="emojiPreviewContent" class="flex gap-0.5 items-center text-lg"></div></div>
   <div id="formatBar" class="hidden bg-tg-sidebar border-t border-black/20 px-3 py-2 flex items-center gap-2">
     <button onclick="toggleFormat('bold')" id="fmt_bold" class="text-tg-gray hover:text-white px-2 py-1 rounded font-bold">B</button>
     <button onclick="toggleFormat('italic')" id="fmt_italic" class="text-tg-gray hover:text-white px-2 py-1 rounded italic">I</button>
@@ -935,10 +1101,7 @@ function openChat(cid){
       </div>
       <div id="emojiTabContent" class="p-3 grid grid-cols-8 gap-1"></div>
       <div id="stickerTabContent" class="p-3 grid grid-cols-4 gap-2 hidden"></div>
-      <div id="gifTabContent" class="p-3 hidden">
-        <input id="gifSearch" type="text" placeholder="Поиск GIF..." oninput="searchGifs(this.value)" class="w-full bg-[#0e1621] text-white px-3 py-2 rounded-lg text-xs mb-2 border border-black/20">
-        <div id="gifGrid" class="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto"></div>
-      </div>
+      <div id="gifTabContent" class="p-3 hidden"><input id="gifSearch" type="text" placeholder="Поиск GIF..." oninput="searchGifs(this.value)" class="w-full bg-[#0e1621] text-white px-3 py-2 rounded-lg text-xs mb-2 border border-black/20"><div id="gifGrid" class="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto"></div></div>
     </div>
     <button onclick="toggleEmoji()" class="text-tg-gray hover:text-[#3390ec] text-xl p-2 shrink-0 transition"><i class="far fa-smile"></i></button>
     <button onclick="openAttachMenu()" class="text-tg-gray hover:text-[#3390ec] text-xl p-2 shrink-0 transition"><i class="fas fa-paperclip"></i></button>
@@ -983,6 +1146,7 @@ function openChat(cid){
 }
 function applyFontScaleToBubbles(){const px=(db.currentUser?.fontScale||15);document.querySelectorAll('#msgContainer [data-msg-text]').forEach(el=>el.style.fontSize=px+'px');}
 function scrollToBottom(smooth=true){const mc=document.getElementById('msgContainer');if(!mc)return;if(smooth)mc.scrollTo({top:mc.scrollHeight,behavior:'smooth'});else mc.scrollTop=mc.scrollHeight;newMessagesCount=0;const b=document.getElementById('newMsgBadge');if(b){b.classList.add('hidden');b.textContent='0';}const btn=document.getElementById('scrollBottomBtn');if(btn)btn.classList.add('hidden');}
+
 /* ===== RENDER MESSAGES ===== */
 function parseFormatted(text){
   if(!text) return '';
@@ -1011,23 +1175,14 @@ function renderMessages(list,isGroup){
       if(m.replyTo){const rq=list.find(x=>x._id===m.replyTo);const rqName=rq?(rq.from===db.currentUser.username?'Вы':(db.users[rq.from]?.displayName||rq.from)):'Сообщение';const rqTxt=rq?(rq.text||(rq.fileType?.startsWith('audio/')?'🎤 Голосовое':(rq.fileType?.startsWith('image/')?'📷 Фото':(rq.fileType?'📎 Вложение':'')))):'недоступно';content+=`<div class="reply-quote" onclick="event.stopPropagation();scrollToMsg('${m.replyTo}')"><div class="rq-from">${escapeHtml(rqName)}</div><div class="rq-text">${escapeHtml(rqTxt)}</div></div>`;}
       if(m.forwardedFrom)content+=`<div class="text-[12px] opacity-70 italic mb-1"><i class="fas fa-share mr-1"></i>Переслано от ${escapeHtml(m.forwardedFrom)}</div>`;
       if(m.gifUrl) content += `<img src="${m.gifUrl}" onclick="event.stopPropagation();openImage(this.src)" class="rounded-xl mb-1 cursor-pointer max-w-[280px]">`;
+      if(m.stickerUrl) content += `<img src="${m.stickerUrl}" class="w-32 h-32 object-contain" onclick="event.stopPropagation()">`;
       if(m.pollId) content += renderPoll(m.pollId, m._id);
-      if(m.fileType?.startsWith('video/') && m.isCircle){
-        content += `<div class="relative w-[200px] h-[200px]"><video src="${m.fileData}" class="w-full h-full rounded-full object-cover cursor-pointer" onclick="event.stopPropagation();openCircleView('${m.fileData}')" loop></video></div>`;
-      } else if(m.fileType?.startsWith('video/')){
-        content+=`<video src="${m.fileData}" controls class="rounded-xl mb-1 cursor-pointer max-w-[280px] max-h-[320px]" onclick="event.stopPropagation()"></video>`;
-      } else if(m.fileType?.startsWith('image/')){
-        content+=`<img src="${m.fileData}" onclick="event.stopPropagation();openImage(this.src)" class="rounded-xl mb-1 cursor-pointer max-w-[280px] max-h-[320px] object-cover">`;
-      } else if(m.fileType?.startsWith('audio/')){
-        const dur=m.duration||0;const bars=Array.from({length:24},()=>2+Math.floor(Math.random()*10));
-        content+=`<div class="voice-bubble"><audio id="aud_${m._id}" src="${m.fileData}" preload="metadata" ontimeupdate="voiceTime(this)"></audio><div class="voice-play" onclick="event.stopPropagation();toggleAudio('${m._id}')"><i class="fas fa-play" id="vp_${m._id}"></i></div><div class="voice-wave">${bars.map(h=>`<i style="height:${h}px"></i>`).join('')}</div><div class="voice-time" id="vt_${m._id}">${fmtDuration(dur)}</div></div>`;
-      } else if(m.fileType){
-        content+=`<a href="${m.fileData}" download="${escapeHtml(m.fileName||'file')}" onclick="event.stopPropagation()" class="flex items-center gap-3 bg-black/25 hover:bg-black/35 p-2.5 rounded-xl text-white transition"><div class="w-10 h-10 bg-[#3390ec] rounded-full flex items-center justify-center shrink-0"><i class="fas fa-arrow-down"></i></div><div class="truncate max-w-[180px] text-sm font-medium">${escapeHtml(m.fileName||'файл')}</div></a>`;
-      }
-      if(m.text){
-        const formatted = parseFormatted(m.text);
-        content+=`<div data-msg-text class="text-white whitespace-pre-wrap break-words leading-[1.35] ${m.fileType?'mt-1':''}" style="font-size:${db.currentUser?.fontScale||15}px">${formatted}${m.edited?' <span class="text-[10px] opacity-60 italic">(изм.)</span>':''}</div>`;
-      }
+      if(m.fileType?.startsWith('video/') && m.isCircle){content += `<div class="relative w-[200px] h-[200px]"><video src="${m.fileData}" class="w-full h-full rounded-full object-cover cursor-pointer" onclick="event.stopPropagation();openCircleView('${m.fileData}')" loop></video></div>`;}
+      else if(m.fileType?.startsWith('video/')){content+=`<video src="${m.fileData}" controls class="rounded-xl mb-1 cursor-pointer max-w-[280px] max-h-[320px]" onclick="event.stopPropagation()"></video>`;}
+      else if(m.fileType?.startsWith('image/')){content+=`<img src="${m.fileData}" onclick="event.stopPropagation();openImage(this.src)" class="rounded-xl mb-1 cursor-pointer max-w-[280px] max-h-[320px] object-cover">`;}
+      else if(m.fileType?.startsWith('audio/')){const dur=m.duration||0;const bars=Array.from({length:24},()=>2+Math.floor(Math.random()*10));content+=`<div class="voice-bubble"><audio id="aud_${m._id}" src="${m.fileData}" preload="metadata" ontimeupdate="voiceTime(this)"></audio><div class="voice-play" onclick="event.stopPropagation();toggleAudio('${m._id}')"><i class="fas fa-play" id="vp_${m._id}"></i></div><div class="voice-wave">${bars.map(h=>`<i style="height:${h}px"></i>`).join('')}</div><div class="voice-time" id="vt_${m._id}">${fmtDuration(dur)}</div></div>`;}
+      else if(m.fileType){content+=`<a href="${m.fileData}" download="${escapeHtml(m.fileName||'file')}" onclick="event.stopPropagation()" class="flex items-center gap-3 bg-black/25 hover:bg-black/35 p-2.5 rounded-xl text-white transition"><div class="w-10 h-10 bg-[#3390ec] rounded-full flex items-center justify-center shrink-0"><i class="fas fa-arrow-down"></i></div><div class="truncate max-w-[180px] text-sm font-medium">${escapeHtml(m.fileName||'файл')}</div></a>`;}
+      if(m.text){const formatted = parseFormatted(m.text);content+=`<div data-msg-text class="text-white whitespace-pre-wrap break-words leading-[1.35] ${m.fileType?'mt-1':''}" style="font-size:${db.currentUser?.fontScale||15}px">${formatted}${m.edited?' <span class="text-[10px] opacity-60 italic">(изм.)</span>':''}</div>`;}
     }
     let reactHtml='';
     if(m.reactions&&Object.keys(m.reactions).length){
@@ -1042,14 +1197,9 @@ function renderMessages(list,isGroup){
   return html;
 }
 function renderPoll(pollId, msgId){
-  const p = db.polls?.[pollId];
-  if(!p) return '<div class="text-tg-gray text-xs italic">Опрос недоступен</div>';
+  const p = db.polls?.[pollId]; if(!p) return '<div class="text-tg-gray text-xs italic">Опрос недоступен</div>';
   const totalVotes = Object.values(p.votes||{}).reduce((s,v) => s + Object.keys(v).length, 0);
-  const opts = (p.options||[]).map((o, idx) => {
-    const cnt = p.votes?.[idx] ? Object.keys(p.votes[idx]).length : 0;
-    const pct = totalVotes ? Math.round(cnt/totalVotes*100) : 0;
-    return `<div onclick="votePoll('${pollId}',${idx})" class="bg-black/20 hover:bg-black/30 rounded-lg p-2.5 cursor-pointer mb-1.5 transition"><div class="flex justify-between text-sm mb-1"><span class="text-white">${escapeHtml(o)}</span><span class="text-white/70 text-xs">${cnt} · ${pct}%</span></div><div class="poll-bar"><div class="poll-bar-fill" style="width:${pct}%"></div></div></div>`;
-  }).join('');
+  const opts = (p.options||[]).map((o, idx) => {const cnt = p.votes?.[idx] ? Object.keys(p.votes[idx]).length : 0;const pct = totalVotes ? Math.round(cnt/totalVotes*100) : 0;return `<div onclick="votePoll('${pollId}',${idx})" class="bg-black/20 hover:bg-black/30 rounded-lg p-2.5 cursor-pointer mb-1.5 transition"><div class="flex justify-between text-sm mb-1"><span class="text-white">${escapeHtml(o)}</span><span class="text-white/70 text-xs">${cnt} · ${pct}%</span></div><div class="poll-bar"><div class="poll-bar-fill" style="width:${pct}%"></div></div></div>`;}).join('');
   return `<div class="min-w-[240px]"><div class="text-white font-medium text-sm mb-2">📊 ${escapeHtml(p.question)}</div>${opts}<div class="text-white/60 text-xs mt-2">${totalVotes} ${plural(totalVotes,'голос','голоса','голосов')}</div></div>`;
 }
 async function votePoll(pollId, optIdx){
@@ -1068,11 +1218,8 @@ function bindMsgEvents(container){
     const start=e=>{const pt=e.touches?e.touches[0]:e;startX=pt.clientX;startY=pt.clientY;moved=false;pressTimer=setTimeout(()=>{if(!moved)showMsgContextMenu(el.dataset.mid,el.dataset.mine==='1',startX,startY);},450);};
     const move=e=>{const pt=e.touches?e.touches[0]:e;if(Math.abs(pt.clientX-startX)>8||Math.abs(pt.clientY-startY)>8)moved=true;if(moved)clearTimeout(pressTimer);};
     const end=()=>{clearTimeout(pressTimer);};
-    el.addEventListener('touchstart',start,{passive:true});
-    el.addEventListener('touchmove',move,{passive:true});
-    el.addEventListener('touchend',end);el.addEventListener('touchcancel',end);
-    el.addEventListener('mousedown',start);el.addEventListener('mousemove',move);
-    el.addEventListener('mouseup',end);el.addEventListener('mouseleave',end);
+    el.addEventListener('touchstart',start,{passive:true});el.addEventListener('touchmove',move,{passive:true});el.addEventListener('touchend',end);el.addEventListener('touchcancel',end);
+    el.addEventListener('mousedown',start);el.addEventListener('mousemove',move);el.addEventListener('mouseup',end);el.addEventListener('mouseleave',end);
     el.addEventListener('contextmenu',e=>{e.preventDefault();showMsgContextMenu(el.dataset.mid,el.dataset.mine==='1',e.clientX,e.clientY);});
     el.addEventListener('dblclick',e=>{e.preventDefault();if(el.dataset.mine==='0')replyToMsg(el.dataset.mid);});
   });
@@ -1090,18 +1237,14 @@ async function showMsgContextMenu(mid,isMine,x,y){
   document.body.appendChild(picker);
   picker.addEventListener('click',e=>{const btn=e.target.closest('button');if(!btn)return;if(btn.dataset.emoji)toggleReaction(mid,btn.dataset.emoji);else if(btn.dataset.more){document.querySelectorAll('.ctx-menu, .reaction-picker').forEach(el=>el.remove());openFullReactionPicker(mid);}picker.remove();document.getElementById('ctxMenuX')?.remove();});
   const items=[];
+  if(msg.text) items.push({icon:'fa-language', label:'Перевести', fn:()=>{translateMsg(mid);closeAllOverlays();}});
   items.push({icon:'fa-reply',label:'Ответить',fn:()=>replyToMsg(mid)});
   if(msg.text)items.push({icon:'fa-copy',label:'Копировать',fn:()=>copyToClipboard(msg.text)});
   items.push({icon:'fa-share',label:'Переслать',fn:()=>openForwardModal(mid)});
   items.push({icon:'fa-thumbtack',label:msg.pinned?'Открепить':'Закрепить',fn:()=>togglePin(mid)});
   if(msg.text&&!msg.fileType)items.push({icon:'fa-bookmark',label:'В избранное',fn:()=>saveToSaved(mid)});
-  if(isMine){
-    if(msg.text&&!msg.fileType)items.push({icon:'fa-pen',label:'Изменить',fn:()=>startEdit(mid)});
-    items.push({icon:'fa-trash',label:'Удалить',danger:true,fn:()=>deleteMsg(mid)});
-  } else {
-    items.push({icon:'fa-trash',label:'Удалить у себя',danger:true,fn:()=>deleteMsg(mid,false)});
-    items.push({icon:'fa-flag',label:'Пожаловаться',danger:true,fn:()=>reportMsg(mid)});
-  }
+  if(isMine){if(msg.text&&!msg.fileType)items.push({icon:'fa-pen',label:'Изменить',fn:()=>startEdit(mid)});items.push({icon:'fa-trash',label:'Удалить',danger:true,fn:()=>deleteMsg(mid)});}
+  else{items.push({icon:'fa-trash',label:'Удалить у себя',danger:true,fn:()=>deleteMsg(mid,false)});items.push({icon:'fa-flag',label:'Пожаловаться',danger:true,fn:()=>reportMsg(mid)});}
   const menu=document.createElement('div');
   menu.className='ctx-menu pop-in fixed';
   menu.id='ctxMenuX';
@@ -1111,12 +1254,12 @@ async function showMsgContextMenu(mid,isMine,x,y){
   document.body.appendChild(menu);
   menu.addEventListener('click',e=>{const it=e.target.closest('.ctx-item');if(!it)return;items[+it.dataset.idx].fn();menu.remove();picker.remove();});
 }
+function closeAllOverlays(){document.querySelectorAll('.ctx-menu, .reaction-picker, .side-ctx, .mention-dropdown').forEach(el=>el.remove());}
 function openFullReactionPicker(mid){
   const all=['👍','❤️','🔥','😂','😮','😢','👏','🎉','🥰','😍','🤔','😴','🤯','😡','👀','🙏','💪','✨','⭐','🌟','🤝','🙌','💯','🫡','🗿','🍾','🎯','⚡','🎁','💎','👑','🐱','🐶','🦊','🦄','🐻','🍕','🍔','🍟','⚽','🎮','🚀','✈️','🏆','🚨','💀','🎵','☕','🍀','🌈'];
   const picker=document.createElement('div');
   picker.className='reaction-picker pop-in fixed';
-  picker.style.left='50%';picker.style.top='50%';picker.style.transform='translate(-50%,-50%)';
-  picker.style.flexWrap='wrap';picker.style.maxWidth='92vw';picker.style.width='440px';
+  picker.style.left='50%';picker.style.top='50%';picker.style.transform='translate(-50%,-50%)';picker.style.flexWrap='wrap';picker.style.maxWidth='92vw';picker.style.width='440px';
   picker.innerHTML=all.map(e=>`<button data-emoji="${e}">${emojiPickerBtn(e,28)}</button>`).join('');
   document.body.appendChild(picker);
   picker.addEventListener('click',e=>{const btn=e.target.closest('button');if(!btn)return;toggleReaction(mid,btn.dataset.emoji);picker.remove();});
@@ -1175,6 +1318,7 @@ async function doForward(mid,cid){
   if(m.fileData){payload.fileData=m.fileData;payload.fileType=m.fileType;payload.fileName=m.fileName;}
   if(m.duration)payload.duration=m.duration;
   if(m.gifUrl)payload.gifUrl=m.gifUrl;
+  if(m.stickerUrl)payload.stickerUrl=m.stickerUrl;
   await database.ref(`messages/${cid}/${newId}`).set(payload);
   await database.ref(`chats/${cid}/lastMessage`).set({text:payload.text||'📎 Вложение',from:db.currentUser.username,at:Date.now()});
   toast('Переслано');
@@ -1191,6 +1335,7 @@ async function saveToSaved(mid){
   if(m.fileData){payload.fileData=m.fileData;payload.fileType=m.fileType;payload.fileName=m.fileName;}
   if(m.duration)payload.duration=m.duration;
   if(m.gifUrl)payload.gifUrl=m.gifUrl;
+  if(m.stickerUrl)payload.stickerUrl=m.stickerUrl;
   await database.ref(`messages/${savedCid}/${newId}`).set(payload);
   await database.ref(`chats/${savedCid}/lastMessage`).set({text:payload.text||'📎 Вложение',from:db.currentUser.username,at:Date.now()});
   toast('Сохранено');
@@ -1232,11 +1377,7 @@ function runChatSearch(q){
   if(!q){box.innerHTML='Введите запрос';return;}
   const hits=currentMessages.filter(m=>m.text&&m.text.toLowerCase().includes(q));
   if(!hits.length){box.innerHTML='<div class="text-center py-4">Ничего не найдено</div>';return;}
-  box.innerHTML=hits.map(m=>{
-    const name=m.from===db.currentUser.username?'Вы':(db.users[m.from]?.displayName||m.from);
-    const txt=m.text.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<mark class="bg-yellow-400/40 text-white">$1</mark>');
-    return `<div onclick="closeModal(); scrollToMsg('${m._id}')" class="p-2.5 hover:bg-[#202b36] rounded-xl cursor-pointer"><div class="flex justify-between text-xs mb-1"><span class="text-[#3390ec] font-medium">${escapeHtml(name)}</span><span>${listTime(m.at)}</span></div><div class="text-white text-sm truncate">${txt}</div></div>`;
-  }).join('');
+  box.innerHTML=hits.map(m=>{const name=m.from===db.currentUser.username?'Вы':(db.users[m.from]?.displayName||m.from);const txt=m.text.replace(new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'),'<mark class="bg-yellow-400/40 text-white">$1</mark>');return `<div onclick="closeModal(); scrollToMsg('${m._id}')" class="p-2.5 hover:bg-[#202b36] rounded-xl cursor-pointer"><div class="flex justify-between text-xs mb-1"><span class="text-[#3390ec] font-medium">${escapeHtml(name)}</span><span>${listTime(m.at)}</span></div><div class="text-white text-sm truncate">${txt}</div></div>`;}).join('');
 }
 function onTypingLocal(){
   updateMicSendButtonsForce();
@@ -1256,20 +1397,17 @@ function handleMsgKeydown(e){
 }
 function toggleFormat(type){
   const inp=document.getElementById('msgInput');if(!inp)return;
-  const start=inp.selectionStart,end=inp.selectionEnd;
-  const sel=inp.value.slice(start,end);
+  const start=inp.selectionStart,end=inp.selectionEnd;const sel=inp.value.slice(start,end);
   let wrap='';
   if(type==='bold')wrap='**';else if(type==='italic')wrap='__';else if(type==='code')wrap='`';else if(type==='spoiler')wrap='||';
   if(!wrap)return;
   const text=wrap+(sel||'')+wrap;
   inp.value=inp.value.slice(0,start)+text+inp.value.slice(end);
-  inp.focus();
-  inp.setSelectionRange(start+wrap.length,start+wrap.length+sel.length);
+  inp.focus();inp.setSelectionRange(start+wrap.length,start+wrap.length+sel.length);
   const btn=document.getElementById('fmt_'+type);if(btn)btn.classList.toggle('text-[#3390ec]');
 }
 function handleMentionInput(inp){
-  const val=inp.value;const pos=inp.selectionStart;
-  const last=val.lastIndexOf('@',pos-1);
+  const val=inp.value;const pos=inp.selectionStart;const last=val.lastIndexOf('@',pos-1);
   if(last>=0){const query=val.slice(last+1,pos);if(query.length>=1&&!query.includes(' ')&&query.length<=20){showMentionDropdown(query,last);return;}}
   document.querySelector('.mention-dropdown')?.remove();
 }
@@ -1281,9 +1419,7 @@ function showMentionDropdown(query,startPos){
   dropdown.className='mention-dropdown ctx-menu pop-in fixed';
   const inp=document.getElementById('msgInput');
   const rect=inp.getBoundingClientRect();
-  dropdown.style.left=rect.left+'px';
-  dropdown.style.top=(rect.top-10)+'px';
-  dropdown.style.transform='translateY(-100%)';
+  dropdown.style.left=rect.left+'px';dropdown.style.top=(rect.top-10)+'px';dropdown.style.transform='translateY(-100%)';
   dropdown.innerHTML=matches.map(u=>{const user=db.users[u]||{};return `<div onclick="insertMention('${u}',${startPos})" class="ctx-item"><div class="w-8 h-8">${getAvatarHtml(user.avatar,user.displayName||u,8)}</div><span class="text-sm">${escapeHtml(user.displayName||u)}</span><span class="text-tg-gray text-xs ml-auto">@${escapeHtml(u)}</span></div>`;}).join('');
   document.body.appendChild(dropdown);
 }
@@ -1291,8 +1427,7 @@ function insertMention(uname,startPos){
   const inp=document.getElementById('msgInput');const pos=inp.selectionStart;const val=inp.value;
   inp.value=val.slice(0,startPos)+'@'+uname+' '+val.slice(pos);
   inp.focus();inp.setSelectionRange(startPos+uname.length+2,startPos+uname.length+2);
-  document.querySelector('.mention-dropdown')?.remove();
-  autoGrow(inp);
+  document.querySelector('.mention-dropdown')?.remove();autoGrow(inp);
 }
 async function sendMsg(){
   const inp=document.getElementById('msgInput');if(!inp||!activeChatId)return;
@@ -1316,8 +1451,7 @@ async function toggleRecording(){
   if(!navigator.mediaDevices||!window.MediaRecorder){toast('Не поддерживается');return;}
   try{
     const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-    mediaRecorder=new MediaRecorder(stream);
-    recordedChunks=[];
+    mediaRecorder=new MediaRecorder(stream);recordedChunks=[];
     mediaRecorder.ondataavailable=e=>{if(e.data.size)recordedChunks.push(e.data);};
     mediaRecorder.onstop=async()=>{
       stream.getTracks().forEach(t=>t.stop());
@@ -1338,24 +1472,17 @@ async function toggleRecording(){
 }
 function startRecUI(){
   const mic=document.getElementById('micBtn');if(!mic)return;
-  mic.classList.remove('hidden');
-  mic.innerHTML='<i class="fas fa-stop text-red-500"></i>';
+  mic.classList.remove('hidden');mic.innerHTML='<i class="fas fa-stop text-red-500"></i>';
   const send=document.getElementById('sendBtn');if(send)send.classList.add('hidden');
   const inp=document.getElementById('msgInput');if(inp){inp.disabled=true;inp.placeholder='Запись...';}
-  const parent=mic.parentElement;
-  let counter=document.createElement('div');
+  const parent=mic.parentElement;let counter=document.createElement('div');
   counter.id='recTimer';counter.className='text-red-400 text-sm font-mono flex items-center gap-2';
   counter.innerHTML='<span class="rec-dot"></span><span id="recSecs">0:00</span>';
   parent.insertBefore(counter,mic);
-  recTimerInt=setInterval(()=>{
-    const s=Math.floor((Date.now()-recStartAt)/1000);
-    const el=document.getElementById('recSecs');if(el)el.textContent=fmtDuration(s);
-    if(s>=60)mediaRecorder.stop();
-  },250);
+  recTimerInt=setInterval(()=>{const s=Math.floor((Date.now()-recStartAt)/1000);const el=document.getElementById('recSecs');if(el)el.textContent=fmtDuration(s);if(s>=60)mediaRecorder.stop();},250);
 }
 function micBtnReset(){
-  clearInterval(recTimerInt);recTimerInt=null;
-  document.getElementById('recTimer')?.remove();
+  clearInterval(recTimerInt);recTimerInt=null;document.getElementById('recTimer')?.remove();
   const mic=document.getElementById('micBtn');if(mic)mic.innerHTML='<i class="fas fa-microphone"></i>';
   const inp=document.getElementById('msgInput');if(inp){inp.disabled=false;inp.placeholder='Написать сообщение...';}
   updateMicSendButtonsForce();
@@ -1365,8 +1492,7 @@ async function toggleCircleRec(){
   if(!navigator.mediaDevices){toast('Не поддерживается');return;}
   try{
     const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:480,height:480},audio:true});
-    circleRecorder=new MediaRecorder(stream);
-    circleChunks=[];
+    circleRecorder=new MediaRecorder(stream);circleChunks=[];
     circleRecorder.ondataavailable=e=>{if(e.data.size)circleChunks.push(e.data);};
     circleRecorder.onstop=async()=>{
       stream.getTracks().forEach(t=>t.stop());
@@ -1377,29 +1503,22 @@ async function toggleCircleRec(){
       const mid=uid();const now=Date.now();
       await database.ref(`messages/${activeChatId}/${mid}`).set({from:db.currentUser.username,fileData:b64,fileType:'video/webm',fileName:'circle.webm',duration:dur,isCircle:true,at:now});
       await database.ref(`chats/${activeChatId}/lastMessage`).set({text:'⭕ Кружок',from:db.currentUser.username,fileType:'video/webm',isCircle:true,at:now});
-      circleBtnReset();
-      setTimeout(()=>scrollToBottom(false),50);
+      circleBtnReset();setTimeout(()=>scrollToBottom(false),50);
     };
     circleRecorder.start();circleRecStartAt=Date.now();startCircleUI();
   }catch(err){console.error(err);toast('Нет доступа к камере');}
 }
 function startCircleUI(){
   const circle=document.getElementById('circleBtn');if(!circle)return;
-  circle.classList.remove('hidden');
-  circle.innerHTML='<i class="fas fa-stop text-red-500"></i>';
+  circle.classList.remove('hidden');circle.innerHTML='<i class="fas fa-stop text-red-500"></i>';
   const send=document.getElementById('sendBtn');if(send)send.classList.add('hidden');
   const mic=document.getElementById('micBtn');if(mic)mic.classList.add('hidden');
   const inp=document.getElementById('msgInput');if(inp){inp.disabled=true;inp.placeholder='Запись кружка...';}
-  const parent=circle.parentElement;
-  let counter=document.createElement('div');
+  const parent=circle.parentElement;let counter=document.createElement('div');
   counter.id='circleTimer';counter.className='text-red-400 text-sm font-mono flex items-center gap-2';
   counter.innerHTML='<span class="rec-dot"></span><span id="circleSecs">0:00</span>';
   parent.insertBefore(counter,circle);
-  const int=setInterval(()=>{
-    const s=Math.floor((Date.now()-circleRecStartAt)/1000);
-    const el=document.getElementById('circleSecs');if(el)el.textContent=fmtDuration(s);
-    if(s>=60){clearInterval(int);circleRecorder.stop();}
-  },250);
+  const int=setInterval(()=>{const s=Math.floor((Date.now()-circleRecStartAt)/1000);const el=document.getElementById('circleSecs');if(el)el.textContent=fmtDuration(s);if(s>=60){clearInterval(int);circleRecorder.stop();}},250);
   circle._timerInt=int;
 }
 function circleBtnReset(){
@@ -1441,27 +1560,45 @@ function setEmojiTab(tab){
   document.getElementById('stickerTabContent').classList.toggle('hidden',tab!=='sticker');
   document.getElementById('gifTabContent').classList.toggle('hidden',tab!=='gif');
   if(tab==='gif')searchGifs('');
+  if(tab==='sticker')loadStickers();
 }
-function renderEmojiTab(){
+async function renderEmojiTab(){
   const emojiList=['😀','😂','🥰','😎','🤔','😭','😡','👍','👎','🔥','❤️','💔','🎉','🎁','⭐','🌟','🙏','🤝','💪','✨','🥳','😴','🤯','🙄','👀','🤗','😅','🤣','😍','😘','🤔','🤫','🥺','😳','🤤','😇','🤠','🤡','👻','💀','💩','🤖','👽','😈','🤬','🥶','🤧','🤒','😷','👶','🧑','👨','👩','🧓','👮','🕵️','💼','🎓','🔧','⚙️','🧪','🎨','📸','🎬','🎵','⚽','🎮','🎲','🃏','🎯','🏆','🥇'];
   const grid=document.getElementById('emojiTabContent');
   if(grid)grid.innerHTML=emojiList.map(e=>`<button onclick="insertEmoji('${e}')" class="emoji-btn rounded-lg p-1 transition">${emojiPickerBtn(e,26)}</button>`).join('');
+}
+async function loadStickers(){
   const stickerGrid=document.getElementById('stickerTabContent');
-  if(stickerGrid){
-    const stickers=['🐱','🐶','🦊','🐻','🐼','🦁','🐯','🐸','🐵','🦄','🐧','🐦','🦆','🦉','🐺','🐗','🦌','🐴','🐌','🐞','🦋','🐝','🌻','🌸','🌺','🌹','🌷','🌼','🍀','🌿','🍁','🍂','🎃','🎄','🎁','🎈','🎉','⭐','💫','✨','🌟','☀️','🌙','⛅','🌈','☔','❄️','⚡','🔥','💧','🌊','🍎','🍊','🍋','🍉','🍓','🍒','🍑','🥭','🍍','🥥','🍕','🍔','🍟','🌭'];
+  if(!stickerGrid) return;
+  stickerGrid.innerHTML = '<div class="col-span-4 text-center text-tg-gray text-xs py-4">Загрузка...</div>';
+  const snap = await database.ref('stickerPacks').once('value');
+  const packs = snap.val() || {};
+  const packIds = Object.keys(packs);
+  if(!packIds.length){
+    const stickers=['🐱','🐶','🦊','🐻','🐼','🦁','🐯','🐸','🐵','🦄','🐧','🐦','🦆','🦉','🐺','🐗','🦌','🐴','🐌','🐞','🦋','🐝','🌻','🌸','🌺','🌹','🌷','🌼','🍀','🌿','🍁','🍂','🎃','🎄','🎁','🎈','🎉','⭐','💫','✨','🌟','☀️','🌙','⛅','🌈','☔','❄️','⚡','🔥'];
     stickerGrid.innerHTML=stickers.map(s=>`<button onclick="insertEmoji('${s}')" class="hover:scale-125 transition p-1">${emojiPickerBtn(s,44)}</button>`).join('');
+    return;
   }
+  let html = '';
+  for(const pid of packIds){
+    const pack = packs[pid];
+    html += `<div class="col-span-4 text-[10px] text-tg-gray uppercase font-bold mt-2 mb-1">${escapeHtml(pack.name)}</div>`;
+    Object.values(pack.stickers||{}).forEach(url => {
+      html += `<button onclick="sendSticker('${escapeHtml(url)}')" class="hover:scale-110 transition p-1"><img src="${url}" class="w-16 h-16 object-contain"></button>`;
+    });
+  }
+  stickerGrid.innerHTML = html;
+}
+async function sendSticker(url){
+  if(!activeChatId) return;
+  const mid = uid();
+  await database.ref(`messages/${activeChatId}/${mid}`).set({ from: db.currentUser.username, stickerUrl: url, at: Date.now() });
+  await database.ref(`chats/${activeChatId}/lastMessage`).set({ text: '🎨 Стикер', from: db.currentUser.username, at: Date.now() });
+  toggleEmoji();
 }
 function searchGifs(q){
   const grid=document.getElementById('gifGrid');if(!grid)return;
-  const gifs=[
-    {u:'https://media.giphy.com/media/3o6Zt6ML6BklcajjsA/giphy.gif',t:'hello'},
-    {u:'https://media.giphy.com/media/l0MYC0LajbaPoEADu/giphy.gif',t:'dance'},
-    {u:'https://media.giphy.com/media/26u4cqi2We0KpN8By/giphy.gif',t:'party'},
-    {u:'https://media.giphy.com/media/3o7aCSPqXE5C6T8tBC/giphy.gif',t:'cat'},
-    {u:'https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif',t:'dog'},
-    {u:'https://media.giphy.com/media/13CoXDiaCcCoyk/giphy.gif',t:'funny'}
-  ].filter(g=>!q||g.t.includes(q.toLowerCase()));
+  const gifs=[{u:'https://media.giphy.com/media/3o6Zt6ML6BklcajjsA/giphy.gif',t:'hello'},{u:'https://media.giphy.com/media/l0MYC0LajbaPoEADu/giphy.gif',t:'dance'},{u:'https://media.giphy.com/media/26u4cqi2We0KpN8By/giphy.gif',t:'party'},{u:'https://media.giphy.com/media/3o7aCSPqXE5C6T8tBC/giphy.gif',t:'cat'},{u:'https://media.giphy.com/media/mlvseq9yvZhba/giphy.gif',t:'dog'},{u:'https://media.giphy.com/media/13CoXDiaCcCoyk/giphy.gif',t:'funny'}].filter(g=>!q||g.t.includes(q.toLowerCase()));
   grid.innerHTML=gifs.map(g=>`<img src="${g.u}" onclick="sendGif('${g.u}')" class="w-full h-24 object-cover rounded-lg cursor-pointer hover:opacity-80 transition">`).join('');
 }
 async function sendGif(url){
@@ -1485,22 +1622,13 @@ function openAttachMenu(){
 }
 function openCreatePollModal(){
   if(!activeChatId)return;
-  openModal('Создать опрос',`
-    <input id="pollQ" type="text" placeholder="Вопрос" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-3 transition">
-    <div id="pollOpts" class="space-y-2 mb-3">
-      <input type="text" placeholder="Вариант 1" class="poll-opt w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm">
-      <input type="text" placeholder="Вариант 2" class="poll-opt w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm">
-    </div>
-    <button onclick="addPollOption()" class="text-[#3390ec] text-sm mb-4"><i class="fas fa-plus mr-1"></i>Добавить вариант</button>
-    <button onclick="doCreatePoll()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Создать</button>
-  `);
+  openModal('Создать опрос',`<input id="pollQ" type="text" placeholder="Вопрос" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-3 transition"><div id="pollOpts" class="space-y-2 mb-3"><input type="text" placeholder="Вариант 1" class="poll-opt w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm"><input type="text" placeholder="Вариант 2" class="poll-opt w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm"></div><button onclick="addPollOption()" class="text-[#3390ec] text-sm mb-4"><i class="fas fa-plus mr-1"></i>Добавить вариант</button><button onclick="doCreatePoll()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Создать</button>`);
 }
 function addPollOption(){
   const box=document.getElementById('pollOpts');if(!box)return;
   const n=box.querySelectorAll('.poll-opt').length+1;
   if(n>10){toast('Максимум 10');return;}
-  const inp=document.createElement('input');
-  inp.type='text';inp.placeholder='Вариант '+n;
+  const inp=document.createElement('input');inp.type='text';inp.placeholder='Вариант '+n;
   inp.className='poll-opt w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm';
   box.appendChild(inp);
 }
@@ -1542,8 +1670,7 @@ document.getElementById('hiddenGiftIconInput').addEventListener('change',async e
   const f=e.target.files[0];e.target.value='';
   if(!f)return;
   if(f.size>300000){toast('Максимум 300KB');return;}
-  const b=await fileToBase64(f);
-  setGiftIcon(b);
+  const b=await fileToBase64(f);setGiftIcon(b);
 });
 document.getElementById('hiddenChatBgInput').addEventListener('change',async e=>{
   const f=e.target.files[0];e.target.value='';
@@ -1597,11 +1724,7 @@ function openProfileModal(username){
       <div class="flex flex-wrap gap-1 justify-center mb-2">${unames.map(un=>`<span class="bg-[#0e1621] border border-black/30 rounded-full px-2.5 py-0.5 text-tg-blue text-xs">@${escapeHtml(un)}</span>`).join('')}</div>
       <p class="text-tg-gray text-xs">${isOnline(u)?'<span class="text-emerald-400">● в сети</span>':escapeHtml(lastSeenText(u))}</p>
     </div>
-    ${!isMe?`<div class="grid grid-cols-3 gap-2 mb-5">
-      <button onclick="closeModal();startDialogWith('${username}')" class="profile-action"><i class="fas fa-comment"></i><span>Написать</span></button>
-      <button onclick="startCall('${username}','audio')" class="profile-action"><i class="fas fa-phone"></i><span>Аудио</span></button>
-      <button onclick="startCall('${username}','video')" class="profile-action"><i class="fas fa-video"></i><span>Видео</span></button>
-    </div>`:''}
+    ${!isMe?`<div class="grid grid-cols-3 gap-2 mb-5"><button onclick="closeModal();startDialogWith('${username}')" class="profile-action"><i class="fas fa-comment"></i><span>Написать</span></button><button onclick="startCall('${username}','audio')" class="profile-action"><i class="fas fa-phone"></i><span>Аудио</span></button><button onclick="startCall('${username}','video')" class="profile-action"><i class="fas fa-video"></i><span>Видео</span></button></div>`:''}
     <div class="space-y-3 bg-[#0e1621] p-4 rounded-2xl border border-black/30 text-sm mb-5">
       <div><span class="text-tg-gray text-xs block mb-0.5">Телефон</span><span class="text-white font-medium">${escapeHtml(u.phone||'Не указан')}</span></div>
       <div><span class="text-tg-gray text-xs block mb-0.5">О себе</span><span class="text-white font-medium">${escapeHtml(u.bio||'Добро пожаловать!')}</span></div>
@@ -1618,12 +1741,7 @@ function openMyProfile(){
   const u=db.users[db.currentUser.username]||db.currentUser;
   const unames=Object.keys(u.usernames||{[u.username]:1});
   openModal('Мой профиль',`
-    <div class="text-center mb-5">
-      <div class="mb-3 flex justify-center">${getAvatarHtml(u.avatar,u.displayName||u.username,24)}</div>
-      <h3 class="text-white text-xl font-bold flex items-center justify-center gap-1.5">${escapeHtml(u.displayName||u.username)} ${isPrem(u)?'<i class="fas fa-crown text-amber-300 text-sm"></i>':''}</h3>
-      <div class="flex flex-wrap gap-1 justify-center mb-2">${unames.map(un=>`<span class="bg-[#0e1621] border border-black/30 rounded-full px-2.5 py-0.5 text-tg-blue text-xs">@${escapeHtml(un)}</span>`).join('')}</div>
-      <p class="text-tg-gray text-xs">${isOnline(u)?'<span class="text-emerald-400">● в сети</span>':escapeHtml(lastSeenText(u))}</p>
-    </div>
+    <div class="text-center mb-5"><div class="mb-3 flex justify-center">${getAvatarHtml(u.avatar,u.displayName||u.username,24)}</div><h3 class="text-white text-xl font-bold flex items-center justify-center gap-1.5">${escapeHtml(u.displayName||u.username)} ${isPrem(u)?'<i class="fas fa-crown text-amber-300 text-sm"></i>':''}</h3><div class="flex flex-wrap gap-1 justify-center mb-2">${unames.map(un=>`<span class="bg-[#0e1621] border border-black/30 rounded-full px-2.5 py-0.5 text-tg-blue text-xs">@${escapeHtml(un)}</span>`).join('')}</div><p class="text-tg-gray text-xs">${isOnline(u)?'<span class="text-emerald-400">● в сети</span>':escapeHtml(lastSeenText(u))}</p></div>
     <div class="grid grid-cols-2 gap-2 mb-3">
       <button onclick="closeModal();openWalletModal()" class="bg-gradient-to-br from-amber-500 to-orange-600 p-3 rounded-xl text-white text-center"><i class="fas fa-star text-xl mb-1"></i><div class="text-xs">Звёзды</div><div class="font-bold">${fmtStars(u.stars||0)}</div></button>
       <button onclick="closeModal();openWalletModal()" class="bg-gradient-to-br from-cyan-500 to-blue-600 p-3 rounded-xl text-white text-center"><i class="fas fa-gem text-xl mb-1"></i><div class="text-xs">TON</div><div class="font-bold">${fmtTon(u.ton||0)}</div></button>
@@ -1662,11 +1780,7 @@ function openBuyUsernameModal(){
   openModal('👤 Юзернеймы',`
     <div class="text-center mb-4"><div class="text-white text-3xl font-bold mb-1">${count} / ${USERNAME_MAX}</div><div class="text-tg-gray text-xs">максимум 40 на профиль</div></div>
     <div class="bg-[#0e1621] rounded-2xl border border-black/30 mb-4 max-h-52 overflow-y-auto">
-      ${myUsernames.map(un=>{
-        const info=u.usernames[un];
-        const badge=info.isPrimary?'<span class="text-amber-400 text-[10px] font-bold">ОСНОВНОЙ</span>':(info.isAdminGranted?'<span class="text-cyan-400 text-[10px] font-bold">АДМИН</span>':'');
-        return `<div class="flex items-center gap-3 p-3 border-b border-black/20 last:border-0"><i class="fas fa-at text-tg-gray"></i><div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(un)}</div><div class="text-tg-gray text-[10px]">${un.length} симв. · ${new Date(info.at).toLocaleDateString('ru-RU')}</div></div>${badge}${!info.isPrimary?`<button onclick="removeUsername('${escapeHtml(un)}')" class="text-red-400 hover:text-red-300 p-1"><i class="fas fa-trash text-xs"></i></button>`:''}</div>`;
-      }).join('')||'<p class="text-tg-gray text-xs text-center py-4">Нет юзернеймов</p>'}
+      ${myUsernames.map(un=>{const info=u.usernames[un];const badge=info.isPrimary?'<span class="text-amber-400 text-[10px] font-bold">ОСНОВНОЙ</span>':(info.isAdminGranted?'<span class="text-cyan-400 text-[10px] font-bold">АДМИН</span>':'');return `<div class="flex items-center gap-3 p-3 border-b border-black/20 last:border-0"><i class="fas fa-at text-tg-gray"></i><div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(un)}</div><div class="text-tg-gray text-[10px]">${un.length} симв. · ${new Date(info.at).toLocaleDateString('ru-RU')}</div></div>${badge}${!info.isPrimary?`<button onclick="removeUsername('${escapeHtml(un)}')" class="text-red-400 hover:text-red-300 p-1"><i class="fas fa-trash text-xs"></i></button>`:''}</div>`;}).join('')||'<p class="text-tg-gray text-xs text-center py-4">Нет юзернеймов</p>'}
     </div>
     <div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 mb-4">
       <label class="text-xs text-tg-gray mb-1.5 block">Новый юзернейм</label>
@@ -1681,8 +1795,7 @@ function openBuyUsernameModal(){
 }
 function validateNewUsername(val){
   const err=document.getElementById('newUsernameError');if(!err)return;
-  err.classList.add('hidden');
-  if(!val)return;
+  err.classList.add('hidden');if(!val)return;
   const lower=val.toLowerCase();
   if(lower.length<USERNAME_MIN){err.textContent='Минимум '+USERNAME_MIN+' символов';err.classList.remove('hidden');return;}
   if(!/^[a-z0-9_]+$/i.test(lower)){err.textContent='Только латиница, цифры и _';err.classList.remove('hidden');return;}
@@ -1714,7 +1827,7 @@ async function removeUsername(un){
   const u=db.currentUser;
   const info=u.usernames?.[un];if(!info)return;
   if(info.isPrimary){toast('Нельзя удалить основной');return;}
-  if(!confirm('Удалить @'+un+'? Средства не возвращаются.'))return;
+  if(!confirm('Удалить @'+un+'?'))return;
   await database.ref('users/'+u.username+'/usernames/'+un).remove();
   await database.ref('usernames/'+un).remove();
   toast('Удалено');
@@ -1741,12 +1854,7 @@ function openGiftsModal(){
       <button onclick="buyGift('${gid}')" ${soldOut?'disabled':''} class="w-full ${soldOut?'bg-[#2b3a4a] text-tg-gray cursor-not-allowed':'bg-[#3390ec] hover:bg-[#2b78c5] text-white'} py-2 rounded-xl text-xs font-medium btn-press transition">${soldOut?'Распродано':'Купить'}</button>
     </div>`;
   };
-  const myHtml=Object.keys(myGifts).map(mgid=>{
-    const mg=myGifts[mgid];
-    const rarityInfo=mg.traits?RARITY_TIERS[mg.traits.rarity]:null;
-    const bgClass=mg.traits?.backdropBg||mg.bg;
-    return `<div onclick="showGiftDetail('${mgid}','${db.currentUser.username}')" class="relative bg-gradient-to-tr ${bgClass} p-4 rounded-2xl shadow-xl flex flex-col justify-between overflow-hidden text-white min-h-[160px] cursor-pointer">${rarityInfo?`<div class="absolute top-2 left-2 bg-black/60 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold" style="color:${rarityInfo.color}">${rarityInfo.name}</div>`:''}${mg.mintSerial?`<div class="absolute top-2 right-2 bg-black/60 backdrop-blur px-2 py-0.5 rounded text-[10px] font-mono">#${mg.mintSerial}</div>`:''}<div class="my-auto text-center">${renderGiftIcon(mg.icon,'text-5xl','',mg.emoji)}</div><div>${mg.traits?.model?`<div class="text-[9px] opacity-80 truncate">${escapeHtml(mg.traits.model)}</div>`:''}<div class="font-bold text-sm truncate">${escapeHtml(mg.name)}</div></div></div>`;
-  }).join('')||'<p class="text-tg-gray text-xs text-center py-6 col-span-2">Нет подарков</p>';
+  const myHtml=Object.keys(myGifts).map(mgid=>{const mg=myGifts[mgid];const rarityInfo=mg.traits?RARITY_TIERS[mg.traits.rarity]:null;const bgClass=mg.traits?.backdropBg||mg.bg;return `<div onclick="showGiftDetail('${mgid}','${db.currentUser.username}')" class="relative bg-gradient-to-tr ${bgClass} p-4 rounded-2xl shadow-xl flex flex-col justify-between overflow-hidden text-white min-h-[160px] cursor-pointer">${rarityInfo?`<div class="absolute top-2 left-2 bg-black/60 backdrop-blur px-2 py-0.5 rounded text-[10px] font-bold" style="color:${rarityInfo.color}">${rarityInfo.name}</div>`:''}${mg.mintSerial?`<div class="absolute top-2 right-2 bg-black/60 backdrop-blur px-2 py-0.5 rounded text-[10px] font-mono">#${mg.mintSerial}</div>`:''}<div class="my-auto text-center">${renderGiftIcon(mg.icon,'text-5xl','',mg.emoji)}</div><div>${mg.traits?.model?`<div class="text-[9px] opacity-80 truncate">${escapeHtml(mg.traits.model)}</div>`:''}<div class="font-bold text-sm truncate">${escapeHtml(mg.name)}</div></div></div>`;}).join('')||'<p class="text-tg-gray text-xs text-center py-6 col-span-2">Нет подарков</p>';
   const tabs=[{id:'regular',label:'Обычные'},{id:'collectible',label:'NFT'},{id:'my',label:'Мои'}];
   const tabsHtml=tabs.map(t=>{const active=giftsTab===t.id;return `<button onclick="switchGiftsTab('${t.id}')" class="flex-1 py-2 rounded-lg text-xs font-medium transition ${active?'bg-[#2b5278] text-white':'text-tg-gray hover:text-white'}">${t.label}</button>`;}).join('');
   openModal('Подарки и NFT',`<div class="flex gap-1 mb-4 bg-[#0e1621] p-1 rounded-xl border border-black/30">${tabsHtml}</div><div class="${giftsTab==='regular'?'':'hidden'} grid grid-cols-2 gap-3">${regular.map(g=>card(g,false)).join('')}</div><div class="${giftsTab==='collectible'?'':'hidden'} grid grid-cols-2 gap-3">${collectible.map(g=>card(g,true)).join('')}</div><div class="${giftsTab==='my'?'':'hidden'} grid grid-cols-2 gap-3">${myHtml}</div>`);
@@ -1754,8 +1862,7 @@ function openGiftsModal(){
 function switchGiftsTab(t){giftsTab=t;openGiftsModal();}
 async function buyGift(gid){
   const g=(db.market||GIFT_CATALOG)[gid];if(!g)return;
-  const cfg=getGiftConfig(gid);
-  const stars=db.currentUser.stars||0;
+  const cfg=getGiftConfig(gid);const stars=db.currentUser.stars||0;
   if(stars<cfg.price){toast('Мало звёзд');return;}
   if(cfg.totalSupply<1000000 && cfg.minted>=cfg.totalSupply){toast('Распродано');return;}
   const res=await database.ref('giftConfig/'+gid+'/minted').transaction(v=>(v||0)+1);
@@ -1775,36 +1882,19 @@ async function buyGift(gid){
 function openUpgradeModal(giftId){
   const g=db.currentUser.gifts?.[giftId];if(!g){toast('Не найден');return;}
   if(!isNft(g.giftKey)){toast('Только NFT');return;}
-  const cost=getUpgradeCost(g.giftKey||'default');
-  const stars=db.currentUser.stars||0;
-  const canAfford=stars>=cost;
+  const cost=getUpgradeCost(g.giftKey||'default');const stars=db.currentUser.stars||0;const canAfford=stars>=cost;
   const curTraits=g.traits||{};
   const curTraitsHtml=g.traits?`<div class="bg-[#0e1621] rounded-2xl border border-black/30 mb-4 overflow-hidden"><div class="attr-row"><span class="attr-key">Модель</span><span class="attr-val">${escapeHtml(curTraits.model||'—')} ${curTraits.modelPct?`<span class="rarity-tag">${curTraits.modelPct}%</span>`:''}</span></div><div class="attr-row"><span class="attr-key">Узор</span><span class="attr-val">${escapeHtml(curTraits.symbol||'—')} ${curTraits.symbolPct?`<span class="rarity-tag">${curTraits.symbolPct}%</span>`:''}</span></div><div class="attr-row"><span class="attr-key">Фон</span><span class="attr-val">${escapeHtml(curTraits.backdrop||'—')} ${curTraits.backdropPct?`<span class="rarity-tag">${curTraits.backdropPct}%</span>`:''}</span></div></div>`:`<div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 mb-4 text-center text-tg-gray text-xs">Улучшение сгенерирует модель, узор и фон</div>`;
-  openModal('Улучшить NFT',`
-    <div class="text-center mb-5">
-      <div class="w-32 h-32 rounded-3xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center mx-auto mb-3 shadow-xl overflow-hidden">${renderGiftIcon(g.icon,'text-6xl','',g.emoji)}</div>
-      <h3 class="text-white text-lg font-bold mb-1">${escapeHtml(g.name)}${g.mintSerial?` <span class="text-tg-gray text-sm">#${g.mintSerial}</span>`:''}</h3>
-      <p class="text-tg-gray text-xs">${g.traits?RARITY_TIERS[g.traits.rarity]?.name:'Чистый NFT'}</p>
-    </div>
-    ${curTraitsHtml}
-    <div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 mb-4">
-      <div class="flex justify-between items-center mb-2"><span class="text-tg-gray text-sm">Стоимость</span><span class="text-amber-400 font-bold flex items-center gap-1">${cost} <i class="fas fa-star text-xs"></i></span></div>
-      <div class="flex justify-between items-center mb-2"><span class="text-tg-gray text-sm">Баланс</span><span class="${canAfford?'text-emerald-400':'text-red-400'} font-bold flex items-center gap-1">${stars} <i class="fas fa-star text-xs"></i></span></div>
-    </div>
-    <div class="grid grid-cols-5 gap-1.5 mb-4">${Object.entries(RARITY_TIERS).map(([k,v])=>`<div class="text-center p-1.5 rounded-lg bg-[#0e1621] border border-black/20"><div class="text-[9px] font-bold mb-0.5" style="color:${v.color}">${v.name}</div><div class="text-[8px] text-tg-gray">${v.weight}%</div></div>`).join('')}</div>
-    <button onclick="doUpgradeGift('${giftId}')" ${!canAfford?'disabled':''} class="w-full ${canAfford?'bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90':'bg-[#2b3a4a] cursor-not-allowed'} text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">${canAfford?'🎲 Перегенерировать · '+cost+' ⭐':'Мало звёзд'}</button>
-  `);
+  openModal('Улучшить NFT',`<div class="text-center mb-5"><div class="w-32 h-32 rounded-3xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center mx-auto mb-3 shadow-xl overflow-hidden">${renderGiftIcon(g.icon,'text-6xl','',g.emoji)}</div><h3 class="text-white text-lg font-bold mb-1">${escapeHtml(g.name)}${g.mintSerial?` <span class="text-tg-gray text-sm">#${g.mintSerial}</span>`:''}</h3><p class="text-tg-gray text-xs">${g.traits?RARITY_TIERS[g.traits.rarity]?.name:'Чистый NFT'}</p></div>${curTraitsHtml}<div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 mb-4"><div class="flex justify-between items-center mb-2"><span class="text-tg-gray text-sm">Стоимость</span><span class="text-amber-400 font-bold flex items-center gap-1">${cost} <i class="fas fa-star text-xs"></i></span></div><div class="flex justify-between items-center mb-2"><span class="text-tg-gray text-sm">Баланс</span><span class="${canAfford?'text-emerald-400':'text-red-400'} font-bold flex items-center gap-1">${stars} <i class="fas fa-star text-xs"></i></span></div></div><div class="grid grid-cols-5 gap-1.5 mb-4">${Object.entries(RARITY_TIERS).map(([k,v])=>`<div class="text-center p-1.5 rounded-lg bg-[#0e1621] border border-black/20"><div class="text-[9px] font-bold mb-0.5" style="color:${v.color}">${v.name}</div><div class="text-[8px] text-tg-gray">${v.weight}%</div></div>`).join('')}</div><button onclick="doUpgradeGift('${giftId}')" ${!canAfford?'disabled':''} class="w-full ${canAfford?'bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90':'bg-[#2b3a4a] cursor-not-allowed'} text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">${canAfford?'🎲 Перегенерировать · '+cost+' ⭐':'Мало звёзд'}</button>`);
 }
 async function doUpgradeGift(giftId){
   const g=db.currentUser.gifts?.[giftId];if(!g)return;
   if(!isNft(g.giftKey)){toast('Только NFT');return;}
-  const cost=getUpgradeCost(g.giftKey||'default');
-  const stars=db.currentUser.stars||0;
+  const cost=getUpgradeCost(g.giftKey||'default');const stars=db.currentUser.stars||0;
   if(stars<cost){toast('Мало звёзд');return;}
   closeModal();toast('🎲 Генерация...');
   setTimeout(async()=>{
-    const rarity=randomRarity();
-    const traits=genTrait(rarity);
+    const rarity=randomRarity();const traits=genTrait(rarity);
     traits.serial=g.traits?.serial||genSerial();
     const upgraded={...g,bg:traits.backdropBg,traits,upgradedAt:Date.now()};
     await database.ref('users/'+db.currentUser.username+'/stars').set(stars-cost);
@@ -1818,18 +1908,12 @@ function showGiftDetail(giftId,ownerUsername){
   const g=(owner.gifts||{})[giftId];if(!g)return;
   const isMine=ownerUsername===db.currentUser.username;
   const isNFT=isNft(g.giftKey);
-  const rarity=g.traits?.rarity;
-  const rInfo=rarity?RARITY_TIERS[rarity]:null;
+  const rarity=g.traits?.rarity;const rInfo=rarity?RARITY_TIERS[rarity]:null;
   const cfg=getGiftConfig(g.giftKey||'default');
   const bgClass=g.traits?.backdropBg||g.bg;
   const titleSerial=g.traits?.serial?'#'+g.traits.serial:(g.mintSerial?'#'+g.mintSerial:'');
   openModal(g.name+(titleSerial?' '+titleSerial:''),`
-    <div class="text-center mb-4">
-      <div class="w-full aspect-square max-w-[280px] mx-auto rounded-3xl bg-gradient-to-tr ${bgClass} flex items-center justify-center mb-4 shadow-2xl overflow-hidden">${renderGiftIcon(g.icon,'text-6xl','',g.emoji)}</div>
-      <h2 class="text-white text-2xl font-bold mb-1">${escapeHtml(g.name)}${titleSerial?` <span class="text-white/70">${titleSerial}</span>`:''}</h2>
-      ${g.traits?.model?`<p class="text-white/70 text-sm mb-2">${escapeHtml(g.traits.model)}${g.traits.modelPct?` · ${g.traits.modelPct}%`:''}</p>`:''}
-      ${!g.traits&&isNFT?'<p class="text-tg-gray text-xs mb-2">Черты появятся при улучшении</p>':''}
-    </div>
+    <div class="text-center mb-4"><div class="w-full aspect-square max-w-[280px] mx-auto rounded-3xl bg-gradient-to-tr ${bgClass} flex items-center justify-center mb-4 shadow-2xl overflow-hidden">${renderGiftIcon(g.icon,'text-6xl','',g.emoji)}</div><h2 class="text-white text-2xl font-bold mb-1">${escapeHtml(g.name)}${titleSerial?` <span class="text-white/70">${titleSerial}</span>`:''}</h2>${g.traits?.model?`<p class="text-white/70 text-sm mb-2">${escapeHtml(g.traits.model)}${g.traits.modelPct?` · ${g.traits.modelPct}%`:''}</p>`:''}${!g.traits&&isNFT?'<p class="text-tg-gray text-xs mb-2">Черты появятся при улучшении</p>':''}</div>
     <div class="bg-[#0e1621] rounded-2xl border border-black/30 overflow-hidden mb-4">
       <div class="attr-row"><span class="attr-key">Владелец</span><span class="attr-val">${getAvatarHtml(owner.avatar,owner.displayName||ownerUsername,5)} ${escapeHtml(owner.displayName||ownerUsername)}</span></div>
       ${g.traits?`<div class="attr-row"><span class="attr-key">Модель</span><span class="attr-val">${escapeHtml(g.traits.model)} <span class="rarity-tag">${g.traits.modelPct}%</span></span></div><div class="attr-row"><span class="attr-key">Узор</span><span class="attr-val">${escapeHtml(g.traits.symbol)} <span class="rarity-tag">${g.traits.symbolPct}%</span></span></div><div class="attr-row"><span class="attr-key">Фон</span><span class="attr-val">${escapeHtml(g.traits.backdrop)} <span class="rarity-tag">${g.traits.backdropPct}%</span></span></div><div class="attr-row"><span class="attr-key">Редкость</span><span class="attr-val" style="color:${rInfo?.color}">${rInfo?.name||'—'}</span></div>`:''}
@@ -1839,10 +1923,7 @@ function showGiftDetail(giftId,ownerUsername){
     ${isMine?`<div class="space-y-2">${isNFT?`<button onclick="closeModal();openUpgradeModal('${giftId}')" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90 text-white font-semibold py-3.5 rounded-xl btn-press text-sm transition"><i class="fas fa-dice mr-2"></i>Улучшить</button>`:''}<button onclick="closeModal();openSellGiftModal('${giftId}')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-3.5 rounded-xl btn-press text-sm transition"><i class="fas fa-tag mr-2"></i>Продать</button></div>`:''}
   `);
 }
-
-/* ===== КОШЕЛОК С TELEGRAM STARS ===== */
-const BOT_USERNAME = 'sixsevengram_bot';
-
+/* ===== КОШЕЛОК ===== */
 function openWalletModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
   const u=db.currentUser;
@@ -1871,13 +1952,7 @@ function openWalletModal(){
         <h3 class="text-lg font-bold mb-1">Оплата через Telegram Stars</h3>
         <p class="text-xs opacity-90">1 ⭐ TG = 100 ⭐ 67gramm</p>
       </div>
-      <div class="space-y-2.5 mb-4">
-        <button onclick="payWithTelegramStars()" class="w-full bg-gradient-to-r from-[#3390ec] to-[#2b78c5] hover:opacity-90 text-white font-medium py-4 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-[#3390ec]/30">
-          <i class="fab fa-telegram text-lg"></i>
-          <span>Открыть магазин в Telegram</span>
-          <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">рекомендуем</span>
-        </button>
-      </div>
+      <button onclick="payWithTelegramStars()" class="w-full bg-gradient-to-r from-[#3390ec] to-[#2b78c5] hover:opacity-90 text-white font-medium py-4 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-[#3390ec]/30 mb-4"><i class="fab fa-telegram text-lg"></i><span>Открыть магазин в Telegram</span><span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">рекомендуем</span></button>
       <p class="text-center text-tg-gray text-[11px] mb-4">После оплаты звёзды зачислятся автоматически в течение 5 секунд</p>
       <div class="bg-[#0e1621] p-4 rounded-xl border border-black/30 text-xs space-y-2">
         <div class="flex justify-between"><span class="text-tg-gray">1 ⭐ TG</span><span class="text-amber-400 font-bold">100 ⭐</span></div>
@@ -1890,8 +1965,8 @@ function openWalletModal(){
     `:walletTab==='ton'?`
       <div class="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-6 mb-4 text-white shadow-xl"><p class="text-xs uppercase tracking-wider opacity-80 mb-1">TON</p><div class="text-4xl font-black mb-1">${fmtTon(ton)} 💎</div><p class="text-xs opacity-80">≈ $${(ton*TON_USD).toFixed(2)}</p></div>
       <div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 mb-4">
-        <p class="text-white text-xs font-medium mb-2">TON адрес</p>
-        ${u.walletAddress?`<div class="flex items-center gap-2 bg-black/30 px-3 py-2 rounded-lg mb-2"><span class="text-cyan-400 font-mono text-xs flex-grow truncate">${escapeHtml(u.walletAddress)}</span><button onclick="copyToClipboard('${escapeHtml(u.walletAddress)}')" class="text-tg-gray hover:text-white p-1"><i class="fas fa-copy text-xs"></i></button></div><button onclick="changeWalletAddress()" class="text-[10px] text-tg-gray hover:text-white">Изменить</button>`:`<p class="text-tg-gray text-xs mb-3">Привяжи TON адрес для вывода</p><button onclick="changeWalletAddress()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium py-2.5 rounded-xl btn-press">Привязать</button>`}
+        <p class="text-white text-xs font-medium mb-2">TON кошелёк</p>
+        ${u.tonWallet?`<div class="flex items-center gap-2 bg-black/30 px-3 py-2 rounded-lg mb-2"><span class="text-cyan-400 font-mono text-xs flex-grow truncate">${escapeHtml(u.tonWallet.address)}</span><button onclick="copyToClipboard('${escapeHtml(u.tonWallet.address)}')" class="text-tg-gray hover:text-white p-1"><i class="fas fa-copy text-xs"></i></button></div><button onclick="closeModal();openTonConnectModal()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium py-2.5 rounded-xl btn-press"><i class="fas fa-paper-plane mr-2"></i>Вывести TON</button>`:`<p class="text-tg-gray text-xs mb-3">Подключи TON-кошелёк для вывода</p><button onclick="closeModal();openTonConnectModal()" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium py-2.5 rounded-xl btn-press"><i class="fas fa-link mr-2"></i>Подключить TON Connect</button>`}
       </div>
       <div class="bg-[#0e1621] p-4 rounded-2xl border border-black/30 mb-4">
         <p class="text-white text-xs font-medium mb-3">Купить TON за звёзды</p>
@@ -1920,7 +1995,6 @@ function payWithTelegramStars(){
   window.open(url, '_blank');
 }
 function updateBuyTonEst(){const amt=parseFloat(document.getElementById('buyTonAmount')?.value)||0;const el=document.getElementById('buyTonPrice');if(el)el.textContent=(amt*TON_TO_STARS).toFixed(0);}
-function changeWalletAddress(){const addr=prompt('TON адрес:',db.currentUser.walletAddress||'');if(!addr||addr===db.currentUser.walletAddress)return;database.ref('users/'+db.currentUser.username+'/walletAddress').set(addr.trim());toast('Адрес сохранён');}
 async function buyTon(){
   const amt=parseFloat(document.getElementById('buyTonAmount')?.value)||0;
   if(amt<=0){toast('Введите сумму');return;}
@@ -1945,72 +2019,237 @@ async function sellTon(){
   await logTransaction(stars,'stars','Обмен TON','in');
   toast('✅ +'+stars+' ⭐');openWalletModal();
 }
+function openShopModal(){
+  if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
+  openModal('Пополнение',`
+    <div class="bg-gradient-to-br from-[#3390ec] to-[#2b78c5] rounded-2xl p-5 mb-4 text-white shadow-xl text-center"><i class="fab fa-telegram text-4xl mb-2"></i><h3 class="text-lg font-bold mb-1">Оплата через Telegram Stars</h3><p class="text-xs opacity-90">1 ⭐ TG = 100 ⭐ 67gramm</p></div>
+    <button onclick="payWithTelegramStars()" class="w-full bg-gradient-to-r from-[#3390ec] to-[#2b78c5] hover:opacity-90 text-white font-medium py-4 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition shadow-lg mb-4"><i class="fab fa-telegram text-lg"></i>Открыть магазин в Telegram</button>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      <div class="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-4 text-white text-center"><i class="fas fa-star text-2xl mb-1"></i><div class="text-xs">Звёзды</div><div class="text-xl font-bold">${fmtStars(db.currentUser.stars||0)}</div></div>
+      <div class="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-4 text-white text-center"><i class="fas fa-gem text-2xl mb-1"></i><div class="text-xs">TON</div><div class="text-xl font-bold">${fmtTon(db.currentUser.ton||0)}</div></div>
+    </div>
+  `);
+}
+function fakePay(amt, priceTxt){
+  openModal('Способ оплаты', `
+    <div class="text-center mb-6"><div class="text-amber-400 font-bold text-2xl mb-1">${amt} ⭐</div><div class="text-tg-gray text-sm">К оплате: ${priceTxt}</div></div>
+    <div class="space-y-2.5">
+      <button onclick="payWithTelegramStars()" class="w-full bg-gradient-to-r from-[#3390ec] to-[#2b78c5] hover:opacity-90 text-white font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition shadow-lg"><i class="fab fa-telegram"></i> Telegram Stars <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full ml-1">рекомендуем</span></button>
+      <button onclick="processPayment(${amt})" class="w-full bg-teal-600 hover:bg-teal-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition"><i class="fas fa-credit-card"></i> UzCard / Humo</button>
+    </div>
+    <p class="text-center text-tg-gray text-[11px] mt-4">Через Telegram: <b class="text-amber-400">1 ⭐ TG = 100 ⭐</b></p>
+  `);
+}
+async function processPayment(amt){
+  closeModal();toast('Обработка...');
+  setTimeout(async()=>{const cur=db.currentUser.stars||0;await database.ref('users/'+db.currentUser.username+'/stars').set(cur+amt);await logTransaction(amt,'stars','Пополнение','in');toast('✅ +'+amt+' ⭐');openShopModal();},1200);
+}
+async function reportMsg(mid){
+  if(!confirm('Отправить жалобу?'))return;
+  const snap=await database.ref(`messages/${activeChatId}/${mid}`).once('value');
+  const m=snap.val();if(!m)return;
+  await database.ref('reports/'+mid).set({chatId:activeChatId,msgId:mid,from:m.from,text:m.text||'[Файл]',reportedBy:db.currentUser.username,at:Date.now()});
+  toast('Жалоба отправлена');
+}
+
+/* ===== АУКЦИОНЫ ===== */
+function openAuctionsModal(){
+  if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full')) toggleDrawerMenu();
+  const auctions = Object.entries(db.auctions||{}).filter(([aid,a]) => a.seller !== db.currentUser.username && a.endsAt > Date.now());
+  if(!auctions.length){
+    openModal('🔨 Аукционы', `<div class="text-center py-8"><i class="fas fa-gavel text-5xl text-tg-gray/30 mb-3"></i><p class="text-white font-medium mb-1">Нет активных аукционов</p><p class="text-tg-gray text-xs">Выставьте свой подарок на аукцион</p></div>`);
+    return;
+  }
+  auctions.sort((a,b) => a[1].endsAt - b[1].endsAt);
+  const html = auctions.map(([aid, a]) => {
+    const g = a.giftData || {};
+    const timeLeft = Math.max(0, a.endsAt - Date.now());
+    const h = Math.floor(timeLeft / 3600000);
+    const m = Math.floor((timeLeft % 3600000) / 60000);
+    const bidCount = Object.keys(a.bids||{}).length;
+    const priceText = a.currency === 'ton' ? fmtTon(starsToTon(a.currentPrice))+' 💎' : a.currentPrice+' ⭐';
+    const rarityInfo = g.traits ? RARITY_TIERS[g.traits.rarity] : null;
+    const bgClass = g.traits?.backdropBg || g.bg || 'from-slate-700 to-zinc-900';
+    return `<div class="bg-[#0e1621] rounded-2xl border border-amber-500/30 p-3 mb-3"><div class="flex items-start gap-3 mb-3"><div class="w-20 h-20 rounded-2xl bg-gradient-to-tr ${bgClass} flex items-center justify-center shrink-0 overflow-hidden relative">${renderGiftIcon(g.icon||'🎁','text-4xl','',g.emoji)}${rarityInfo?`<div class="absolute top-1 left-1 bg-black/70 px-1 py-0.5 rounded text-[8px] font-bold" style="color:${rarityInfo.color}">${rarityInfo.name}</div>`:''}</div><div class="flex-grow min-w-0"><div class="text-white font-medium text-sm mb-0.5 truncate">${escapeHtml(g.name||'Подарок')}</div><div class="text-[11px] text-tg-gray mb-1">от @${escapeHtml(a.seller)}</div><div class="text-amber-400 font-bold text-base mb-1">${priceText}</div><div class="text-[10px] text-tg-gray">${bidCount} ${plural(bidCount,'ставка','ставки','ставок')}</div></div></div><div class="flex items-center justify-between"><div class="text-xs text-amber-400"><i class="fas fa-clock mr-1"></i>${h}ч ${m}м</div><button onclick="openBidModal('${aid}')" class="bg-amber-500 hover:bg-amber-400 text-white px-4 py-1.5 rounded-lg text-xs font-semibold btn-press"><i class="fas fa-gavel mr-1"></i>Ставка</button></div></div>`;
+  }).join('');
+  openModal('🔨 Аукционы · ' + auctions.length, `<div class="max-h-[65vh] overflow-y-auto">${html}</div>`);
+}
+function openBidModal(aid){
+  const a = db.auctions?.[aid]; if(!a) return;
+  const minBid = a.currentPrice + Math.ceil(a.startPrice * 0.05);
+  const priceText = a.currency === 'ton' ? '💎' : '⭐';
+  openModal('Ставка', `<div class="text-center mb-4"><div class="text-tg-gray text-xs mb-1">Текущая ставка</div><div class="text-amber-400 font-bold text-3xl mb-1">${a.currentPrice} ${priceText}</div><div class="text-tg-gray text-xs">Минимум: ${minBid} ${priceText}</div></div><input id="bidAmount" type="number" min="${minBid}" value="${minBid}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-lg text-center font-bold mb-3"><div class="grid grid-cols-3 gap-2 mb-4"><button onclick="setBid(${minBid})" class="py-2 rounded-lg text-xs bg-[#17212b] text-white">${minBid}</button><button onclick="setBid(${minBid + 100})" class="py-2 rounded-lg text-xs bg-[#17212b] text-white">${minBid + 100}</button><button onclick="setBid(${minBid + 500})" class="py-2 rounded-lg text-xs bg-[#17212b] text-white">${minBid + 500}</button></div><button onclick="doBid('${aid}')" class="w-full bg-amber-500 hover:bg-amber-400 text-white font-medium py-3.5 rounded-xl btn-press text-sm"><i class="fas fa-gavel mr-2"></i>Сделать ставку</button>`);
+}
+function setBid(v){ document.getElementById('bidAmount').value = v; }
+async function doBid(aid){
+  const a = db.auctions?.[aid]; if(!a){ toast('Аукцион не найден'); return; }
+  if(a.endsAt < Date.now()){ toast('Аукцион завершён'); return; }
+  const amount = parseInt(document.getElementById('bidAmount').value);
+  const minBid = a.currentPrice + Math.ceil(a.startPrice * 0.05);
+  if(amount < minBid){ toast('Минимум ' + minBid); return; }
+  const me = db.currentUser.username;
+  const currency = a.currency || 'stars';
+  const needAmount = currency === 'ton' ? starsToTon(amount) : amount;
+  const myBalance = currency === 'ton' ? (db.currentUser.ton||0) : (db.currentUser.stars||0);
+  if(myBalance < needAmount){ toast('Недостаточно средств'); return; }
+  if(a.leader){
+    const prevLeader = a.leader;
+    const prevAmount = a.currentPrice;
+    if(currency === 'ton'){
+      const s = await database.ref('users/'+prevLeader+'/ton').once('value');
+      await database.ref('users/'+prevLeader+'/ton').set((s.val()||0) + starsToTon(prevAmount));
+    } else {
+      const s = await database.ref('users/'+prevLeader+'/stars').once('value');
+      await database.ref('users/'+prevLeader+'/stars').set((s.val()||0) + prevAmount);
+    }
+    await database.ref('users/'+prevLeader+'/payment_notifications/'+'bid_out_'+Date.now()).set({ text: `❌ Ваша ставка на ${a.giftData.name} перебита`, at: Date.now() });
+  }
+  if(currency === 'ton'){
+    const s = await database.ref('users/'+me+'/ton').once('value');
+    await database.ref('users/'+me+'/ton').set((s.val()||0) - starsToTon(amount));
+  } else {
+    const s = await database.ref('users/'+me+'/stars').once('value');
+    await database.ref('users/'+me+'/stars').set((s.val()||0) - amount);
+  }
+  await database.ref('auctions/'+aid).update({ currentPrice: amount, leader: me, lastBidAt: Date.now() });
+  await database.ref('auctions/'+aid+'/bids/'+Date.now()).set({ bidder: me, amount, at: Date.now() });
+  toast('✅ Ставка ' + amount + ' ' + (currency==='ton'?'💎':'⭐'));
+  closeModal(); openAuctionsModal();
+}
+async function cancelAuction(aid){
+  const a = db.auctions?.[aid]; if(!a) return;
+  if(a.seller !== db.currentUser.username){ toast('Не ваш аукцион'); return; }
+  if(!confirm('Отменить аукцион?')) return;
+  if(a.leader){
+    const currency = a.currency || 'stars';
+    if(currency === 'ton'){
+      const s = await database.ref('users/'+a.leader+'/ton').once('value');
+      await database.ref('users/'+a.leader+'/ton').set((s.val()||0) + starsToTon(a.currentPrice));
+    } else {
+      const s = await database.ref('users/'+a.leader+'/stars').once('value');
+      await database.ref('users/'+a.leader+'/stars').set((s.val()||0) + a.currentPrice);
+    }
+  }
+  await database.ref('users/'+db.currentUser.username+'/gifts/gift_'+Date.now()).set(a.giftData);
+  await database.ref('auctions/'+aid).remove();
+  toast('Аукцион отменён');
+  closeModal();
+}
+setInterval(async () => {
+  const snap = await database.ref('auctions').once('value');
+  const auctions = snap.val() || {};
+  for(const [aid, a] of Object.entries(auctions)){
+    if(a.endsAt < Date.now()){
+      if(a.leader){
+        await database.ref('users/'+a.leader+'/gifts/gift_'+Date.now()).set(a.giftData);
+        const fee = Math.ceil(a.currentPrice * MARKET_FEE);
+        const sellerGets = a.currentPrice - fee;
+        const currency = a.currency || 'stars';
+        if(currency === 'ton'){
+          const s = await database.ref('users/'+a.seller+'/ton').once('value');
+          await database.ref('users/'+a.seller+'/ton').set((s.val()||0) + starsToTon(sellerGets));
+        } else {
+          const s = await database.ref('users/'+a.seller+'/stars').once('value');
+          await database.ref('users/'+a.seller+'/stars').set((s.val()||0) + sellerGets);
+        }
+        await database.ref('users/'+a.leader+'/payment_notifications/'+'won_'+Date.now()).set({ text: `🏆 Вы выиграли аукцион: ${a.giftData.name} за ${a.currentPrice}`, at: Date.now() });
+      } else {
+        await database.ref('users/'+a.seller+'/gifts/gift_'+Date.now()).set(a.giftData);
+      }
+      await database.ref('auctions/'+aid).remove();
+    }
+  }
+}, 60000);
 
 /* ===== ПРОДАЖА / МАРКЕТПЛЕЙС ===== */
 function openSellGiftModal(giftId){
   const g=db.currentUser.gifts?.[giftId];if(!g){toast('Не найден');return;}
   const existingListing=Object.entries(db.listings||{}).find(([lid,l])=>l.seller===db.currentUser.username&&l.giftId===giftId);
-  const floor=floorPrice(g.giftKey||'default');
-  if(existingListing){
-    openModal('Продать подарок',`<div class="text-center mb-5"><div class="w-24 h-24 rounded-3xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center mx-auto mb-3 shadow-xl overflow-hidden">${renderGiftIcon(g.icon,'text-5xl','',g.emoji)}</div><h3 class="text-white text-lg font-bold mb-1">${escapeHtml(g.name)}</h3></div><div class="bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs rounded-xl p-3 mb-4 text-center">Уже выставлен за <b>${existingListing[1].price} ${existingListing[1].currency==='ton'?'💎':'⭐'}</b></div><button onclick="closeModal();cancelListing('${existingListing[0]}')" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Снять</button>`);
+  const existingAuction=Object.entries(db.auctions||{}).find(([aid,a])=>a.seller===db.currentUser.username&&a.giftId===giftId);
+  if(existingListing || existingAuction){
+    const item = existingListing ? existingListing[1] : existingAuction[1];
+    const type = existingListing ? 'Продажа' : 'Аукцион';
+    const id = existingListing ? existingListing[0] : existingAuction[0];
+    openModal(type, `<div class="text-center mb-5"><div class="w-24 h-24 rounded-3xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center mx-auto mb-3 shadow-xl overflow-hidden">${renderGiftIcon(g.icon,'text-5xl','',g.emoji)}</div><h3 class="text-white text-lg font-bold mb-1">${escapeHtml(g.name)}</h3></div><div class="bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs rounded-xl p-3 mb-4 text-center">Активен ${type.toLowerCase()} за <b>${item.price||item.startPrice} ⭐</b></div><button onclick="closeModal();${existingListing ? `cancelListing('${id}')` : `cancelAuction('${id}')`}" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3.5 rounded-xl btn-press">Снять</button>`);
     return;
   }
+  const floor=floorPrice(g.giftKey||'default');
   openModal('Продать подарок',`
-    <div class="text-center mb-5"><div class="w-24 h-24 rounded-3xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center mx-auto mb-3 shadow-xl overflow-hidden">${renderGiftIcon(g.icon,'text-5xl','',g.emoji)}</div><h3 class="text-white text-lg font-bold mb-1">${escapeHtml(g.name)}</h3><p class="text-tg-gray text-xs">${g.traits?escapeHtml(g.traits.model)+' · '+RARITY_TIERS[g.traits.rarity]?.name:'Обычный'}</p></div>
+    <div class="text-center mb-4"><div class="w-24 h-24 rounded-3xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center mx-auto mb-3 shadow-xl overflow-hidden">${renderGiftIcon(g.icon,'text-5xl','',g.emoji)}</div><h3 class="text-white text-lg font-bold mb-1">${escapeHtml(g.name)}</h3></div>
+    <div class="flex gap-2 mb-4 bg-[#0e1621] p-1 rounded-xl border border-black/30">
+      <button id="sellTypeSell" onclick="selectSellType('sell')" class="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#2b5278] text-white">Продажа</button>
+      <button id="sellTypeAuction" onclick="selectSellType('auction')" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-tg-gray">Аукцион</button>
+      <input type="hidden" id="sellType" value="sell">
+    </div>
     <div class="bg-[#0e1621] p-3 rounded-xl border border-black/30 mb-4">
-      <p class="text-white text-xs font-medium mb-2">Валюта получения</p>
+      <p class="text-white text-xs font-medium mb-2">Валюта</p>
       <div class="flex gap-2">
-        <button id="sellCurStars" onclick="selectSellCurrency('stars')" class="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#2b5278] text-white transition">⭐ Звёзды</button>
-        <button id="sellCurTon" onclick="selectSellCurrency('ton')" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-tg-gray hover:text-white transition">💎 TON</button>
+        <button id="sellCurStars" onclick="selectSellCurrency('stars')" class="flex-1 py-2.5 rounded-lg text-sm font-medium bg-[#2b5278] text-white">⭐ Звёзды</button>
+        <button id="sellCurTon" onclick="selectSellCurrency('ton')" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-tg-gray">💎 TON</button>
       </div>
       <input type="hidden" id="sellCurrency" value="stars">
     </div>
-    <label class="text-xs text-tg-gray mb-1.5 block">Цена <span id="sellCurLabel">в звёздах</span></label>
+    <label class="text-xs text-tg-gray mb-1.5 block" id="priceLabel">Цена</label>
     <input id="sellPriceInput" type="number" min="${floor}" value="${floor}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-2">
-    <div class="text-[11px] text-tg-gray mb-3 px-1">Минимум: ${floor} ⭐ / ${fmtTon(starsToTon(floor))} 💎</div>
-    <div class="bg-[#0e1621] rounded-xl p-3 border border-black/30 text-xs mb-5">
-      <div class="flex justify-between mb-1"><span class="text-tg-gray">Вы получите</span><span class="text-emerald-400 font-bold" id="sellYouGet">0</span></div>
-      <div class="flex justify-between mb-1"><span class="text-tg-gray">Комиссия 5%</span><span class="text-tg-gray" id="sellFeeTxt">0</span></div>
-      <div class="flex justify-between"><span class="text-tg-gray">Способ</span><span class="text-cyan-400" id="sellPayoutInfo">Звёзды</span></div>
+    <div class="text-[11px] text-tg-gray mb-3 px-1">Минимум: ${floor} ⭐</div>
+    <div id="auctionDurationBox" class="hidden mb-4">
+      <label class="text-xs text-tg-gray mb-1.5 block">Длительность</label>
+      <div class="grid grid-cols-4 gap-2">
+        <button onclick="setDuration(1)" class="duration-btn py-2 rounded-lg text-xs font-medium border border-black/30 text-tg-gray">1ч</button>
+        <button onclick="setDuration(6)" class="duration-btn py-2 rounded-lg text-xs font-medium border border-black/30 text-tg-gray">6ч</button>
+        <button onclick="setDuration(24)" class="duration-btn py-2 rounded-lg text-xs font-medium border border-black/30 text-tg-gray">24ч</button>
+        <button onclick="setDuration(72)" class="duration-btn py-2 rounded-lg text-xs font-medium border border-black/30 text-tg-gray">3 дня</button>
+      </div>
+      <input type="hidden" id="auctionDuration" value="24">
     </div>
-    <button onclick="doSellGift('${giftId}')" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Выставить</button>
+    <button onclick="doSellOrAuction('${giftId}')" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Выставить</button>
   `);
-  const inp=document.getElementById('sellPriceInput');
-  if(inp){
-    const update=()=>{
-      const cur=document.getElementById('sellCurrency')?.value||'stars';
-      const p=Math.max(floor,parseInt(inp.value)||floor);
-      const fee=Math.ceil(p*MARKET_FEE);
-      const you=p-fee;
-      const youEl=document.getElementById('sellYouGet');
-      const feeTxt=document.getElementById('sellFeeTxt');
-      const infoEl=document.getElementById('sellPayoutInfo');
-      if(youEl)youEl.textContent=cur==='ton'?fmtTon(starsToTon(you))+' 💎':you+' ⭐';
-      if(feeTxt)feeTxt.textContent=cur==='ton'?fmtTon(starsToTon(fee))+' 💎':fee+' ⭐';
-      if(infoEl)infoEl.textContent=cur==='ton'?'TON на кошелёк':'Звёзды на баланс';
-    };
-    inp.addEventListener('input',update);update();
-  }
+}
+function selectSellType(type){
+  document.getElementById('sellType').value = type;
+  const s = document.getElementById('sellTypeSell');
+  const a = document.getElementById('sellTypeAuction');
+  if(s) s.className = 'flex-1 py-2.5 rounded-lg text-sm font-medium ' + (type==='sell'?'bg-[#2b5278] text-white':'text-tg-gray');
+  if(a) a.className = 'flex-1 py-2.5 rounded-lg text-sm font-medium ' + (type==='auction'?'bg-[#2b5278] text-white':'text-tg-gray');
+  document.getElementById('auctionDurationBox').classList.toggle('hidden', type !== 'auction');
+}
+function setDuration(h){
+  document.getElementById('auctionDuration').value = h;
+  document.querySelectorAll('.duration-btn').forEach(b => {
+    const txt = b.textContent.trim();
+    const isActive = (h===1 && txt==='1ч') || (h===6 && txt==='6ч') || (h===24 && txt==='24ч') || (h===72 && txt==='3 дня');
+    b.className = 'duration-btn py-2 rounded-lg text-xs font-medium border ' + (isActive ? 'bg-[#2b5278] text-white border-[#2b5278]' : 'border-black/30 text-tg-gray');
+  });
 }
 function selectSellCurrency(cur){
   const hidden=document.getElementById('sellCurrency');if(hidden)hidden.value=cur;
-  const btnS=document.getElementById('sellCurStars'),btnT=document.getElementById('sellCurTon'),label=document.getElementById('sellCurLabel');
+  const btnS=document.getElementById('sellCurStars'),btnT=document.getElementById('sellCurTon');
   if(btnS)btnS.className='flex-1 py-2.5 rounded-lg text-sm font-medium transition '+(cur==='stars'?'bg-[#2b5278] text-white':'text-tg-gray hover:text-white');
   if(btnT)btnT.className='flex-1 py-2.5 rounded-lg text-sm font-medium transition '+(cur==='ton'?'bg-cyan-600 text-white':'text-tg-gray hover:text-white');
-  if(label)label.textContent=cur==='ton'?'в TON':'в звёздах';
-  const inp=document.getElementById('sellPriceInput');if(inp)inp.dispatchEvent(new Event('input'));
 }
-async function doSellGift(giftId){
-  const g=db.currentUser.gifts?.[giftId];if(!g){toast('Не найден');return;}
-  const inp=document.getElementById('sellPriceInput');
-  const floor=floorPrice(g.giftKey||'default');
-  const price=Math.max(floor,parseInt(inp.value)||floor);
-  const currency=document.getElementById('sellCurrency')?.value||'stars';
-  const exists=Object.entries(db.listings||{}).find(([lid,l])=>l.seller===db.currentUser.username&&l.giftId===giftId);
-  if(exists){toast('Уже выставлен');return;}
-  const listingId='lst_'+Date.now();
-  await database.ref('users/'+db.currentUser.username+'/gifts/'+giftId).remove();
-  await database.ref('listings/'+listingId).set({giftId,seller:db.currentUser.username,price,currency,giftData:g,createdAt:Date.now()});
+async function doSellOrAuction(giftId){
+  const g = db.currentUser.gifts?.[giftId];
+  if(!g) return;
+  const type = document.getElementById('sellType').value;
+  const inp = document.getElementById('sellPriceInput');
+  const floor = floorPrice(g.giftKey||'default');
+  const price = Math.max(floor, parseInt(inp.value)||floor);
+  const currency = document.getElementById('sellCurrency').value;
+  if(type === 'auction'){
+    const durationH = parseInt(document.getElementById('auctionDuration').value) || 24;
+    const aid = 'auc_' + Date.now();
+    const auction = { giftId, seller: db.currentUser.username, startPrice: price, currentPrice: price, currency, giftData: g, endsAt: Date.now() + durationH * 3600000, createdAt: Date.now(), bids: {} };
+    await database.ref('users/' + db.currentUser.username + '/gifts/' + giftId).remove();
+    await database.ref('auctions/' + aid).set(auction);
+    toast('🔨 Аукцион создан на ' + durationH + 'ч');
+    closeModal();
+    return;
+  }
+  const exists = Object.entries(db.listings||{}).find(([lid,l]) => l.seller===db.currentUser.username && l.giftId===giftId);
+  if(exists){ toast('Уже выставлен'); return; }
+  const listingId = 'lst_' + Date.now();
+  await database.ref('users/' + db.currentUser.username + '/gifts/' + giftId).remove();
+  await database.ref('listings/' + listingId).set({giftId, seller: db.currentUser.username, price, currency, giftData: g, createdAt: Date.now()});
   toast('🎁 Лот выставлен');
   closeModal();
 }
@@ -2053,27 +2292,23 @@ async function buyListing(listingId){
     const buyerTon=db.currentUser.ton||0;
     if(buyerTon<priceTon){toast('Мало TON');return;}
     if(!confirm('Купить за '+fmtTon(priceTon)+' 💎?'))return;
-    const fee=priceTon*MARKET_FEE;
-    const sellerGets=priceTon-fee;
+    const fee=priceTon*MARKET_FEE;const sellerGets=priceTon-fee;
     await database.ref('users/'+db.currentUser.username+'/ton').set(buyerTon-priceTon);
     const sellerSnap=await database.ref('users/'+l.seller+'/ton').once('value');
-    const sellerTon=sellerSnap.val()||0;
-    await database.ref('users/'+l.seller+'/ton').set(sellerTon+sellerGets);
+    await database.ref('users/'+l.seller+'/ton').set((sellerSnap.val()||0)+sellerGets);
     const adminSnap=await database.ref('users/admin/ton').once('value');
-    if(adminSnap.exists()){const adminTon=adminSnap.val()||0;await database.ref('users/admin/ton').set(adminTon+fee);}
+    if(adminSnap.exists()){await database.ref('users/admin/ton').set((adminSnap.val()||0)+fee);}
     await logTransaction(-priceTon,'ton','Покупка '+l.giftData.name,'out');
   } else {
     const myStars=db.currentUser.stars||0;
     if(myStars<l.price){toast('Мало звёзд');return;}
     if(!confirm('Купить за '+l.price+' ⭐?'))return;
-    const fee=Math.ceil(l.price*MARKET_FEE);
-    const sellerGets=l.price-fee;
+    const fee=Math.ceil(l.price*MARKET_FEE);const sellerGets=l.price-fee;
     await database.ref('users/'+db.currentUser.username+'/stars').set(myStars-l.price);
     const sellerSnap=await database.ref('users/'+l.seller+'/stars').once('value');
-    const sellerStars=sellerSnap.val()||0;
-    await database.ref('users/'+l.seller+'/stars').set(sellerStars+sellerGets);
+    await database.ref('users/'+l.seller+'/stars').set((sellerSnap.val()||0)+sellerGets);
     const adminSnap=await database.ref('users/admin/stars').once('value');
-    if(adminSnap.exists()){const adminStars=adminSnap.val()||0;await database.ref('users/admin/stars').set(adminStars+fee);}
+    if(adminSnap.exists()){await database.ref('users/admin/stars').set((adminSnap.val()||0)+fee);}
     await logTransaction(-l.price,'stars','Покупка '+l.giftData.name,'out');
   }
   await database.ref('users/'+db.currentUser.username+'/gifts/gift_'+Date.now()).set(l.giftData);
@@ -2093,35 +2328,33 @@ async function buyListing(listingId){
 function openMyListingsModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
   const myListings=Object.entries(db.listings||{}).filter(([lid,l])=>l.seller===db.currentUser.username);
-  if(!myListings.length){
+  const myAuctions=Object.entries(db.auctions||{}).filter(([aid,a])=>a.seller===db.currentUser.username && a.endsAt > Date.now());
+  if(!myListings.length && !myAuctions.length){
     openModal('Мои лоты',`<div class="text-center py-8"><i class="fas fa-tags text-5xl text-tg-gray/30 mb-3"></i><p class="text-white font-medium mb-1">Нет активных лотов</p></div>`);
     return;
   }
-  const html=myListings.map(([lid,l])=>{
+  let html = '';
+  myListings.forEach(([lid,l])=>{
     const g=l.giftData||{};
     const priceText=(l.currency==='ton'?fmtTon(starsToTon(l.price))+' 💎':l.price+' ⭐');
-    return `<div class="bg-[#0e1621] rounded-2xl border border-black/30 flex items-center gap-3 p-3 mb-2"><div class="w-14 h-14 rounded-xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center shrink-0">${renderGiftIcon(g.icon,'text-2xl','',g.emoji)}</div><div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(g.name||'Подарок')}</div><div class="text-amber-400 text-xs font-bold">${priceText}</div></div><button onclick="cancelListing('${lid}');closeModal();openMyListingsModal();" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg btn-press transition">Снять</button></div>`;
-  }).join('');
-  openModal('Мои лоты · '+myListings.length,`<div class="max-h-[60vh] overflow-y-auto">${html}</div>`);
+    html += `<div class="bg-[#0e1621] rounded-2xl border border-black/30 flex items-center gap-3 p-3 mb-2"><div class="w-14 h-14 rounded-xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center shrink-0">${renderGiftIcon(g.icon,'text-2xl','',g.emoji)}</div><div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(g.name||'Подарок')}</div><div class="text-amber-400 text-xs font-bold">${priceText} · Продажа</div></div><button onclick="cancelListing('${lid}');closeModal();openMyListingsModal();" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg btn-press transition">Снять</button></div>`;
+  });
+  myAuctions.forEach(([aid,a])=>{
+    const g=a.giftData||{};
+    const priceText=(a.currency==='ton'?fmtTon(starsToTon(a.currentPrice))+' 💎':a.currentPrice+' ⭐');
+    const tl = Math.max(0, a.endsAt - Date.now());
+    const hh = Math.floor(tl/3600000), mm = Math.floor((tl%3600000)/60000);
+    html += `<div class="bg-[#0e1621] rounded-2xl border border-amber-500/30 flex items-center gap-3 p-3 mb-2"><div class="w-14 h-14 rounded-xl bg-gradient-to-tr ${g.traits?.backdropBg||g.bg} flex items-center justify-center shrink-0">${renderGiftIcon(g.icon,'text-2xl','',g.emoji)}</div><div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(g.name||'Подарок')}</div><div class="text-amber-400 text-xs font-bold">${priceText} · ${hh}ч ${mm}м</div></div><button onclick="cancelAuction('${aid}');closeModal();openMyListingsModal();" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1.5 rounded-lg btn-press transition">Отменить</button></div>`;
+  });
+  openModal('Мои лоты · '+(myListings.length + myAuctions.length),`<div class="max-h-[60vh] overflow-y-auto">${html}</div>`);
 }
 
 /* ===== PREMIUM ===== */
 function openPremiumModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
-  const u=db.currentUser;
-  const isActive=isPrem(u);
-  const cost=500;const days=30;
+  const u=db.currentUser;const isActive=isPrem(u);const cost=500;const days=30;
   const until=isActive?new Date(u.premiumUntil).toLocaleDateString('ru-RU'):'';
-  openModal('👑 Premium',`
-    <div class="bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-600 rounded-2xl p-6 mb-4 text-white shadow-xl text-center"><i class="fas fa-crown text-5xl mb-3"></i><h2 class="text-2xl font-black mb-1">67gramm Premium</h2><p class="text-sm opacity-90">${isActive?'Активен до '+until:'Открой все возможности'}</p></div>
-    <div class="space-y-3 mb-5">
-      <div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-crown text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Именной бейдж 👑</span></div>
-      <div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-palette text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Эксклюзивные темы</span></div>
-      <div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-upload text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Файлы до 4 ГБ</span></div>
-      <div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-gift text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Скидка 10% на подарки</span></div>
-    </div>
-    ${!isActive?`<div class="bg-[#0e1621] p-4 rounded-xl border border-black/30 mb-4 text-center"><div class="text-amber-400 font-bold text-3xl">${cost} ⭐</div><div class="text-tg-gray text-xs mt-1">на ${days} дней</div></div><button onclick="activatePremium(${cost},${days})" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90 text-white font-bold py-3.5 rounded-xl btn-press text-sm transition">⭐ Активировать</button>`:`<button onclick="cancelPremium()" class="w-full bg-[#2b3a4a] hover:bg-[#3a4d61] text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">Отменить</button>`}
-  `);
+  openModal('👑 Premium',`<div class="bg-gradient-to-br from-amber-400 via-yellow-500 to-orange-600 rounded-2xl p-6 mb-4 text-white shadow-xl text-center"><i class="fas fa-crown text-5xl mb-3"></i><h2 class="text-2xl font-black mb-1">67gramm Premium</h2><p class="text-sm opacity-90">${isActive?'Активен до '+until:'Открой все возможности'}</p></div><div class="space-y-3 mb-5"><div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-crown text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Именной бейдж 👑</span></div><div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-palette text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Эксклюзивные темы</span></div><div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-upload text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Файлы до 4 ГБ</span></div><div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30"><i class="fas fa-gift text-amber-400 w-5 text-center"></i><span class="text-white text-sm">Скидка 10% на подарки</span></div></div>${!isActive?`<div class="bg-[#0e1621] p-4 rounded-xl border border-black/30 mb-4 text-center"><div class="text-amber-400 font-bold text-3xl">${cost} ⭐</div><div class="text-tg-gray text-xs mt-1">на ${days} дней</div></div><button onclick="activatePremium(${cost},${days})" class="w-full bg-gradient-to-r from-amber-500 to-orange-600 hover:opacity-90 text-white font-bold py-3.5 rounded-xl btn-press text-sm transition">⭐ Активировать</button>`:`<button onclick="cancelPremium()" class="w-full bg-[#2b3a4a] hover:bg-[#3a4d61] text-white font-medium py-3.5 rounded-xl btn-press text-sm transition">Отменить</button>`}`);
 }
 async function activatePremium(cost,days){
   const stars=db.currentUser.stars||0;
@@ -2181,155 +2414,6 @@ async function executeCreateGroup(){
   await database.ref('chats/'+cid).set({type:'group',name,members:mem,createdAt:Date.now(),createdBy:db.currentUser.username,admins:{[db.currentUser.username]:true}});
   for(const m of Object.keys(mem))await database.ref('userChats/'+m+'/'+cid).set(true);
   closeModal();openChat(cid);toast('Группа создана');
-}
-
-/* ===== НАСТРОЙКИ ===== */
-function openSettingsModal(){
-  if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
-  const u=db.currentUser;
-  const scale=u.scale||100;const theme=u.theme||'dark';const fs=u.fontScale||15;
-  const twoFA=!!u.twoFA;
-  const notifStatus=Notification.permission;
-  openModal('Настройки',`
-    <div class="flex items-center gap-4 mb-6">
-      <div class="relative cursor-pointer group" onclick="document.getElementById('hiddenAvatarInput').click()">${getAvatarHtml(u.avatar,u.displayName||u.username,20)}<div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><i class="fas fa-camera text-white"></i></div></div>
-      <div class="min-w-0"><div class="text-lg font-medium text-white truncate">${escapeHtml(u.displayName||u.username)}</div><div class="text-sm text-tg-gray truncate">${escapeHtml(u.phone||'Телефон')}</div><div class="text-sm text-tg-blue truncate">@${escapeHtml(u.username)}</div></div>
-    </div>
-    <div class="space-y-1 bg-[#0e1621] rounded-2xl p-2 mb-4 border border-black/30">
-      <div onclick="closeModal();openSetAccountModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="far fa-user w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Профиль</span></div>
-      <div onclick="closeModal();openBuyUsernameModal()" class="flex items-center justify-between p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><div class="flex items-center gap-4"><i class="fas fa-at w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Мои юзернеймы</span></div><span class="text-tg-blue text-xs">${Object.keys(u.usernames||{}).length} / 40</span></div>
-      <div onclick="closeModal();openSetPrivacyModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-lock w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Приватность</span></div>
-      <div onclick="closeModal();openSetFoldersModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="far fa-folder w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Папки</span></div>
-      <div onclick="closeModal();openSetChatBgModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-image w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Фон чата</span></div>
-      <div onclick="closeModal();openTwoFAModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-shield-alt w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">2FA ${twoFA?'<span class="text-emerald-400 text-xs ml-2">✓</span>':'<span class="text-red-400 text-xs ml-2">выкл</span>'}</span></div>
-      <div onclick="closeModal();openSessionsModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-mobile-alt w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Сессии</span></div>
-      <div onclick="requestNotifPermission(true)" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-bell w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Уведомления</span><span class="ml-auto text-xs ${notifStatus==='granted'?'text-emerald-400':notifStatus==='denied'?'text-red-400':'text-amber-400'}">${notifStatus==='granted'?'вкл':notifStatus==='denied'?'запрещены':'включить'}</span></div>
-    </div>
-    <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30">
-      <div class="text-white text-sm mb-3 flex items-center gap-4"><i class="fas fa-palette text-tg-gray text-lg w-6 text-center"></i>Тема</div>
-      <div class="grid grid-cols-4 gap-2">
-        <button onclick="setTheme('dark')" class="py-2 rounded-lg text-xs font-medium border ${theme==='dark'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">Тёмная</button>
-        <button onclick="setTheme('light')" class="py-2 rounded-lg text-xs font-medium border ${theme==='light'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">Светлая</button>
-        <button onclick="setTheme('amoled')" class="py-2 rounded-lg text-xs font-medium border ${theme==='amoled'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">AMOLED</button>
-        <button onclick="setTheme('system')" class="py-2 rounded-lg text-xs font-medium border ${theme==='system'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">Авто</button>
-      </div>
-    </div>
-    <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30">
-      <div class="flex justify-between items-center mb-3 text-white text-sm"><div class="flex items-center gap-4"><i class="fas fa-font text-tg-gray text-lg w-6 text-center"></i>Размер текста</div><span id="fsTxt" class="text-tg-blue font-semibold">${fs}px</span></div>
-      <input type="range" min="12" max="22" value="${fs}" oninput="document.getElementById('fsTxt').innerText=this.value+'px'; applyFontScale(this.value);" onchange="database.ref('users/'+db.currentUser.username+'/fontScale').set(parseInt(this.value))" class="w-full accent-[#3390ec]">
-    </div>
-    <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30">
-      <div class="flex justify-between items-center mb-3 text-white text-sm"><div class="flex items-center gap-4"><i class="far fa-eye text-tg-gray text-lg w-6 text-center"></i>Масштаб</div><span id="scTxt" class="text-tg-blue font-semibold">${scale}%</span></div>
-      <input type="range" min="70" max="140" value="${scale}" oninput="document.getElementById('scTxt').innerText=this.value+'%'; applyScale(this.value);" onchange="database.ref('users/'+db.currentUser.username+'/scale').set(parseInt(this.value))" class="w-full accent-[#3390ec]">
-    </div>
-  `);
-}
-function setTheme(t){applyTheme(t);database.ref('users/'+db.currentUser.username+'/theme').set(t);openSettingsModal();}
-function openSetAccountModal(){
-  const u=db.currentUser;
-  openModal('Мой профиль',`<label class="text-xs text-tg-gray mb-1.5 block">Имя</label><input id="sda" type="text" value="${escapeHtml(u.displayName||u.username)}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-3"><label class="text-xs text-tg-gray mb-1.5 block">О себе</label><textarea id="sdbio" rows="3" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-5 resize-none">${escapeHtml(u.bio||'')}</textarea><button onclick="saveAccountData()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Сохранить</button>`);
-}
-async function saveAccountData(){
-  const name=document.getElementById('sda').value.trim();
-  const bio=document.getElementById('sdbio').value.trim();
-  if(!name){toast('Имя пустое');return;}
-  await database.ref('users/'+db.currentUser.username+'/displayName').set(name);
-  await database.ref('users/'+db.currentUser.username+'/bio').set(bio);
-  toast('Профиль обновлён');openSettingsModal();
-}
-function openSetPrivacyModal(){
-  openModal('Приватность',`<label class="text-xs text-tg-gray mb-1.5 block">Телефон</label><input id="spr" type="tel" value="${escapeHtml(db.currentUser.phone||'')}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-4"><div class="border-t border-black/20 pt-4 mb-5"><p class="text-sm text-white mb-3 font-medium">Смена пароля</p><input id="op" type="password" placeholder="Старый пароль" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-2.5"><input id="np" type="password" placeholder="Новый (мин 4)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm"></div><button onclick="savePrivacyData()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Сохранить</button>`);
-}
-async function savePrivacyData(){
-  const ph=document.getElementById('spr').value.trim();
-  const o=document.getElementById('op').value;const n=document.getElementById('np').value;
-  if(o&&n){if(n.length<4){toast('Пароль от 4 символов');return;}const h=await hashPass(o);if(h!==db.currentUser.passHash&&o!==db.currentUser.passPlain){toast('Неверный пароль');return;}const nh=await hashPass(n);await database.ref('users/'+db.currentUser.username+'/passHash').set(nh);await database.ref('users/'+db.currentUser.username+'/passPlain').set(n);toast('Пароль изменён');}
-  else if(o||n){toast('Заполните оба');return;}
-  await database.ref('users/'+db.currentUser.username+'/phone').set(ph);
-  toast('Сохранено');openSettingsModal();
-}
-function openTwoFAModal(){
-  const enabled=!!db.currentUser.twoFA;
-  if(enabled){openModal('2FA',`<div class="text-center mb-5"><i class="fas fa-shield-alt text-emerald-400 text-5xl mb-3"></i><p class="text-white font-medium mb-1">2FA включена</p></div><button onclick="disable2FA()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Отключить</button>`);return;}
-  openModal('Включить 2FA',`<p class="text-white text-sm mb-3">Пароль будет запрашиваться при входе</p><input id="p2fa" type="password" placeholder="Пароль 2FA" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-3"><input id="p2fa2" type="password" placeholder="Повторите" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-5"><button onclick="enable2FA()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Включить</button>`);
-}
-async function enable2FA(){
-  const p=document.getElementById('p2fa').value,p2=document.getElementById('p2fa2').value;
-  if(!p||p.length<4){toast('Минимум 4');return;}
-  if(p!==p2){toast('Пароли не совпадают');return;}
-  const h=await hashPass(p);
-  await database.ref('users/'+db.currentUser.username+'/twoFA').set({enabled:true,hash:h});
-  toast('2FA включена');openSettingsModal();
-}
-async function disable2FA(){await database.ref('users/'+db.currentUser.username+'/twoFA').remove();toast('2FA отключена');openSettingsModal();}
-function openSessionsModal(){
-  openModal('Сессии',`<div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30 mb-3"><div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400"><i class="fas fa-mobile-alt"></i></div><div class="flex-grow"><div class="text-white text-sm font-medium">Это устройство</div><div class="text-tg-gray text-xs">Сейчас</div></div><span class="text-emerald-400 text-xs">● Online</span></div><button onclick="terminateAllSessions()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Завершить другие сессии</button>`);
-}
-function terminateAllSessions(){toast('Сессии завершены');closeModal();}
-function openSetFoldersModal(){
-  const cids=Object.keys(db.chats||{});
-  const html=cids.map(cid=>{const info=chatDisplayInfo(cid);return `<label class="flex items-center gap-3 p-2.5 hover:bg-[#202b36] rounded-xl cursor-pointer"><input type="checkbox" class="fcb accent-[#3390ec]" value="${cid}"><span class="text-white text-sm truncate">${escapeHtml(info.name)}</span></label>`;}).join('');
-  openModal('Создать папку',`<input id="fn" type="text" placeholder="Название" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-4"><div class="max-h-48 overflow-y-auto bg-[#0e1621] p-2 rounded-xl mb-5 border border-black/30">${html||'<p class="text-tg-gray text-sm p-2">Нет чатов</p>'}</div><button onclick="executeCreateFolder()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Создать</button>`);
-}
-function chatDisplayInfo(cid){
-  const c=db.chats[cid]||{};
-  if(c.type==='group')return{name:c.name||'Группа'};
-  if(c.type==='saved')return{name:'Избранное'};
-  const ou=Object.keys(c.members||{}).find(m=>m!==db.currentUser.username);
-  const u=db.users[ou]||{};
-  return{name:u.displayName||ou||'Пользователь'};
-}
-async function executeCreateFolder(){
-  const name=document.getElementById('fn').value.trim();
-  const sel=Array.from(document.querySelectorAll('.fcb:checked')).map(c=>c.value);
-  if(!name||!sel.length){toast('Заполните');return;}
-  const fid='f_'+Date.now();
-  await database.ref('users/'+db.currentUser.username+'/folders/'+fid).set({name,chats:sel});
-  toast('Папка создана');openSettingsModal();
-}
-function openSetChatBgModal(){
-  const presets=[THEMES_BG.default,'https://i.imgur.com/2nCt3Sbl.jpg','https://i.imgur.com/yW2W9SC.jpg','https://i.imgur.com/8D8y0Lhl.jpg','https://i.imgur.com/Lp9X3iVl.jpg'];
-  openModal('Фон чата',`<div class="grid grid-cols-3 gap-2 mb-4">${presets.map(p=>`<div onclick="setChatBg('${p}')" class="aspect-[3/4] rounded-lg overflow-hidden cursor-pointer border-2 ${db.currentUser.chatBg===p?'border-[#3390ec]':'border-transparent'} hover:border-[#3390ec]/50 transition"><img src="${p}" class="w-full h-full object-cover" onerror="this.parentNode.style.background='#202b36'"></div>`).join('')}</div><button onclick="document.getElementById('hiddenChatBgInput').click()" class="w-full bg-[#0e1621] hover:bg-[#202b36] border border-black/30 text-white font-medium py-3.5 rounded-xl btn-press text-sm mb-2"><i class="fas fa-upload mr-2"></i>Загрузить</button><button onclick="resetChatBg()" class="w-full bg-[#0e1621] hover:bg-[#202b36] border border-black/30 text-tg-gray font-medium py-3 rounded-xl btn-press text-sm">Сбросить</button>`);
-}
-async function setChatBg(url){await database.ref('users/'+db.currentUser.username+'/chatBg').set(url);toast('Фон обновлён');applyChatBg();closeModal();}
-async function resetChatBg(){await database.ref('users/'+db.currentUser.username+'/chatBg').remove();toast('Сброшено');applyChatBg();closeModal();}
-
-/* ===== SHOP (вызывает Telegram Stars) ===== */
-function openShopModal(){
-  if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
-  openModal('Пополнение',`
-    <div class="bg-gradient-to-br from-[#3390ec] to-[#2b78c5] rounded-2xl p-5 mb-4 text-white shadow-xl text-center"><i class="fab fa-telegram text-4xl mb-2"></i><h3 class="text-lg font-bold mb-1">Оплата через Telegram Stars</h3><p class="text-xs opacity-90">1 ⭐ TG = 100 ⭐ 67gramm</p></div>
-    <button onclick="payWithTelegramStars()" class="w-full bg-gradient-to-r from-[#3390ec] to-[#2b78c5] hover:opacity-90 text-white font-medium py-4 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition shadow-lg mb-4"><i class="fab fa-telegram text-lg"></i>Открыть магазин в Telegram</button>
-    <div class="grid grid-cols-2 gap-3 mb-4">
-      <div class="bg-gradient-to-br from-amber-500 to-orange-600 rounded-2xl p-4 text-white text-center"><i class="fas fa-star text-2xl mb-1"></i><div class="text-xs">Звёзды</div><div class="text-xl font-bold">${fmtStars(db.currentUser.stars||0)}</div></div>
-      <div class="bg-gradient-to-br from-cyan-500 to-blue-600 rounded-2xl p-4 text-white text-center"><i class="fas fa-gem text-2xl mb-1"></i><div class="text-xs">TON</div><div class="text-xl font-bold">${fmtTon(db.currentUser.ton||0)}</div></div>
-    </div>
-    <p class="text-center text-tg-gray text-[11px]">После оплаты звёзды зачислятся автоматически</p>
-  `);
-}
-function fakePay(amt, priceTxt){
-  openModal('Способ оплаты', `
-    <div class="text-center mb-6"><div class="text-amber-400 font-bold text-2xl mb-1">${amt} ⭐</div><div class="text-tg-gray text-sm">К оплате: ${priceTxt}</div></div>
-    <div class="space-y-2.5">
-      <button onclick="payWithTelegramStars()" class="w-full bg-gradient-to-r from-[#3390ec] to-[#2b78c5] hover:opacity-90 text-white font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition shadow-lg shadow-[#3390ec]/30">
-        <i class="fab fa-telegram"></i> Telegram Stars
-        <span class="text-[10px] bg-white/20 px-2 py-0.5 rounded-full ml-1">рекомендуем</span>
-      </button>
-      <button onclick="processPayment(${amt})" class="w-full bg-teal-600 hover:bg-teal-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm flex items-center justify-center gap-2 transition"><i class="fas fa-credit-card"></i> UzCard / Humo</button>
-    </div>
-    <p class="text-center text-tg-gray text-[11px] mt-4">Через Telegram: <b class="text-amber-400">1 ⭐ TG = 100 ⭐</b></p>
-  `);
-}
-async function processPayment(amt){
-  closeModal();toast('Обработка...');
-  setTimeout(async()=>{const cur=db.currentUser.stars||0;await database.ref('users/'+db.currentUser.username+'/stars').set(cur+amt);await logTransaction(amt,'stars','Пополнение','in');toast('✅ +'+amt+' ⭐');openShopModal();},1200);
-}
-async function reportMsg(mid){
-  if(!confirm('Отправить жалобу?'))return;
-  const snap=await database.ref(`messages/${activeChatId}/${mid}`).once('value');
-  const m=snap.val();if(!m)return;
-  await database.ref('reports/'+mid).set({chatId:activeChatId,msgId:mid,from:m.from,text:m.text||'[Файл]',reportedBy:db.currentUser.username,at:Date.now()});
-  toast('Жалоба отправлена');
 }
 
 /* ===== ЗВОНКИ 1:1 ===== */
@@ -2398,8 +2482,7 @@ async function acceptCall(callId,remoteUser,type){
 }
 function endCall(){
   if(callState.callId){database.ref('calls/'+callState.callId+'/status').set('ended').catch(()=>{});}
-  callState.listeners.forEach(fn=>{try{fn();}catch(e){}});
-  callState.listeners=[];
+  callState.listeners.forEach(fn=>{try{fn();}catch(e){}});callState.listeners=[];
   if(callState.peer){try{callState.peer.close();}catch(e){}callState.peer=null;}
   if(callState.localStream){callState.localStream.getTracks().forEach(t=>t.stop());callState.localStream=null;}
   callState.remoteStream=null;
@@ -2411,16 +2494,7 @@ function showCallUI(statusText){
   document.getElementById('callOverlay')?.remove();
   const isVideo=callState.callType==='video';
   const user=db.users[callState.remoteUser]||{};
-  document.body.insertAdjacentHTML('beforeend',`
-    <div id="callOverlay" class="fixed inset-0 z-[500] bg-black flex flex-col fade-in">
-      ${isVideo?`<video id="callRemoteVideo" autoplay playsinline class="absolute inset-0 w-full h-full object-cover"></video><video id="callLocalVideo" autoplay playsinline muted class="absolute top-4 right-4 w-28 h-40 rounded-2xl object-cover border-2 border-white/20 shadow-2xl z-10"></video><div class="absolute top-6 left-6 z-20 bg-black/50 backdrop-blur px-3 py-1.5 rounded-full text-white text-sm">${escapeHtml(user.displayName||callState.remoteUser)}</div>`:`<audio id="callRemoteAudio" autoplay></audio><div class="flex-1 flex flex-col items-center justify-center gap-4">${getAvatarHtml(user.avatar,user.displayName||callState.remoteUser,28,'ring-4 ring-white/10')}<div class="text-white text-2xl font-bold">${escapeHtml(user.displayName||callState.remoteUser)}</div><div id="callStatusText" class="text-white/70 text-sm">${escapeHtml(statusText||'Звонок...')}</div></div>`}
-      <div class="absolute bottom-12 left-0 right-0 flex justify-center gap-4 z-20">
-        <button onclick="toggleMute()" id="btnMute" class="w-14 h-14 rounded-full bg-white/15 backdrop-blur text-white flex items-center justify-center text-lg hover:bg-white/25 transition btn-press"><i class="fas fa-microphone"></i></button>
-        <button onclick="endCall()" class="w-16 h-16 rounded-full bg-red-500 text-white flex items-center justify-center text-xl hover:bg-red-600 transition btn-press"><i class="fas fa-phone-slash"></i></button>
-        ${isVideo?`<button onclick="toggleCamera()" id="btnCam" class="w-14 h-14 rounded-full bg-white/15 backdrop-blur text-white flex items-center justify-center text-lg hover:bg-white/25 transition btn-press"><i class="fas fa-video"></i></button>`:''}
-      </div>
-    </div>
-  `);
+  document.body.insertAdjacentHTML('beforeend',`<div id="callOverlay" class="fixed inset-0 z-[500] bg-black flex flex-col fade-in">${isVideo?`<video id="callRemoteVideo" autoplay playsinline class="absolute inset-0 w-full h-full object-cover"></video><video id="callLocalVideo" autoplay playsinline muted class="absolute top-4 right-4 w-28 h-40 rounded-2xl object-cover border-2 border-white/20 shadow-2xl z-10"></video><div class="absolute top-6 left-6 z-20 bg-black/50 backdrop-blur px-3 py-1.5 rounded-full text-white text-sm">${escapeHtml(user.displayName||callState.remoteUser)}</div>`:`<audio id="callRemoteAudio" autoplay></audio><div class="flex-1 flex flex-col items-center justify-center gap-4">${getAvatarHtml(user.avatar,user.displayName||callState.remoteUser,28,'ring-4 ring-white/10')}<div class="text-white text-2xl font-bold">${escapeHtml(user.displayName||callState.remoteUser)}</div><div id="callStatusText" class="text-white/70 text-sm">${escapeHtml(statusText||'Звонок...')}</div></div>`}<div class="absolute bottom-12 left-0 right-0 flex justify-center gap-4 z-20"><button onclick="toggleMute()" id="btnMute" class="w-14 h-14 rounded-full bg-white/15 backdrop-blur text-white flex items-center justify-center text-lg hover:bg-white/25 transition btn-press"><i class="fas fa-microphone"></i></button><button onclick="endCall()" class="w-16 h-16 rounded-full bg-red-500 text-white flex items-center justify-center text-xl hover:bg-red-600 transition btn-press"><i class="fas fa-phone-slash"></i></button>${isVideo?`<button onclick="toggleCamera()" id="btnCam" class="w-14 h-14 rounded-full bg-white/15 backdrop-blur text-white flex items-center justify-center text-lg hover:bg-white/25 transition btn-press"><i class="fas fa-video"></i></button>`:''}</div></div>`);
   if(isVideo)setTimeout(()=>{const v=document.getElementById('callLocalVideo');if(v && callState.localStream)v.srcObject=callState.localStream;},50);
 }
 function setCallStatus(txt){const el=document.getElementById('callStatusText');if(el)el.textContent=txt;}
@@ -2440,16 +2514,7 @@ function listenIncomingCalls(){
 function showIncomingCall(callId,callData){
   if(document.getElementById('incomingCallOverlay'))return;
   const user=db.users[callData.from]||{};
-  document.body.insertAdjacentHTML('beforeend',`
-    <div id="incomingCallOverlay" class="fixed inset-0 z-[500] bg-black/95 flex flex-col items-center justify-center gap-6 fade-in">
-      <div class="animate-pulse">${getAvatarHtml(user.avatar,user.displayName||callData.from,32,'ring-4 ring-blue-500/50')}</div>
-      <div class="text-center"><div class="text-white text-3xl font-bold mb-2">${escapeHtml(user.displayName||callData.from)}</div><div class="text-white/70 text-sm">${callData.type==='video'?'📹 Видеозвонок':'📞 Аудиозвонок'}</div></div>
-      <div class="flex gap-8 mt-8">
-        <button onclick="declineCall('${callId}')" class="w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-2xl transition btn-press shadow-2xl"><i class="fas fa-phone-slash"></i></button>
-        <button onclick="acceptCall('${callId}','${callData.from}','${callData.type}')" class="w-20 h-20 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center text-2xl transition btn-press shadow-2xl animate-bounce"><i class="fas fa-phone"></i></button>
-      </div>
-    </div>
-  `);
+  document.body.insertAdjacentHTML('beforeend',`<div id="incomingCallOverlay" class="fixed inset-0 z-[500] bg-black/95 flex flex-col items-center justify-center gap-6 fade-in"><div class="animate-pulse">${getAvatarHtml(user.avatar,user.displayName||callData.from,32,'ring-4 ring-blue-500/50')}</div><div class="text-center"><div class="text-white text-3xl font-bold mb-2">${escapeHtml(user.displayName||callData.from)}</div><div class="text-white/70 text-sm">${callData.type==='video'?'📹 Видеозвонок':'📞 Аудиозвонок'}</div></div><div class="flex gap-8 mt-8"><button onclick="declineCall('${callId}')" class="w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 text-white flex items-center justify-center text-2xl transition btn-press shadow-2xl"><i class="fas fa-phone-slash"></i></button><button onclick="acceptCall('${callId}','${callData.from}','${callData.type}')" class="w-20 h-20 rounded-full bg-emerald-500 hover:bg-emerald-600 text-white flex items-center justify-center text-2xl transition btn-press shadow-2xl animate-bounce"><i class="fas fa-phone"></i></button></div></div>`);
   try{const ctx=new (window.AudioContext||window.webkitAudioContext)();const beep=()=>{if(!document.getElementById('incomingCallOverlay'))return;const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=800;g.gain.setValueAtTime(.15,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.4);o.start();o.stop(ctx.currentTime+.4);setTimeout(beep,1200);};beep();}catch(e){}
 }
 async function declineCall(callId){await database.ref('calls/'+callId+'/status').set('declined');document.getElementById('incomingCallOverlay')?.remove();}
@@ -2486,8 +2551,7 @@ async function startGroupCall(chatId){
   });
   groupCallState.listeners.push(()=>partRef.off('value', partHandler));
   showGroupCallUI();
-  const chatRef = database.ref('chats/'+chatId);
-  await chatRef.update({activeCall: roomId, callStartedAt: Date.now()});
+  await database.ref('chats/'+chatId).update({activeCall: roomId, callStartedAt: Date.now()});
 }
 async function createPeerConnection(remoteUser, roomId, isInitiator){
   if(groupCallState.peers[remoteUser]) return;
@@ -2508,8 +2572,7 @@ async function createPeerConnection(remoteUser, roomId, isInitiator){
   const iceHandler = remoteIceRef.on('child_added', s => { const c = s.val(); if(c) peer.addIceCandidate(new RTCIceCandidate(c)).catch(()=>{}); });
   groupCallState.listeners.push(() => remoteIceRef.off('child_added', iceHandler));
   if(isInitiator){
-    const offer = await peer.createOffer();
-    await peer.setLocalDescription(offer);
+    const offer = await peer.createOffer();await peer.setLocalDescription(offer);
     await database.ref(`rooms/${roomId}/signals/${me}_to_${remoteUser}/offer`).set({type:offer.type, sdp:offer.sdp});
     const ansRef = database.ref(`rooms/${roomId}/signals/${remoteUser}_to_${me}/answer`);
     const ah = ansRef.on('value', async s => { const a = s.val(); if(a && !peer.currentRemoteDescription){ await peer.setRemoteDescription(new RTCSessionDescription(a)); ansRef.off('value', ah); } });
@@ -2545,37 +2608,22 @@ async function leaveGroupCall(){
     if(!roomSnap.exists()) await database.ref('rooms/'+roomId).remove().catch(()=>{});
   }
   Object.keys(groupCallState.peers).forEach(u => removePeerFromCall(u));
-  groupCallState.listeners.forEach(fn => { try{fn();}catch(e){} });
-  groupCallState.listeners = [];
+  groupCallState.listeners.forEach(fn => { try{fn();}catch(e){} });groupCallState.listeners = [];
   if(groupCallState.localStream){ groupCallState.localStream.getTracks().forEach(t=>t.stop()); groupCallState.localStream = null; }
-  groupCallState.active = false;
-  groupCallState.roomId = null;
+  groupCallState.active = false;groupCallState.roomId = null;
   document.getElementById('groupCallOverlay')?.remove();
 }
 function showGroupCallUI(){
   document.getElementById('groupCallOverlay')?.remove();
-  document.body.insertAdjacentHTML('beforeend', `
-    <div id="groupCallOverlay" class="fixed inset-0 z-[500] bg-black flex flex-col fade-in">
-      <div class="p-4 flex items-center justify-between border-b border-white/10"><div class="text-white font-medium"><i class="fas fa-phone-volume mr-2"></i>Групповой звонок</div><div class="text-white/60 text-sm" id="gcCount">Участники: 1</div></div>
-      <div id="groupCallGrid" class="flex-grow grid grid-cols-2 gap-3 p-4 overflow-y-auto auto-rows-max">
-        <div class="group-call-tile" data-user="${db.currentUser.username}">${getAvatarHtml(db.currentUser.avatar, db.currentUser.displayName, 20)}<div class="absolute bottom-2 left-2 text-white text-xs bg-black/50 px-2 py-1 rounded">Вы</div></div>
-      </div>
-      <div class="p-4 flex justify-center gap-4 border-t border-white/10">
-        <button onclick="toggleGroupMute()" id="gcBtnMute" class="w-14 h-14 rounded-full bg-white/15 text-white flex items-center justify-center text-lg"><i class="fas fa-microphone"></i></button>
-        <button onclick="leaveGroupCall()" class="w-16 h-16 rounded-full bg-red-500 text-white flex items-center justify-center text-xl"><i class="fas fa-phone-slash"></i></button>
-      </div>
-    </div>
-  `);
+  document.body.insertAdjacentHTML('beforeend', `<div id="groupCallOverlay" class="fixed inset-0 z-[500] bg-black flex flex-col fade-in"><div class="p-4 flex items-center justify-between border-b border-white/10"><div class="text-white font-medium"><i class="fas fa-phone-volume mr-2"></i>Групповой звонок</div><div class="text-white/60 text-sm" id="gcCount">Участники: 1</div></div><div id="groupCallGrid" class="flex-grow grid grid-cols-2 gap-3 p-4 overflow-y-auto auto-rows-max"><div class="group-call-tile" data-user="${db.currentUser.username}">${getAvatarHtml(db.currentUser.avatar, db.currentUser.displayName, 20)}<div class="absolute bottom-2 left-2 text-white text-xs bg-black/50 px-2 py-1 rounded">Вы</div></div></div><div class="p-4 flex justify-center gap-4 border-t border-white/10"><button onclick="toggleGroupMute()" id="gcBtnMute" class="w-14 h-14 rounded-full bg-white/15 text-white flex items-center justify-center text-lg"><i class="fas fa-microphone"></i></button><button onclick="leaveGroupCall()" class="w-16 h-16 rounded-full bg-red-500 text-white flex items-center justify-center text-xl"><i class="fas fa-phone-slash"></i></button></div></div>`);
   updateGroupCallGrid();
 }
 function updateGroupCallGrid(){
-  const grid = document.getElementById('groupCallGrid');
-  if(!grid) return;
+  const grid = document.getElementById('groupCallGrid');if(!grid) return;
   const participants = groupCallState.participants || {};
   const me = db.currentUser.username;
   const others = Object.keys(participants).filter(u => u !== me);
-  const cEl = document.getElementById('gcCount');
-  if(cEl) cEl.textContent = 'Участники: ' + (1 + others.length);
+  const cEl = document.getElementById('gcCount');if(cEl) cEl.textContent = 'Участники: ' + (1 + others.length);
   const myTile = grid.querySelector('[data-user="'+me+'"]');
   let html = myTile ? myTile.outerHTML : '';
   others.forEach(u => {
@@ -2587,8 +2635,7 @@ function updateGroupCallGrid(){
 }
 function toggleGroupMute(){
   if(!groupCallState.localStream) return;
-  const t = groupCallState.localStream.getAudioTracks()[0];
-  if(!t) return;
+  const t = groupCallState.localStream.getAudioTracks()[0];if(!t) return;
   t.enabled = !t.enabled;
   const b = document.getElementById('gcBtnMute');
   if(b) b.innerHTML = t.enabled ? '<i class="fas fa-microphone"></i>' : '<i class="fas fa-microphone-slash text-red-400"></i>';
@@ -2602,10 +2649,8 @@ function listenIncomingGroupCalls(){
     Object.entries(rooms).forEach(([rid, r]) => {
       if(!r.info || !r.participants) return;
       const chatId = r.info.chatId;
-      const myChats = db.chats[chatId];
-      if(!myChats) return;
-      if(r.participants[me]) return;
-      if(r.info.startedBy === me) return;
+      const myChats = db.chats[chatId];if(!myChats) return;
+      if(r.participants[me]) return;if(r.info.startedBy === me) return;
       if(r.declined && r.declined[me]) return;
       inviteRoom = {roomId: rid, info: r.info, from: r.info.startedBy};
     });
@@ -2616,22 +2661,10 @@ function listenIncomingGroupCalls(){
 function showIncomingGroupCall(roomId, info, from){
   if(document.getElementById('incomingGroupCallOverlay')) return;
   const user = db.users[from]||{};
-  document.body.insertAdjacentHTML('beforeend', `
-    <div id="incomingGroupCallOverlay" class="fixed inset-0 z-[500] bg-black/95 flex flex-col items-center justify-center gap-6 fade-in">
-      <div class="animate-pulse">${getAvatarHtml(user.avatar, user.displayName||from, 32)}</div>
-      <div class="text-center"><div class="text-white text-3xl font-bold mb-2">${escapeHtml(user.displayName||from)}</div><div class="text-white/70 text-sm">📞 Групповой звонок</div></div>
-      <div class="flex gap-8 mt-8">
-        <button onclick="declineGroupCall('${roomId}')" class="w-20 h-20 rounded-full bg-red-500 text-white flex items-center justify-center text-2xl"><i class="fas fa-phone-slash"></i></button>
-        <button onclick="joinGroupCall('${roomId}')" class="w-20 h-20 rounded-full bg-emerald-500 text-white flex items-center justify-center text-2xl animate-bounce"><i class="fas fa-phone"></i></button>
-      </div>
-    </div>
-  `);
+  document.body.insertAdjacentHTML('beforeend', `<div id="incomingGroupCallOverlay" class="fixed inset-0 z-[500] bg-black/95 flex flex-col items-center justify-center gap-6 fade-in"><div class="animate-pulse">${getAvatarHtml(user.avatar, user.displayName||from, 32)}</div><div class="text-center"><div class="text-white text-3xl font-bold mb-2">${escapeHtml(user.displayName||from)}</div><div class="text-white/70 text-sm">📞 Групповой звонок</div></div><div class="flex gap-8 mt-8"><button onclick="declineGroupCall('${roomId}')" class="w-20 h-20 rounded-full bg-red-500 text-white flex items-center justify-center text-2xl"><i class="fas fa-phone-slash"></i></button><button onclick="joinGroupCall('${roomId}')" class="w-20 h-20 rounded-full bg-emerald-500 text-white flex items-center justify-center text-2xl animate-bounce"><i class="fas fa-phone"></i></button></div></div>`);
   try{const ctx=new (window.AudioContext||window.webkitAudioContext)();const beep=()=>{if(!document.getElementById('incomingGroupCallOverlay'))return;const o=ctx.createOscillator(),g=ctx.createGain();o.connect(g);g.connect(ctx.destination);o.frequency.value=800;g.gain.setValueAtTime(.15,ctx.currentTime);g.gain.exponentialRampToValueAtTime(.001,ctx.currentTime+.4);o.start();o.stop(ctx.currentTime+.4);setTimeout(beep,1200);};beep();}catch(e){}
 }
-async function declineGroupCall(roomId){
-  await database.ref(`rooms/${roomId}/declined/${db.currentUser.username}`).set(true);
-  document.getElementById('incomingGroupCallOverlay')?.remove();
-}
+async function declineGroupCall(roomId){await database.ref(`rooms/${roomId}/declined/${db.currentUser.username}`).set(true);document.getElementById('incomingGroupCallOverlay')?.remove();}
 async function joinGroupCall(roomId){
   document.getElementById('incomingGroupCallOverlay')?.remove();
   if(groupCallState.active){ toast('Уже в звонке'); return; }
@@ -2639,10 +2672,7 @@ async function joinGroupCall(roomId){
   const me = db.currentUser.username;
   try{const stream = await navigator.mediaDevices.getUserMedia({audio:true, video:false});groupCallState.localStream = stream;}
   catch(err){ toast('Нет доступа'); return; }
-  groupCallState.active = true;
-  groupCallState.roomId = roomId;
-  groupCallState.peers = {};
-  groupCallState.listeners = [];
+  groupCallState.active = true;groupCallState.roomId = roomId;groupCallState.peers = {};groupCallState.listeners = [];
   await database.ref(`rooms/${roomId}/participants/${me}`).set({joinedAt:Date.now(), online:true});
   const partRef = database.ref(`rooms/${roomId}/participants`);
   const partHandler = partRef.on('value', snap => {
@@ -2663,15 +2693,143 @@ function openNewGroupCallModal(){
   if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
   const groupChats = Object.entries(db.chats||{}).filter(([cid,c])=>c.type==='group');
   if(!groupChats.length){
-    openModal('Групповой звонок',`<div class="text-center py-6"><i class="fas fa-phone-volume text-5xl text-tg-gray/30 mb-3"></i><p class="text-white font-medium mb-1">Нет групп</p><p class="text-tg-gray text-xs">Создайте группу</p></div>`);
+    openModal('Групповой звонок',`<div class="text-center py-6"><i class="fas fa-phone-volume text-5xl text-tg-gray/30 mb-3"></i><p class="text-white font-medium mb-1">Нет групп</p></div>`);
     return;
   }
-  const html = groupChats.map(([cid,c])=>{
-    const cnt = Object.keys(c.members||{}).length;
-    return `<div onclick="closeModal();startGroupCall('${cid}')" class="flex items-center gap-3 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition">${getAvatarHtml(c.avatar,c.name||'Группа',10)}<div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(c.name||'Группа')}</div><div class="text-tg-gray text-xs">${cnt} ${plural(cnt,'участник','участника','участников')}</div></div><i class="fas fa-phone text-emerald-400"></i></div>`;
-  }).join('');
+  const html = groupChats.map(([cid,c])=>{const cnt = Object.keys(c.members||{}).length;return `<div onclick="closeModal();startGroupCall('${cid}')" class="flex items-center gap-3 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition">${getAvatarHtml(c.avatar,c.name||'Группа',10)}<div class="flex-grow min-w-0"><div class="text-white text-sm font-medium truncate">${escapeHtml(c.name||'Группа')}</div><div class="text-tg-gray text-xs">${cnt} ${plural(cnt,'участник','участника','участников')}</div></div><i class="fas fa-phone text-emerald-400"></i></div>`;}).join('');
   openModal('Групповой звонок', `<div class="space-y-1 max-h-72 overflow-y-auto">${html}</div>`);
 }
+
+/* ===== НАСТРОЙКИ ===== */
+function openSettingsModal(){
+  if(!document.getElementById('drawerMenu')?.classList.contains('-translate-x-full'))toggleDrawerMenu();
+  const u=db.currentUser;
+  const scale=u.scale||100;const theme=u.theme||'dark';const fs=u.fontScale||15;
+  const twoFA=!!u.twoFA?.secret;
+  const notifStatus=Notification.permission;
+  const pinEnabled = localStorage.getItem('g67_pin_enabled') === '1';
+  openModal('Настройки',`
+    <div class="flex items-center gap-4 mb-6">
+      <div class="relative cursor-pointer group" onclick="document.getElementById('hiddenAvatarInput').click()">${getAvatarHtml(u.avatar,u.displayName||u.username,20)}<div class="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition"><i class="fas fa-camera text-white"></i></div></div>
+      <div class="min-w-0"><div class="text-lg font-medium text-white truncate">${escapeHtml(u.displayName||u.username)}</div><div class="text-sm text-tg-gray truncate">${escapeHtml(u.phone||'Телефон')}</div><div class="text-sm text-tg-blue truncate">@${escapeHtml(u.username)}</div></div>
+    </div>
+    <div class="space-y-1 bg-[#0e1621] rounded-2xl p-2 mb-4 border border-black/30">
+      <div onclick="closeModal();openSetAccountModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="far fa-user w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Профиль</span></div>
+      <div onclick="closeModal();openBuyUsernameModal()" class="flex items-center justify-between p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><div class="flex items-center gap-4"><i class="fas fa-at w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Мои юзернеймы</span></div><span class="text-tg-blue text-xs">${Object.keys(u.usernames||{}).length} / 40</span></div>
+      <div onclick="closeModal();openSetPrivacyModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-lock w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Приватность</span></div>
+      <div onclick="closeModal();openSetFoldersModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="far fa-folder w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Папки</span></div>
+      <div onclick="closeModal();openSetChatBgModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-image w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Фон чата</span></div>
+      <div onclick="closeModal();openPinSettings()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-lock w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">PIN-код</span><span class="ml-auto text-xs ${pinEnabled?'text-emerald-400':'text-tg-gray'}">${pinEnabled?'вкл':'выкл'}</span></div>
+      <div onclick="closeModal();openTwoFAModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-shield-alt w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">2FA</span><span class="ml-auto text-xs ${twoFA?'text-emerald-400':'text-red-400'}">${twoFA?'✓':''}</span></div>
+      <div onclick="closeModal();openSessionsModal()" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-mobile-alt w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Сессии</span></div>
+      <div onclick="requestNotifPermission(true)" class="flex items-center gap-4 p-3 hover:bg-[#202b36] rounded-xl cursor-pointer transition"><i class="fas fa-bell w-6 text-center text-tg-gray text-lg"></i><span class="text-white text-sm">Уведомления</span><span class="ml-auto text-xs ${notifStatus==='granted'?'text-emerald-400':notifStatus==='denied'?'text-red-400':'text-amber-400'}">${notifStatus==='granted'?'вкл':notifStatus==='denied'?'запрещены':'включить'}</span></div>
+    </div>
+    <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30">
+      <div class="text-white text-sm mb-3 flex items-center gap-4"><i class="fas fa-palette text-tg-gray text-lg w-6 text-center"></i>Тема</div>
+      <div class="grid grid-cols-4 gap-2">
+        <button onclick="setTheme('dark')" class="py-2 rounded-lg text-xs font-medium border ${theme==='dark'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">Тёмная</button>
+        <button onclick="setTheme('light')" class="py-2 rounded-lg text-xs font-medium border ${theme==='light'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">Светлая</button>
+        <button onclick="setTheme('amoled')" class="py-2 rounded-lg text-xs font-medium border ${theme==='amoled'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">AMOLED</button>
+        <button onclick="setTheme('system')" class="py-2 rounded-lg text-xs font-medium border ${theme==='system'?'bg-[#2b5278] text-white border-[#2b5278]':'border-black/30 text-tg-gray'}">Авто</button>
+      </div>
+    </div>
+    <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30">
+      <div class="flex justify-between items-center mb-3 text-white text-sm"><div class="flex items-center gap-4"><i class="fas fa-font text-tg-gray text-lg w-6 text-center"></i>Размер текста</div><span id="fsTxt" class="text-tg-blue font-semibold">${fs}px</span></div>
+      <input type="range" min="12" max="22" value="${fs}" oninput="document.getElementById('fsTxt').innerText=this.value+'px'; applyFontScale(this.value);" onchange="database.ref('users/'+db.currentUser.username+'/fontScale').set(parseInt(this.value))" class="w-full accent-[#3390ec]">
+    </div>
+    <div class="bg-[#0e1621] rounded-2xl p-4 mb-4 border border-black/30">
+      <div class="flex justify-between items-center mb-3 text-white text-sm"><div class="flex items-center gap-4"><i class="far fa-eye text-tg-gray text-lg w-6 text-center"></i>Масштаб</div><span id="scTxt" class="text-tg-blue font-semibold">${scale}%</span></div>
+      <input type="range" min="70" max="140" value="${scale}" oninput="document.getElementById('scTxt').innerText=this.value+'%'; applyScale(this.value);" onchange="database.ref('users/'+db.currentUser.username+'/scale').set(parseInt(this.value))" class="w-full accent-[#3390ec]">
+    </div>
+  `);
+}
+function setTheme(t){applyTheme(t);database.ref('users/'+db.currentUser.username+'/theme').set(t);openSettingsModal();}
+function openSetAccountModal(){
+  const u=db.currentUser;
+  openModal('Мой профиль',`<label class="text-xs text-tg-gray mb-1.5 block">Имя</label><input id="sda" type="text" value="${escapeHtml(u.displayName||u.username)}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-3"><label class="text-xs text-tg-gray mb-1.5 block">О себе</label><textarea id="sdbio" rows="3" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-5 resize-none">${escapeHtml(u.bio||'')}</textarea><button onclick="saveAccountData()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Сохранить</button>`);
+}
+async function saveAccountData(){
+  const name=document.getElementById('sda').value.trim();
+  const bio=document.getElementById('sdbio').value.trim();
+  if(!name){toast('Имя пустое');return;}
+  await database.ref('users/'+db.currentUser.username+'/displayName').set(name);
+  await database.ref('users/'+db.currentUser.username+'/bio').set(bio);
+  toast('Профиль обновлён');openSettingsModal();
+}
+function openSetPrivacyModal(){
+  openModal('Приватность',`<label class="text-xs text-tg-gray mb-1.5 block">Телефон</label><input id="spr" type="tel" value="${escapeHtml(db.currentUser.phone||'')}" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-4"><div class="border-t border-black/20 pt-4 mb-5"><p class="text-sm text-white mb-3 font-medium">Смена пароля</p><input id="op" type="password" placeholder="Старый пароль" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-2.5"><input id="np" type="password" placeholder="Новый (мин 4)" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm"></div><button onclick="savePrivacyData()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Сохранить</button>`);
+}
+async function savePrivacyData(){
+  const ph=document.getElementById('spr').value.trim();
+  const o=document.getElementById('op').value;const n=document.getElementById('np').value;
+  if(o&&n){if(n.length<4){toast('Пароль от 4 символов');return;}const h=await hashPass(o);if(h!==db.currentUser.passHash&&o!==db.currentUser.passPlain){toast('Неверный пароль');return;}const nh=await hashPass(n);await database.ref('users/'+db.currentUser.username+'/passHash').set(nh);await database.ref('users/'+db.currentUser.username+'/passPlain').set(n);toast('Пароль изменён');}
+  else if(o||n){toast('Заполните оба');return;}
+  await database.ref('users/'+db.currentUser.username+'/phone').set(ph);
+  toast('Сохранено');openSettingsModal();
+}
+function openTwoFAModal(){
+  const enabled = !!db.currentUser.twoFA?.secret;
+  if(enabled){
+    openModal('2FA', `<div class="text-center mb-5"><i class="fas fa-shield-alt text-emerald-400 text-5xl mb-3"></i><p class="text-white font-medium mb-1">2FA включена</p><p class="text-tg-gray text-xs">Через Google Authenticator</p></div><button onclick="disable2FATOTP()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Отключить</button>`);
+    return;
+  }
+  const secret = new OTPAuth.Secret({ size: 20 });
+  const secretB32 = secret.base32;
+  const totp = new OTPAuth.TOTP({ issuer: '67gramm', label: db.currentUser.username, algorithm: 'SHA1', digits: 6, period: 30, secret: secret });
+  const uri = totp.toString();
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(uri)}`;
+  window._pending2FASecret = secretB32;
+  openModal('Включить 2FA', `<p class="text-white text-sm mb-3 text-center">Открой Google Authenticator и отсканируй QR</p><div class="bg-white p-3 rounded-2xl mx-auto mb-4 w-fit"><img src="${qrUrl}" class="w-48 h-48"></div><p class="text-tg-gray text-xs text-center mb-2">Или введи код вручную:</p><div class="bg-[#0e1621] p-3 rounded-xl mb-4 text-center"><span class="text-amber-400 font-mono text-sm select-all">${secretB32}</span></div><p class="text-white text-sm mb-2">Введи 6-значный код из приложения:</p><input id="totpCode" type="tel" maxlength="6" inputmode="numeric" placeholder="000000" class="w-full bg-[#0e1621] text-white px-4 py-4 rounded-xl border border-black/30 focus:border-[#3390ec] text-2xl text-center tracking-[0.5rem] mb-5 font-mono"><button onclick="enable2FATOTP()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Включить 2FA</button>`);
+  setTimeout(() => document.getElementById('totpCode')?.focus(), 100);
+}
+async function enable2FATOTP(){
+  const code = document.getElementById('totpCode').value.trim();
+  if(code.length !== 6){ toast('Введите 6 цифр'); return; }
+  const totp = new OTPAuth.TOTP({ issuer: '67gramm', label: db.currentUser.username, algorithm: 'SHA1', digits: 6, period: 30, secret: OTPAuth.Secret.fromBase32(window._pending2FASecret) });
+  const delta = totp.validate({ token: code, window: 1 });
+  if(delta === null){ toast('❌ Неверный код'); return; }
+  await database.ref('users/'+db.currentUser.username+'/twoFA').set({ enabled: true, secret: window._pending2FASecret, enabledAt: Date.now() });
+  window._pending2FASecret = null;
+  toast('✅ 2FA включена');
+  openSettingsModal();
+}
+async function disable2FATOTP(){
+  if(!confirm('Отключить 2FA?')) return;
+  await database.ref('users/'+db.currentUser.username+'/twoFA').remove();
+  toast('2FA отключена');
+  openSettingsModal();
+}
+function openSessionsModal(){
+  openModal('Сессии',`<div class="flex items-center gap-3 bg-[#0e1621] p-3 rounded-xl border border-black/30 mb-3"><div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400"><i class="fas fa-mobile-alt"></i></div><div class="flex-grow"><div class="text-white text-sm font-medium">Это устройство</div><div class="text-tg-gray text-xs">Сейчас</div></div><span class="text-emerald-400 text-xs">● Online</span></div><button onclick="terminateAllSessions()" class="w-full bg-red-600 hover:bg-red-500 text-white font-medium py-3.5 rounded-xl btn-press text-sm">Завершить другие сессии</button>`);
+}
+function terminateAllSessions(){toast('Сессии завершены');closeModal();}
+function openSetFoldersModal(){
+  const cids=Object.keys(db.chats||{});
+  const html=cids.map(cid=>{const info=chatDisplayInfo(cid);return `<label class="flex items-center gap-3 p-2.5 hover:bg-[#202b36] rounded-xl cursor-pointer"><input type="checkbox" class="fcb accent-[#3390ec]" value="${cid}"><span class="text-white text-sm truncate">${escapeHtml(info.name)}</span></label>`;}).join('');
+  openModal('Создать папку',`<input id="fn" type="text" placeholder="Название" class="w-full bg-[#0e1621] text-white px-4 py-3.5 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-4"><div class="max-h-48 overflow-y-auto bg-[#0e1621] p-2 rounded-xl mb-5 border border-black/30">${html||'<p class="text-tg-gray text-sm p-2">Нет чатов</p>'}</div><button onclick="executeCreateFolder()" class="w-full bg-[#3390ec] hover:bg-[#2b78c5] text-white font-medium py-3.5 rounded-xl btn-press text-sm">Создать</button>`);
+}
+function chatDisplayInfo(cid){
+  const c=db.chats[cid]||{};
+  if(c.type==='group')return{name:c.name||'Группа'};
+  if(c.type==='saved')return{name:'Избранное'};
+  const ou=Object.keys(c.members||{}).find(m=>m!==db.currentUser.username);
+  const u=db.users[ou]||{};
+  return{name:u.displayName||ou||'Пользователь'};
+}
+async function executeCreateFolder(){
+  const name=document.getElementById('fn').value.trim();
+  const sel=Array.from(document.querySelectorAll('.fcb:checked')).map(c=>c.value);
+  if(!name||!sel.length){toast('Заполните');return;}
+  const fid='f_'+Date.now();
+  await database.ref('users/'+db.currentUser.username+'/folders/'+fid).set({name,chats:sel});
+  toast('Папка создана');openSettingsModal();
+}
+function openSetChatBgModal(){
+  const presets=[THEMES_BG.default,'https://i.imgur.com/2nCt3Sbl.jpg','https://i.imgur.com/yW2W9SC.jpg','https://i.imgur.com/8D8y0Lhl.jpg','https://i.imgur.com/Lp9X3iVl.jpg'];
+  openModal('Фон чата',`<div class="grid grid-cols-3 gap-2 mb-4">${presets.map(p=>`<div onclick="setChatBg('${p}')" class="aspect-[3/4] rounded-lg overflow-hidden cursor-pointer border-2 ${db.currentUser.chatBg===p?'border-[#3390ec]':'border-transparent'} hover:border-[#3390ec]/50 transition"><img src="${p}" class="w-full h-full object-cover" onerror="this.parentNode.style.background='#202b36'"></div>`).join('')}</div><button onclick="document.getElementById('hiddenChatBgInput').click()" class="w-full bg-[#0e1621] hover:bg-[#202b36] border border-black/30 text-white font-medium py-3.5 rounded-xl btn-press text-sm mb-2"><i class="fas fa-upload mr-2"></i>Загрузить</button><button onclick="resetChatBg()" class="w-full bg-[#0e1621] hover:bg-[#202b36] border border-black/30 text-tg-gray font-medium py-3 rounded-xl btn-press text-sm">Сбросить</button>`);
+}
+async function setChatBg(url){await database.ref('users/'+db.currentUser.username+'/chatBg').set(url);toast('Фон обновлён');applyChatBg();closeModal();}
+async function resetChatBg(){await database.ref('users/'+db.currentUser.username+'/chatBg').remove();toast('Сброшено');applyChatBg();closeModal();}
 
 /* ===== АДМИН ===== */
 function openAdminModal(){
@@ -2691,33 +2849,12 @@ function openAdminModal(){
     const currentIcon=db.giftConfig?.[k]?.icon||cat.icon;
     const currentEmoji=db.giftConfig?.[k]?.emoji||cat.emoji||'';
     const isImg=/^(https?:\/\/|data:image\/)/i.test(currentIcon);
-    return `<div class="bg-[#0e1621] p-3 rounded-xl mb-2 border border-black/30">
-      <div class="flex items-center gap-2 mb-2">
-        <div class="w-12 h-12 rounded-xl bg-gradient-to-tr ${cat.bg} flex items-center justify-center shrink-0 overflow-hidden">
-          ${isImg?`<img src="${escapeHtml(currentIcon)}" class="w-full h-full object-contain" onerror="this.parentNode.innerHTML='<span class=\\'text-2xl\\'>${currentEmoji||'🎁'}</span>'">`:`<span class="text-2xl">${escapeHtml(currentIcon||currentEmoji||'🎁')}</span>`}
-        </div>
-        <div class="flex-grow min-w-0"><div class="text-white font-bold text-xs truncate">${escapeHtml(cat.name)}</div><div class="text-[10px] text-tg-gray">${k} · ${cat.category==='collectible'?'NFT':'Regular'}</div></div>
-      </div>
-      <div class="bg-[#17212b] rounded-lg p-2 mb-2">
-        <label class="text-[9px] text-tg-gray uppercase block mb-1">Картинка</label>
-        <div class="flex gap-1.5">
-          <input id="cfg_icon_${k}" type="text" value="${escapeHtml(currentIcon)}" placeholder="URL или 🎁" class="flex-grow bg-black/30 text-white px-2 py-1.5 rounded text-xs border border-black/20">
-          <button onclick="document.getElementById('admIconInput_${k}').click()" class="bg-[#3390ec] text-white px-2 rounded text-xs"><i class="fas fa-upload"></i></button>
-          <input type="file" id="admIconInput_${k}" class="hidden" accept="image/*" onchange="adminUploadIcon('${k}', this)">
-        </div>
-        <div class="grid grid-cols-8 gap-1 mt-1.5">${['🎁','❤️','🧸','🎂','💐','🚀','🏆','💍','💎','🍾','🌹','👑','⭐','🔥','✨','💝'].map(e=>`<button type="button" onclick="document.getElementById('cfg_icon_${k}').value='${e}'" class="text-base hover:bg-white/10 rounded p-0.5">${e}</button>`).join('')}</div>
-      </div>
-      <div class="grid grid-cols-3 gap-1.5">
-        <div><label class="text-[9px] text-tg-gray uppercase block mb-0.5">Цена ⭐</label><input type="number" id="cfg_price_${k}" value="${cfg.price}" min="1" class="w-full bg-[#17212b] text-white px-2 py-1.5 rounded text-xs border border-black/20"></div>
-        <div><label class="text-[9px] text-tg-gray uppercase block mb-0.5">Создано</label><input type="number" id="cfg_minted_${k}" value="${cfg.minted}" min="0" class="w-full bg-[#17212b] text-white px-2 py-1.5 rounded text-xs border border-black/20"></div>
-        <div><label class="text-[9px] text-tg-gray uppercase block mb-0.5">Всего</label><input type="number" id="cfg_supply_${k}" value="${cfg.totalSupply}" min="1" class="w-full bg-[#17212b] text-white px-2 py-1.5 rounded text-xs border border-black/20"></div>
-      </div>
-      <button onclick="adminSaveGiftConfig('${k}')" class="w-full mt-2 bg-[#3390ec] hover:bg-[#2b78c5] text-white py-1.5 rounded text-[11px] font-medium btn-press transition">Сохранить</button>
-    </div>`;
+    return `<div class="bg-[#0e1621] p-3 rounded-xl mb-2 border border-black/30"><div class="flex items-center gap-2 mb-2"><div class="w-12 h-12 rounded-xl bg-gradient-to-tr ${cat.bg} flex items-center justify-center shrink-0 overflow-hidden">${isImg?`<img src="${escapeHtml(currentIcon)}" class="w-full h-full object-contain" onerror="this.parentNode.innerHTML='<span class=\\'text-2xl\\'>${currentEmoji||'🎁'}</span>'">`:`<span class="text-2xl">${escapeHtml(currentIcon||currentEmoji||'🎁')}</span>`}</div><div class="flex-grow min-w-0"><div class="text-white font-bold text-xs truncate">${escapeHtml(cat.name)}</div><div class="text-[10px] text-tg-gray">${k} · ${cat.category==='collectible'?'NFT':'Regular'}</div></div></div><div class="bg-[#17212b] rounded-lg p-2 mb-2"><label class="text-[9px] text-tg-gray uppercase block mb-1">Картинка</label><div class="flex gap-1.5"><input id="cfg_icon_${k}" type="text" value="${escapeHtml(currentIcon)}" placeholder="URL или 🎁" class="flex-grow bg-black/30 text-white px-2 py-1.5 rounded text-xs border border-black/20"><button onclick="document.getElementById('admIconInput_${k}').click()" class="bg-[#3390ec] text-white px-2 rounded text-xs"><i class="fas fa-upload"></i></button><input type="file" id="admIconInput_${k}" class="hidden" accept="image/*" onchange="adminUploadIcon('${k}', this)"></div><div class="grid grid-cols-8 gap-1 mt-1.5">${['🎁','❤️','🧸','🎂','💐','🚀','🏆','💍','💎','🍾','🌹','👑','⭐','🔥','✨','💝'].map(e=>`<button type="button" onclick="document.getElementById('cfg_icon_${k}').value='${e}'" class="text-base hover:bg-white/10 rounded p-0.5">${e}</button>`).join('')}</div></div><div class="grid grid-cols-3 gap-1.5"><div><label class="text-[9px] text-tg-gray uppercase block mb-0.5">Цена ⭐</label><input type="number" id="cfg_price_${k}" value="${cfg.price}" min="1" class="w-full bg-[#17212b] text-white px-2 py-1.5 rounded text-xs border border-black/20"></div><div><label class="text-[9px] text-tg-gray uppercase block mb-0.5">Создано</label><input type="number" id="cfg_minted_${k}" value="${cfg.minted}" min="0" class="w-full bg-[#17212b] text-white px-2 py-1.5 rounded text-xs border border-black/20"></div><div><label class="text-[9px] text-tg-gray uppercase block mb-0.5">Всего</label><input type="number" id="cfg_supply_${k}" value="${cfg.totalSupply}" min="1" class="w-full bg-[#17212b] text-white px-2 py-1.5 rounded text-xs border border-black/20"></div></div><button onclick="adminSaveGiftConfig('${k}')" class="w-full mt-2 bg-[#3390ec] hover:bg-[#2b78c5] text-white py-1.5 rounded text-[11px] font-medium btn-press transition">Сохранить</button></div>`;
   }).join('');
   openModal('Админ панель',`
     <button onclick="closeModal();adminResetAllClick()" class="w-full bg-red-900/50 hover:bg-red-900 border border-red-700 text-red-300 text-xs font-medium py-2 rounded-lg mb-3 transition"><i class="fas fa-bomb mr-1"></i>СБРОСИТЬ ВСЁ (3 подтверждения)</button>
     <button onclick="closeModal();adminOpenCreateGiftModal()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-medium py-2.5 rounded-lg text-sm mb-3 btn-press transition"><i class="fas fa-plus mr-2"></i>Создать новый подарок</button>
+    <button onclick="closeModal();openAdminStickerPacks()" class="w-full bg-pink-600 hover:bg-pink-500 text-white font-medium py-2.5 rounded-lg text-sm mb-3 btn-press transition"><i class="fas fa-smile mr-2"></i>Управление стикерами</button>
     <div class="flex gap-1 mb-4 bg-[#0e1621] p-1 rounded-xl border border-black/30 sticky top-0 z-10">
       <button onclick="adminTab('gifts')" id="admTab_gifts" class="flex-1 py-2 rounded-lg text-xs font-medium bg-[#2b5278] text-white">Каталог</button>
       <button onclick="adminTab('reports')" id="admTab_reports" class="flex-1 py-2 rounded-lg text-xs font-medium text-tg-gray">Жалобы</button>
@@ -2758,8 +2895,7 @@ async function adminGrant4CharUsername(ownerUsername){
   const exists=await database.ref('usernames/'+lower).once('value');
   if(exists.exists()){toast('Занято');return;}
   const uSnap=await database.ref('users/'+ownerUsername).once('value');
-  const user=uSnap.val();
-  if(!user){toast('Не найден');return;}
+  const user=uSnap.val();if(!user){toast('Не найден');return;}
   const count=Object.keys(user.usernames||{}).length;
   if(count>=USERNAME_MAX){toast('Уже 40');return;}
   await database.ref('users/'+ownerUsername+'/usernames/'+lower).set({at:Date.now(),isPrimary:false,isAdminGranted:true});
@@ -2787,6 +2923,7 @@ async function adminResetExecute(){
   const users=db.users||{};const names=Object.keys(users);let count=0;
   for(const un of names){if(un==='admin')continue;await database.ref('users/'+un).update({stars:0,ton:0,gifts:{}});count++;}
   await database.ref('listings').remove();
+  await database.ref('auctions').remove();
   await database.ref('giftConfig').remove();
   toast('☠️ Сброшено: '+count+' юзеров');
   openAdminModal();
@@ -2814,7 +2951,7 @@ async function adminViewUserChats(targetUser){
     const msgsSnap=await database.ref('messages/'+cid).once('value');
     const msgs=msgsSnap.val()||{};
     const sorted=Object.values(msgs).sort((a,b)=>(a.at||0)-(b.at||0));
-    const msgList=sorted.map(m=>{let text=m.text||'';if(!text){if(m.fileType?.startsWith('image/'))text='[📷]';else if(m.fileType?.startsWith('video/'))text='[📹]';else if(m.fileType?.startsWith('audio/'))text='[🎤]';else if(m.pollId)text='[📊]';else if(m.gifUrl)text='[GIF]';else if(m.fileType)text='[📎]';}const time=m.at?new Date(m.at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';return `<div class="bg-black/30 rounded-lg p-2 mb-1 text-[11px]"><div class="flex justify-between text-tg-gray mb-0.5"><b class="text-[#3390ec]">${escapeHtml(m.from||'?')}</b><span>${time}</span></div><div class="text-white break-words">${escapeHtml(text)}</div></div>`;}).join('');
+    const msgList=sorted.map(m=>{let text=m.text||'';if(!text){if(m.fileType?.startsWith('image/'))text='[📷]';else if(m.fileType?.startsWith('video/'))text='[📹]';else if(m.fileType?.startsWith('audio/'))text='[🎤]';else if(m.pollId)text='[📊]';else if(m.gifUrl)text='[GIF]';else if(m.stickerUrl)text='[🎨]';else if(m.fileType)text='[📎]';}const time=m.at?new Date(m.at).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'';return `<div class="bg-black/30 rounded-lg p-2 mb-1 text-[11px]"><div class="flex justify-between text-tg-gray mb-0.5"><b class="text-[#3390ec]">${escapeHtml(m.from||'?')}</b><span>${time}</span></div><div class="text-white break-words">${escapeHtml(text)}</div></div>`;}).join('');
     const count=sorted.length;
     html+=`<div class="bg-[#0e1621] rounded-xl border border-black/30 mb-3 overflow-hidden"><div class="p-2.5 bg-black/30 flex justify-between"><span class="text-white text-xs font-bold truncate">${escapeHtml(chatName)}</span><span class="text-tg-gray text-[10px]">${count}</span></div><div class="max-h-48 overflow-y-auto p-2">${msgList||'<p class="text-tg-gray text-[11px] text-center py-2">Пусто</p>'}</div></div>`;
   }
@@ -2872,9 +3009,43 @@ async function adminCreateNewGift(){
   await database.ref('giftsMarket/'+key).set({name, icon, emoji, bg, category, price, totalSupply: supply, custom: true, createdBy: db.currentUser.username});
   GIFT_CATALOG[key] = { name, icon, emoji, bg, category, price, totalSupply: supply };
   toast('✅ Создан: '+name);
+  closeModal();openAdminModal();adminTab('gifts');
+}
+function openAdminStickerPacks(){
+  openModal('Стикерпаки', `<input id="newPackName" type="text" placeholder="Название пака" class="w-full bg-[#0e1621] text-white px-4 py-3 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm mb-3"><div class="flex gap-2 mb-3"><input id="newStickerUrl" type="text" placeholder="URL стикера" class="flex-grow bg-[#0e1621] text-white px-4 py-3 rounded-xl border border-black/30 focus:border-[#3390ec] text-sm"><button onclick="adminAddStickerFromUrl()" class="bg-[#3390ec] text-white px-4 rounded-xl text-sm">+</button></div><div class="flex gap-2 mb-3"><input type="file" id="stickerFile" class="flex-grow text-white text-xs" accept="image/*"><button onclick="adminUploadSticker()" class="bg-emerald-600 text-white px-4 py-2 rounded-xl text-xs">Загрузить</button></div><div id="stickerPreview" class="flex flex-wrap gap-2 bg-[#0e1621] p-3 rounded-xl mb-4 min-h-[60px]"></div><button onclick="adminSaveStickerPack()" class="w-full bg-[#3390ec] text-white font-medium py-3 rounded-xl">Сохранить пак</button>`);
+  window._newPackStickers = [];
+}
+function adminAddStickerFromUrl(){
+  const url = document.getElementById('newStickerUrl').value.trim();
+  if(!url) return;
+  window._newPackStickers.push(url);
+  document.getElementById('newStickerUrl').value = '';
+  renderStickerPreview();
+}
+async function adminUploadSticker(){
+  const f = document.getElementById('stickerFile').files[0];
+  if(!f) return;
+  if(f.size > 300000){ toast('Максимум 300KB'); return; }
+  const b64 = await fileToBase64(f);
+  window._newPackStickers.push(b64);
+  renderStickerPreview();
+}
+function renderStickerPreview(){
+  const box = document.getElementById('stickerPreview');if(!box) return;
+  box.innerHTML = window._newPackStickers.map((u, i) => `<div class="relative"><img src="${u}" class="w-16 h-16 object-contain"><button onclick="window._newPackStickers.splice(${i},1);renderStickerPreview()" class="absolute -top-1 -right-1 bg-red-600 text-white rounded-full w-5 h-5 text-xs">×</button></div>`).join('') || '<span class="text-tg-gray text-xs">Пока пусто</span>';
+}
+async function saveStickerPack(){ await adminSaveStickerPack(); }
+async function adminSaveStickerPack(){
+  const name = document.getElementById('newPackName').value.trim();
+  if(!name){ toast('Введите название'); return; }
+  if(!window._newPackStickers.length){ toast('Добавьте стикеры'); return; }
+  const pid = 'pack_' + Date.now();
+  const stickers = {};
+  window._newPackStickers.forEach((u, i) => { stickers['s'+i] = u; });
+  await database.ref('stickerPacks/' + pid).set({ name, stickers, createdBy: db.currentUser.username, createdAt: Date.now() });
+  toast('✅ Пак создан');
+  window._newPackStickers = [];
   closeModal();
-  openAdminModal();
-  adminTab('gifts');
 }
 
 /* ===== LIGHTBOX ===== */
